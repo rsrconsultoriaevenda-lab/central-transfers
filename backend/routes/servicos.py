@@ -16,7 +16,8 @@ def listar(db: Session = Depends(get_db)):
 @router.post("/")
 def criar(servico: schemas.Servico, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
     try:
-        novo = models.Servico(**servico.dict(exclude={"id"}))
+        # model_dump é o padrão para Pydantic v2 usado no seu requirements.txt
+        novo = models.Servico(**servico.model_dump(exclude={"id"}))
         db.add(novo)
         db.commit()
         db.refresh(novo)

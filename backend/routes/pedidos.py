@@ -22,12 +22,12 @@ def listar(db: Session = Depends(get_db), current_user: models.Usuario = Depends
 def obter_estatisticas(db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
     # Busca contagem aglutinada por status
     stats = db.query(
-        models.Pedido.status, 
+        models.Pedido.status,
         func.count(models.Pedido.id)
     ).group_by(models.Pedido.status).all()
-    
+
     stats_dict = {status: count for status, count in stats}
-    
+
     # Soma do faturamento (apenas pedidos pagos, aceitos ou concluídos)
     faturamento = db.query(func.sum(models.Pedido.valor)).filter(
         models.Pedido.status.in_(["PAGO", "ACEITO", "CONCLUIDO"])
@@ -59,7 +59,7 @@ def buscar_por_id(pedido_id: int, db: Session = Depends(get_db)):
 @router.post("/")
 def criar(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
     try:
-        novo = models.Pedido(**pedido.dict())
+        novo = models.Pedido(**pedido.model_dump())
         db.add(novo)
         db.commit()
         db.refresh(novo)
@@ -97,10 +97,11 @@ def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depen
 
 @router.put("/{pedido_id}/status")
 def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
-    pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == pedido_id).first()
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
-    
+
     pedido.status = status_data.status.upper()
     db.commit()
     db.refresh(pedido)

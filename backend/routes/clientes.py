@@ -16,7 +16,7 @@ def listar_clientes(db: Session = Depends(get_db), current_user: models.Usuario 
 @router.post("/")
 def criar_cliente(cliente: schemas.Cliente, db: Session = Depends(get_db)):
     try:
-        novo = models.Cliente(**cliente.dict(exclude={"id"}))
+        novo = models.Cliente(**cliente.model_dump(exclude={"id"}))
         db.add(novo)
         db.commit()
         db.refresh(novo)

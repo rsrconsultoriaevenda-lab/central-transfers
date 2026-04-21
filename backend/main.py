@@ -9,43 +9,54 @@ from backend.auth import pwd_context
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+# Configuração básica de log
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 app = FastAPI(title="Central Transfers API")
 
 # Configura as origens permitidas (URLs do Vercel)
 allowed_origins_raw = os.getenv("ALLOWED_ORIGINS", "*")
 allowed_origins = [origin.strip() for origin in allowed_origins_raw.split(",")]
 
-# Se ALLOWED_ORIGINS for '*', não podemos usar allow_credentials=True
-# Esta lógica ajusta automaticamente para evitar o erro "Failed to fetch"
-allow_all = "*" in allowed_origins
+# Para JWT funcionar com allow_credentials=True, ALLOWED_ORIGINS NÃO PODE ser "*".
+# O usuário DEVE configurar ALLOWED_ORIGINS no Render com as URLs reais dos frontends.
+# Se ALLOWED_ORIGINS não for definido ou for "*", o navegador bloqueará a requisição.
+# Vamos assumir que ALLOWED_ORIGINS será configurado corretamente em produção.
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if allow_all else allowed_origins,
-    allow_credentials=not allow_all,
+    allow_origins=allowed_origins, # Deve ser uma lista de URLs específicas em produção
+    allow_credentials=True,        # Necessário para JWT nos headers
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# cria tabelas automaticamente
-models.Base.metadata.create_all(bind=engine)
-
-
 @app.on_event("startup")
 def startup_event():
     """Automação de Inicialização: Cria admin e sementes se o banco estiver vazio."""
+    try:
+        # Cria tabelas se não existirem
+        models.Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        logging.error(f"❌ Erro ao criar tabelas: {e}")
+
     db = SessionLocal()
     try:
         # 1. Garantir Usuário Admin Padrão
-        admin_exists = db.query(models.Usuario).first()
-        if not admin_exists:
-            print("🤖 Automação: Criando usuário administrador padrão...")
+        admin = db.query(models.Usuario).filter(models.Usuario.username == "admin").first()
+        if not admin:
+            logging.info("🤖 Automação: Criando usuário administrador padrão (admin)...")
             hashed_pwd = pwd_context.hash("admin123")
             default_admin = models.Usuario(
                 username="admin", hashed_password=hashed_pwd)
             db.add(default_admin)
             try:
                 db.commit()
+                logging.info("✅ Admin criado com sucesso!")
             except Exception:
                 db.rollback()
 
@@ -54,7 +65,7 @@ def startup_event():
         services_exist = db.execute(
             text("SELECT 1 FROM servicos LIMIT 1")).first()
         if not services_exist:
-            print("🤖 Automação: Populando serviços iniciais...")
+            logging.info("🤖 Automação: Populando serviços iniciais...")
             servicos_iniciais = [
                 {"nome": "Tour Gramado", "tipo": "Tour",
                     "descricao": "Passeio pelos principais pontos turísticos."},
@@ -68,7 +79,7 @@ def startup_event():
             db.commit()
 
     except Exception as e:
-        print(f"❌ Erro na automação de inicialização: {e}")
+        logging.error(f"❌ Erro na automação de inicialização: {e}")
     finally:
         db.close()
 

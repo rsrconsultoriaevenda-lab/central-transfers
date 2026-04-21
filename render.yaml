@@ -16,9 +16,6 @@ services:
           name: central-db
           property: connectionString
 
-      - key: ALLOWED_ORIGINS
-        value: "*"
-
       - key: WHATSAPP_TOKEN
         sync: false
 
@@ -43,10 +40,7 @@ services:
 
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: central-transfers-api
-          property: host
+        value: "https://central-transfers-api.onrender.com"
 
   # Painel Admin
   - type: web
@@ -60,10 +54,7 @@ services:
 
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: central-transfers-api
-          property: host
+        value: "https://central-transfers-api.onrender.com"
 
 databases:
   - name: central-db

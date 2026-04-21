@@ -1,12 +1,14 @@
-from backend.auth import pwd_context
-from backend.models import Usuario, Base
 from backend.database import SessionLocal, engine
+from backend.models import Usuario, Base
+from backend.auth import pwd_context
 import sys
 import os
 import getpass
 
-# Adiciona o diretório raiz ao path para que o Python encontre o módulo 'backend'
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Adiciona o diretório raiz ao path antes das importações do projeto
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
 
 
 def create_initial_admin():

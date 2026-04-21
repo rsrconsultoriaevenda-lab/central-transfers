@@ -35,6 +35,7 @@ class Servico(BaseModel):
     nome: str
     tipo: str   
     descricao: str
+    valor_padrao: Optional[Decimal] = 0.0
     id: Optional[int]
     class Config:
         from_attributes = True

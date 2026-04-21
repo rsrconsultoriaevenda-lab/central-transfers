@@ -18,8 +18,11 @@ if DATABASE_URL:
     # O SQLAlchemy exige 'postgresql://' mas o Render/Heroku as vezes entregam 'postgres://'
     if DATABASE_URL.startswith("postgres://"):
         DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-else:
+elif all([DB_USER, DB_PASSWORD, DB_HOST, DB_NAME]):
     DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+else:
+    # Fallback para SQLite local caso nenhuma configuração seja encontrada
+    DATABASE_URL = "sqlite:///./local.db"
 
 engine = create_engine(
     DATABASE_URL,

@@ -43,6 +43,7 @@ class Servico(Base):
     nome = Column(String(255), nullable=False)
     tipo = Column(String(255), nullable=False)
     descricao = Column(Text, nullable=False)
+    valor_padrao = Column(Numeric(10, 2), default=0.0)
 
     pedidos = relationship("Pedido", back_populates="servico")
 

@@ -46,7 +46,7 @@ services:
         fromService:
           type: web
           name: central-transfers-api
-          property: url
+          property: host
 
   # Painel Admin
   - type: web
@@ -63,7 +63,7 @@ services:
         fromService:
           type: web
           name: central-transfers-api
-          property: url
+          property: host
 
 databases:
   - name: central-db

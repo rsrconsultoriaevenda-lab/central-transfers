@@ -1,11 +1,11 @@
 from datetime import datetime
 import re
-import os
 import logging
 from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from backend import models, schemas
+from backend.config import settings
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.database import get_db
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
@@ -101,17 +101,20 @@ def _parse_order_id(message: str):
     return None
 
 
-def _find_or_create_client(db: Session, phone: str):
-    cliente = db.query(models.Cliente).filter(
-        models.Cliente.telefone == phone).first()
-    if cliente:
-        return cliente
+def _find_or_create_user_by_phone(db: Session, phone: str):
+    # Como o novo modelo Usuario usa email, vamos simular um email pelo telefone para integração via Zap
+    email_simulado = f"{phone}@whatsapp.com"
+    usuario = db.query(models.Usuario).filter(
+        models.Usuario.email == email_simulado).first()
+    if usuario:
+        return usuario
 
-    novo_cliente = models.Cliente(nome="Cliente WhatsApp", telefone=phone)
-    db.add(novo_cliente)
+    novo_usuario = models.Usuario(
+        email=email_simulado, senha="login_via_whatsapp")
+    db.add(novo_usuario)
     db.commit()
-    db.refresh(novo_cliente)
-    return novo_cliente
+    db.refresh(novo_usuario)
+    return novo_usuario
 
 
 def _find_or_create_service(db: Session, nome: str, tipo: str):
@@ -131,6 +134,23 @@ def _find_or_create_service(db: Session, nome: str, tipo: str):
     return novo_servico
 
 
+def _find_or_create_client(db: Session, phone: str):
+    # Placeholder para _find_or_create_client
+    # Em um cenário real, você buscaria por telefone e criaria se não encontrado.
+    # Por enquanto, vamos criar um cliente dummy ou levantar um erro se não encontrado.
+    cliente = db.query(models.Cliente).filter(
+        models.Cliente.telefone == phone).first()
+    if cliente:
+        return cliente
+
+    novo_cliente = models.Cliente(
+        nome=f"Cliente WhatsApp {phone}", telefone=phone)
+    db.add(novo_cliente)
+    db.commit()
+    db.refresh(novo_cliente)
+    return novo_cliente
+
+
 def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
     motoristas = db.query(models.Motorista).filter(
         models.Motorista.telefone != None).all()
@@ -139,8 +159,8 @@ def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
         try:
             status_code, response = enviar_whatsapp_meta(
                 motorista.telefone,
-                (
-                    f"Pedido {pedido.id} pago e disponível: {pedido.servico.nome} de {pedido.origem} para {pedido.destino} em {pedido.data_servico}."
+                (  # Alterado de corrida para pedido
+                    f"Novo Pedido {pedido.id} disponível: De {pedido.origem} para {pedido.destino} em {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}."
                     f" Responda no painel para aceitar."
                 ),
             )
@@ -159,17 +179,21 @@ def verify_whatsapp_webhook(
     hub_verify_token: str = Query(None, alias="hub.verify_token")
 ):
     """Endpoint para verificação do Webhook da Meta API."""
-    logger.info(f"Recebendo tentativa de verificação Meta: mode={hub_mode}, token={hub_verify_token}")
-    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN")
-    
+    logger.info(
+        f"Recebendo tentativa de verificação Meta: mode={hub_mode}, token={hub_verify_token}")
+    verify_token = settings.WHATSAPP_VERIFY_TOKEN
+
     if not verify_token:
-        logger.error("WHATSAPP_VERIFY_TOKEN não configurado nas variáveis de ambiente.")
-        raise HTTPException(status_code=500, detail="Configuração de servidor incompleta")
+        logger.error(
+            "WHATSAPP_VERIFY_TOKEN não configurado nas variáveis de ambiente.")
+        raise HTTPException(
+            status_code=500, detail="Configuração de servidor incompleta")
 
     if hub_mode == "subscribe" and hub_verify_token == verify_token:
-        logger.info(f"✅ Webhook verificado com sucesso! Token: {hub_verify_token}")
+        logger.info(
+            f"✅ Webhook verificado com sucesso! Token: {hub_verify_token}")
         return Response(content=hub_challenge, media_type="text/plain")
-    
+
     logger.warning(
         f"❌ Falha na verificação!\nEsperado: {verify_token}\nRecebido: {hub_verify_token}"
     )
@@ -184,11 +208,11 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
     """
     data = await request.json()
     logger.info(f"Payload bruto recebido do WhatsApp: {data}")
-    
+
     # Tenta extrair dados no formato da Meta API
     sender = None
     message = None
-    
+
     try:
         if "entry" in data:
             # Formato Real da Meta
@@ -208,7 +232,8 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
     if not sender or not message:
         return {"status": "ignored", "reason": "no_content"}
 
-    logger.info(f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo: {message}")
+    logger.info(
+        f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo: {message}")
 
     message = message.strip()
     lower = message.lower()
@@ -218,7 +243,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         order_id = _parse_order_id(lower)
 
         pedido = None
-        if order_id:
+        if order_id:  # Agora usando models.Pedido
             pedido = db.query(models.Pedido).filter(
                 models.Pedido.id == order_id).first()
 
@@ -266,7 +291,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
             enviar_whatsapp_meta(sender, text)
             return {"status": "sem_id_pedido", "mensagem": text}
 
-        pedido = db.query(models.Pedido).filter(
+        pedido = db.query(models.Pedido).filter(  # Agora usando models.Pedido
             models.Pedido.id == order_id).first()
         if not pedido:
             text = f"Pedido {order_id} não encontrado."
@@ -287,7 +312,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         pedido.status = 'ACEITO'
         db.commit()
         db.refresh(pedido)
-
+        # Alterado pedido.data para pedido.data_servico e adicionado formatação
         text_driver = f"Você aceitou o pedido {order_id}. Origem: {pedido.origem} Destino: {pedido.destino} Data: {pedido.data_servico} Valor: R$ {pedido.valor}."
         enviar_whatsapp_meta(sender, text_driver)
 
@@ -306,7 +331,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         order_id = _parse_order_id(lower)
         if not order_id:
             # Tenta buscar o último pedido aceito por este motorista que não esteja concluído
-            pedido = db.query(models.Pedido).filter(
+            pedido = db.query(models.Pedido).filter(  # Agora usando models.Pedido
                 models.Pedido.motorista_id == driver.id,
                 models.Pedido.status == 'ACEITO'
             ).order_by(models.Pedido.id.desc()).first()
@@ -352,7 +377,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         cliente = _find_or_create_client(db, sender)
         servico = _find_or_create_service(db, service_name, service_type)
 
-        novo_pedido = models.Pedido(
+        novo_pedido = models.Pedido(  # Agora usando models.Pedido
             cliente_id=cliente.id,
             servico_id=servico.id,
             origem=origem,

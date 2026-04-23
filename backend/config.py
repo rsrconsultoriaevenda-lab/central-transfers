@@ -1,25 +1,44 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field
+import os
+
 
 class Settings(BaseSettings):
-    # Configurações do Banco de Dados
+    # =========================
+    # 🔐 DATABASE (PRIORIDADE: ENV)
+    # =========================
+    DATABASE_URL: str | None = None
+
+    # Fallback local (DEV)
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
     DB_PASSWORD: str = "123456"
     DB_NAME: str = "central_transfers"
 
-    # Configurações da API do WhatsApp (Meta)
+    # =========================
+    # 📲 WHATSAPP
+    # =========================
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_API_VERSION: str = "v20.0"
     WHATSAPP_VERIFY_TOKEN: str = "central_secret_token"
 
+    # =========================
+    # 🔗 DATABASE URL FINAL
+    # =========================
     @computed_field
     @property
     def database_url(self) -> str:
-        """Gera a string de conexão para o SQLAlchemy a partir dos campos individuais."""
-        return f"mysql+mysqlconnector://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # 👉 PRODUÇÃO (Render / Aiven)
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+
+        # 👉 LOCAL (fallback)
+        return (
+        f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
+        f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+    )
 
     model_config = SettingsConfigDict(
         env_file="backend/.env",
@@ -27,4 +46,5 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-settings = Settings()
+
+    settings = Settings()

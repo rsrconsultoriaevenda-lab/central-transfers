@@ -1,4 +1,3 @@
-import os
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -12,18 +11,18 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Central Transfers API")
 
 # =============================
-# 🔐 CORS (LIBERADO PARA TESTES)
+# 🔐 CORS
 # =============================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # depois restringimos
+    allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # =============================
-# 📦 CRIA TABELAS (DEV ONLY)
+# 📦 CRIA TABELAS
 # =============================
 Base.metadata.create_all(bind=engine)
 
@@ -38,12 +37,11 @@ app.include_router(pedidos.router)
 app.include_router(whatsapp.router)
 
 # =============================
-# 🌱 SEED PARA TESTES
+# 🌱 SEED
 # =============================
 @app.post("/seed")
 def seed_database(db: Session = Depends(get_db)):
     try:
-        # Criar cliente
         cliente = models.Cliente(
             nome="Cliente Teste",
             telefone="5499999999",
@@ -51,7 +49,6 @@ def seed_database(db: Session = Depends(get_db)):
         )
         db.add(cliente)
 
-        # Criar motorista
         motorista = models.Motorista(
             nome="Motorista Exemplo",
             telefone="5488888888",
@@ -63,10 +60,9 @@ def seed_database(db: Session = Depends(get_db)):
         )
         db.add(motorista)
 
-        # Criar serviço (compatível com ENUM do banco)
         servico = models.Servico(
             nome="Transfer POA x Gramado",
-            tipo="TRANSFER",  # ✔ compatível com banco
+            tipo="TRANSFER",
             descricao="Transfer de luxo",
             ativo=True
         )
@@ -76,7 +72,6 @@ def seed_database(db: Session = Depends(get_db)):
         db.refresh(cliente)
         db.refresh(servico)
 
-        # Criar pedido (com data obrigatória)
         pedido = models.Pedido(
             cliente_id=cliente.id,
             servico_id=servico.id,

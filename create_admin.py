@@ -19,23 +19,23 @@ def create_initial_admin():
 
     db = SessionLocal()
     try:
-        username = input("Nome de usuário: ")
+        email = input("E-mail do administrador: ")
 
         user_exists = db.query(Usuario).filter(
-            Usuario.username == username).first()
+            Usuario.email == email).first()
         if user_exists:
-            print(f"Erro: O usuário '{username}' já existe.")
+            print(f"Erro: O usuário '{email}' já existe.")
             return
 
         password = getpass.getpass("Senha: ")
+        role = "admin"
 
         hashed_pwd = pwd_context.hash(password)
-        new_user = Usuario(username=username, hashed_password=hashed_pwd)
+        new_user = Usuario(email=email, senha=hashed_pwd, role=role)
 
         db.add(new_user)
         db.commit()
-        print(
-            f"\nUsuário '{username}' criado com sucesso! Agora você pode fazer login no painel.")
+        print(f"\nUsuário '{email}' criado com sucesso como ADMIN!")
     except Exception as e:
         db.rollback()
         print(f"\nErro ao criar usuário: {e}")

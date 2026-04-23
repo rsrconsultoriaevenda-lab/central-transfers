@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from typing import List
 from backend.database import get_db
 from backend import models, schemas
-from backend.auth import get_current_user
+from backend.auth import get_usuario_atual
 
 router = APIRouter(prefix="/clientes", tags=["Clientes"])
 
 
-@router.get("/", response_model=List[schemas.Cliente])
-def listar_clientes(db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+@router.get("/", response_model=List[schemas.Cliente])  # type: ignore
+def listar_clientes(db: Session = Depends(get_db)):
     return db.query(models.Cliente).all()
 
 

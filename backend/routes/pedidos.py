@@ -4,13 +4,13 @@ from sqlalchemy import func
 from typing import List
 from backend.database import get_db
 from backend import models, schemas
-from backend.auth import get_current_user
+from backend.auth import get_usuario_atual
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
-@router.get("/", response_model=List[schemas.PedidoOut])
-def listar(db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+@router.get("/", response_model=List[schemas.PedidoOut])  # type: ignore
+def listar(db: Session = Depends(get_db)):
     return db.query(models.Pedido).options(
         joinedload(models.Pedido.cliente),
         joinedload(models.Pedido.servico),
@@ -19,7 +19,7 @@ def listar(db: Session = Depends(get_db), current_user: models.Usuario = Depends
 
 
 @router.get("/stats", response_model=schemas.DashboardStats)
-def obter_estatisticas(db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+def obter_estatisticas(db: Session = Depends(get_db)):
     # Busca contagem aglutinada por status
     stats = db.query(
         models.Pedido.status,
@@ -70,7 +70,7 @@ def criar(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{pedido_id}/aceitar")
-def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
 
@@ -96,7 +96,7 @@ def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depen
 
 
 @router.put("/{pedido_id}/status")
-def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:
@@ -108,8 +108,8 @@ def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db
     return pedido
 
 
-@router.delete("/{pedido_id}")
-def excluir(pedido_id: int, db: Session = Depends(get_db), current_user: models.Usuario = Depends(get_current_user)):
+@router.delete("/{pedido_id}")  # type: ignore
+def excluir(pedido_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:

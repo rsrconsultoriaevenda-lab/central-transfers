@@ -10,11 +10,11 @@ class Settings(BaseSettings):
     DATABASE_URL: str | None = None
 
     # Fallback local (DEV)
-    DB_HOST: str = "localhost"
-    DB_PORT: int = 3306
-    DB_USER: str = "root"
-    DB_PASSWORD: str = "123456"
-    DB_NAME: str = "central_transfers"
+    DB_HOST: str = os.getenv("DB_HOST", "localhost")
+    DB_PORT: int = int(os.getenv("DB_PORT", 3306))
+    DB_USER: str = os.getenv("DB_USER", "root")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD", "123456")
+    DB_NAME: str = os.getenv("DB_NAME", "central_transfers")
 
     # =========================
     # 📲 WHATSAPP
@@ -36,9 +36,9 @@ class Settings(BaseSettings):
 
         # 👉 LOCAL (fallback)
         return (
-        f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
-        f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    )
+            f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        )
 
     model_config = SettingsConfigDict(
         env_file="backend/.env",
@@ -46,5 +46,5 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-
-    settings = Settings()
+# Instantiate settings outside the class to avoid recursion and allow imports
+settings = Settings()

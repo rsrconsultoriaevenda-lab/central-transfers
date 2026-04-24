@@ -34,12 +34,14 @@ web: uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
 > Adicione `.env` ao seu arquivo `.gitignore`.
 
 Defina no serviço de hosting:
-
-- `DB_HOST`
-- `DB_PORT`
-- `DB_USER`
-- `DB_PASSWORD`
-- `DB_NAME`
+ 
+- `DATABASE_URL` (preferencial, formato `mysql+pymysql://user:pass@host:port/dbname?ssl_disabled=false`)
+- OU, para configuração granular (usado como fallback se DATABASE_URL não for definida):
+  - `DB_HOST`
+  - `DB_PORT` (deve ser um número, ex: `3306`)
+  - `DB_USER`
+  - `DB_PASSWORD`
+  - `DB_NAME`
 - `WHATSAPP_VERIFY_TOKEN`
 - `WHATSAPP_TOKEN`
 - `WHATSAPP_PHONE_NUMBER_ID`

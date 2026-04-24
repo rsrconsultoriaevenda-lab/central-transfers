@@ -24,7 +24,12 @@ app.add_middleware(
 # =============================
 # 📦 CRIA TABELAS
 # =============================
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+    logger.info("Tabelas do banco de dados criadas/verificadas com sucesso.")
+except Exception as e:
+    logger.error(f"Erro ao conectar ou criar tabelas no banco de dados: {e}")
+    # Em produção, você pode querer que o app falhe aqui ou tente reconectar.
 
 # =============================
 # 🔗 ROTAS
@@ -96,12 +101,17 @@ def seed_database(db: Session = Depends(get_db)):
 
 
     # =============================
-    # ❤️ HEALTH CHECK
+    # ❤️ HEALTH CHECK (Verifica a conexão com o banco de dados)
     # =============================
 @app.get("/")
-def root():
+def root(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "conectado"
+    except Exception:
+        db_status = "erro"
     return {
-"status": "online",
-"version": "1.0.0",
-"database": "conectado"
-}
+        "status": "online",
+        "version": "1.0.0",
+        "database": db_status
+    }

@@ -76,11 +76,11 @@ def _parse_price(message: str):
 
 def _parse_date(message: str):
     raw = _parse_field(message, "data:") or _parse_field(message, "em:")
-    
+
     # Melhoria: Suporte a palavras-chave simples
     if raw and "hoje" in raw.lower():
         return datetime.now()
-        
+
     if not raw:
         return datetime.now()
 
@@ -97,12 +97,29 @@ def _parse_date(message: str):
     ]
     for fmt in formatos:
         try:
-            return datetime.strptime(raw, fmt)
             dt = datetime.strptime(raw, fmt)
             # Se o ano não for providenciado (%d/%m), assume o ano atual
             return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt
         except ValueError:
-            continue
+            continueimport os
+            from pydantic_settings import BaseSettings, SettingsConfigDict
+            
+            class Settings(BaseSettings):
+                # O Render/Aiven fornecerá a DATABASE_URL completa
+                DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+                
+                WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
+                PHONE_NUMBER_ID: str = os.getenv("PHONE_NUMBER_ID", "")
+                WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "central_secret_token")
+            
+                model_config = SettingsConfigDict(
+                    env_file=[".env", "backend/.env"],
+                    env_file_encoding="utf-8",
+                    extra="ignore"
+                )
+            
+            settings = Settings()
+            
     try:
         return datetime.fromisoformat(raw.split(".")[0])
     except ValueError:
@@ -330,7 +347,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         db.refresh(pedido)
         # Alterado pedido.data para pedido.data_servico e adicionado formatação
         text_driver = f"Você aceitou o pedido {order_id}. Origem: {pedido.origem} Destino: {pedido.destino} Data: {pedido.data_servico} Valor: R$ {pedido.valor}."
-        
+
         # Melhoria: Formatação amigável da data para o motorista
         data_formatada = pedido.data_servico.strftime('%d/%m/%Y %H:%M')
         text_driver = (

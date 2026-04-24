@@ -8,6 +8,7 @@ from backend import models, schemas
 from backend.config import settings
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.database import get_db
+from backend.auth import hash_senha
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 
 # Configuração de Log para monitorar automações
@@ -75,6 +76,11 @@ def _parse_price(message: str):
 
 def _parse_date(message: str):
     raw = _parse_field(message, "data:") or _parse_field(message, "em:")
+    
+    # Melhoria: Suporte a palavras-chave simples
+    if raw and "hoje" in raw.lower():
+        return datetime.now()
+        
     if not raw:
         return datetime.now()
 
@@ -83,9 +89,18 @@ def _parse_date(message: str):
     formatos = ["%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M",
                 "%d/%m/%Y", "%Y-%m-%d %H:%M", "%d/%m/%y %H:%M",
                 "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M:%S"]
+    # Adicionado formatos mais curtos e comuns em conversas de chat
+    formatos = [
+        "%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M", "%d/%m/%y %H:%M",
+        "%d/%m %H:%M", "%d/%m/%Y", "%Y-%m-%d %H:%M",
+        "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M:%S"
+    ]
     for fmt in formatos:
         try:
             return datetime.strptime(raw, fmt)
+            dt = datetime.strptime(raw, fmt)
+            # Se o ano não for providenciado (%d/%m), assume o ano atual
+            return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt
         except ValueError:
             continue
     try:
@@ -109,8 +124,9 @@ def _find_or_create_user_by_phone(db: Session, phone: str):
     if usuario:
         return usuario
 
+    # Segurança: Hash a senha mesmo para usuários automáticos
     novo_usuario = models.Usuario(
-        email=email_simulado, senha="login_via_whatsapp")
+        email=email_simulado, senha=hash_senha("login_via_whatsapp"))
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
@@ -314,6 +330,13 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         db.refresh(pedido)
         # Alterado pedido.data para pedido.data_servico e adicionado formatação
         text_driver = f"Você aceitou o pedido {order_id}. Origem: {pedido.origem} Destino: {pedido.destino} Data: {pedido.data_servico} Valor: R$ {pedido.valor}."
+        
+        # Melhoria: Formatação amigável da data para o motorista
+        data_formatada = pedido.data_servico.strftime('%d/%m/%Y %H:%M')
+        text_driver = (
+            f"✅ Você aceitou o pedido #{order_id}!\n\n"
+            f"📍 Origem: {pedido.origem}\n🏁 Destino: {pedido.destino}\n📅 Data: {data_formatada}\n💰 Valor: R$ {pedido.valor}"
+        )
         enviar_whatsapp_meta(sender, text_driver)
 
         if pedido.cliente.telefone:

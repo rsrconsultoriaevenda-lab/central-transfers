@@ -2,17 +2,16 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import computed_field
 
-
 class Settings(BaseSettings):
     # =========================
     # 🔐 DATABASE (PRIORIDADE: ENV)
     # =========================
     # Preferencialmente, defina a DATABASE_URL completa no Render.
-    DATABASE_URL: str = ""
+    DATABASE_URL: str | None = None
 
     # Fallback para desenvolvimento local ou se DATABASE_URL não for fornecida
     DB_HOST: str = os.getenv("DB_HOST", "localhost")
-    DB_PORT: int = int(os.getenv("DB_PORT", 3306))
+    DB_PORT: int = int(os.getenv("DB_PORT", 3306)) # Garante que seja int
     DB_USER: str = os.getenv("DB_USER", "root")
     DB_PASSWORD: str = os.getenv("DB_PASSWORD", "123456")
     DB_NAME: str = os.getenv("DB_NAME", "central_transfers")
@@ -33,10 +32,11 @@ class Settings(BaseSettings):
         if self.DATABASE_URL:
             return self.DATABASE_URL
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-
+    
     model_config = SettingsConfigDict(
-        env_file=[".env", "backend/.env"],
+        env_file=[".env", "backend/.env"], # Busca em ambos os locais
         env_file_encoding="utf-8",
         extra="ignore"
     )
+
 settings = Settings()

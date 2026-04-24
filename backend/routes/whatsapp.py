@@ -98,28 +98,9 @@ def _parse_date(message: str):
     for fmt in formatos:
         try:
             dt = datetime.strptime(raw, fmt)
-            # Se o ano não for providenciado (%d/%m), assume o ano atual
-            return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt
+            return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt # type: ignore
         except ValueError:
-            continueimport os
-            from pydantic_settings import BaseSettings, SettingsConfigDict
-            
-            class Settings(BaseSettings):
-                # O Render/Aiven fornecerá a DATABASE_URL completa
-                DATABASE_URL: str = os.getenv("DATABASE_URL", "")
-                
-                WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
-                PHONE_NUMBER_ID: str = os.getenv("PHONE_NUMBER_ID", "")
-                WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "central_secret_token")
-            
-                model_config = SettingsConfigDict(
-                    env_file=[".env", "backend/.env"],
-                    env_file_encoding="utf-8",
-                    extra="ignore"
-                )
-            
-            settings = Settings()
-            
+            continue
     try:
         return datetime.fromisoformat(raw.split(".")[0])
     except ValueError:

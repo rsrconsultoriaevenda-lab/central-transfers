@@ -1,12 +1,15 @@
+from fastapi.middleware.cors import CORSMiddleware
+from backend.routes import whatsapp, servicos, clientes, motoristas, pedidos, auth
+from backend import models
+from backend.database import Base, engine, get_db
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
+import logging
+from sqlalchemy import text  # Importar text para o health check
 
-from backend.database import Base, engine, get_db
-from backend import models
-from backend.routes import whatsapp, servicos, clientes, motoristas, pedidos, auth
+logger = logging.getLogger(__name__)  # Definir logger
 
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="Central Transfers API")
 
@@ -44,6 +47,8 @@ app.include_router(whatsapp.router)
 # =============================
 # 🌱 SEED
 # =============================
+
+
 @app.post("/seed")
 def seed_database(db: Session = Depends(get_db)):
     try:
@@ -91,18 +96,19 @@ def seed_database(db: Session = Depends(get_db)):
         db.commit()
 
         return {
-    "msg": "Banco populado com sucesso!",
-    "pedido_id": pedido.id
-}
+            "msg": "Banco populado com sucesso!",
+            "pedido_id": pedido.id
+        }
 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-
     # =============================
     # ❤️ HEALTH CHECK (Verifica a conexão com o banco de dados)
     # =============================
+
+
 @app.get("/")
 def root(db: Session = Depends(get_db)):
     try:

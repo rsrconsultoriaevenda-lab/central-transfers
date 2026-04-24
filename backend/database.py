@@ -19,6 +19,7 @@ SessionLocal = sessionmaker(
     bind=engine
 )
 
+# 👉 ISSO É O QUE ESTÁ FALTANDO OU QUEBROU
 Base = declarative_base()
 
 

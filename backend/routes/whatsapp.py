@@ -135,17 +135,17 @@ def _find_or_create_service(db: Session, nome: str, tipo: str):
 
 
 def _find_or_create_client(db: Session, phone: str):
-    # Placeholder para _find_or_create_client
-    # Em um cenário real, você buscaria por telefone e criaria se não encontrado.
-    # Por enquanto, vamos criar um cliente dummy ou levantar um erro se não encontrado.
     cliente = db.query(models.Cliente).filter(
         models.Cliente.telefone == phone).first()
     if cliente:
         return cliente
 
-    novo_cliente = models.Cliente(
-        nome=f"Cliente WhatsApp {phone}", telefone=phone)
+    # Tenta criar um nome amigável a partir do telefone
+    nome_cliente = f"Cliente via WhatsApp ({phone[-4:]})"
+
+    novo_cliente = models.Cliente(nome=nome_cliente, telefone=phone)
     db.add(novo_cliente)
+    db.flush()  # Usa flush para obter o ID antes do commit final
     db.commit()
     db.refresh(novo_cliente)
     return novo_cliente
@@ -160,8 +160,8 @@ def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
             status_code, response = enviar_whatsapp_meta(
                 motorista.telefone,
                 (  # Alterado de corrida para pedido
-                    f"Novo Pedido {pedido.id} disponível: De {pedido.origem} para {pedido.destino} em {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}."
-                    f" Responda no painel para aceitar."
+                    f"🚖 *Novo Pedido #{pedido.id}*\n"
+                    f"De: {pedido.origem}\nPara: {pedido.destino}\nData: {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n\nResponda 'aceito pedido {pedido.id}' para pegar este serviço."
                 ),
             )
             mensagens.append({"telefone": motorista.telefone,
@@ -250,7 +250,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         if not pedido:
             pedido = db.query(models.Pedido).filter(
                 models.Pedido.cliente_id == cliente.id,
-                models.Pedido.status == 'AGUARDANDO_PAGAMENTO'
+                models.Pedido.status.in_(['AGUARDANDO_PAGAMENTO', 'PENDENTE'])
             ).order_by(models.Pedido.id.desc()).first()
 
         if not pedido:

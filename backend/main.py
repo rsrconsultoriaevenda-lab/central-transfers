@@ -1,20 +1,23 @@
+import logging
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from backend.routes import whatsapp, servicos, clientes, motoristas, pedidos, auth
+from sqlalchemy.orm import Session
+from sqlalchemy import text
+from datetime import datetime
+
+from backend.routes import (
+    whatsapp, servicos, clientes,
+    motoristas, pedidos, auth
+)
 from backend import models
 from backend.database import Base, engine, get_db
-from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy.orm import Session
-import logging
-from sqlalchemy import text  # Importar text para o health check
 
-logger = logging.getLogger(__name__)  # Definir logger
-
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Central Transfers API")
 
 # =============================
-# 🔐 CORS
+# CORS
 # =============================
 app.add_middleware(
     CORSMiddleware,
@@ -25,17 +28,16 @@ app.add_middleware(
 )
 
 # =============================
-# 📦 CRIA TABELAS
+# DB INIT
 # =============================
 try:
     Base.metadata.create_all(bind=engine)
-    logger.info("Tabelas do banco de dados criadas/verificadas com sucesso.")
+    logger.info("Banco conectado.")
 except Exception as e:
-    logger.error(f"Erro ao conectar ou criar tabelas no banco de dados: {e}")
-    # Em produção, você pode querer que o app falhe aqui ou tente reconectar.
+    logger.error(f"Erro banco: {e}")
 
 # =============================
-# 🔗 ROTAS
+# ROUTES
 # =============================
 app.include_router(auth.router)
 app.include_router(clientes.router)
@@ -45,7 +47,26 @@ app.include_router(pedidos.router)
 app.include_router(whatsapp.router)
 
 # =============================
-# 🌱 SEED
+# HEALTH CHECK
+# =============================
+
+
+@app.get("/")
+def root(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "conectado"
+    except Exception:
+        db_status = "erro"
+
+    return { # type: ignore
+        "status": "online",
+        "version": "1.0.0",
+        "database": db_status
+    }
+
+# =============================
+# SEED
 # =============================
 
 
@@ -103,21 +124,3 @@ def seed_database(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-
-    # =============================
-    # ❤️ HEALTH CHECK (Verifica a conexão com o banco de dados)
-    # =============================
-
-
-@app.get("/")
-def root(db: Session = Depends(get_db)):
-    try:
-        db.execute(text("SELECT 1"))
-        db_status = "conectado"
-    except Exception:
-        db_status = "erro"
-    return {
-        "status": "online",
-        "version": "1.0.0",
-        "database": db_status
-    }

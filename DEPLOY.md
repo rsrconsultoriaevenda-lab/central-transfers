@@ -29,6 +29,10 @@ web: uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 ### 3. Variáveis de ambiente
 
+> ⚠️ **AVISO DE SEGURANÇA:** Nunca adicione arquivos `.env` ao seu repositório Git. 
+> Use o painel da plataforma (Render/Railway) para configurar os segredos.
+> Adicione `.env` ao seu arquivo `.gitignore`.
+
 Defina no serviço de hosting:
 
 - `DB_HOST`

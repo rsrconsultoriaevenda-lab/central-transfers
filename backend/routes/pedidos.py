@@ -11,7 +11,7 @@ router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
 @router.get("/", response_model=List[schemas.PedidoOut])  # type: ignore
-def listar(
+def listar_pedidos(
     data_inicio: Optional[datetime] = Query(None),
     data_fim: Optional[datetime] = Query(None),
     db: Session = Depends(get_db),
@@ -69,6 +69,23 @@ def obter_estatisticas(
     }
 
 
+@router.get("/relatorio/comissoes")
+def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+    # Busca pedidos concluídos agrupados por motorista
+    resultados = db.query(
+        models.Motorista.nome.label("motorista"),
+        func.count(models.Pedido.id).label("total_viagens"),
+        func.sum(models.Pedido.valor).label("faturamento_bruto")
+    ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
+     .filter(models.Pedido.status == "CONCLUIDO")\
+     .group_by(models.Motorista.id).all()
+
+    return [
+        {**r._asdict(), "comissao_estimada": float(r.faturamento_bruto or 0) * 0.8}
+        for r in resultados
+    ]
+
+
 @router.get("/{pedido_id}", response_model=schemas.PedidoOut)
 def buscar_por_id(pedido_id: int, db: Session = Depends(get_db)):
     pedido = db.query(models.Pedido).options(
@@ -82,7 +99,7 @@ def buscar_por_id(pedido_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/")
-def criar(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
+def criar_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
     try:
         novo = models.Pedido(**pedido.model_dump())
         db.add(novo)
@@ -121,7 +138,7 @@ def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depen
 
 
 @router.put("/{pedido_id}/status")
-def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def atualizar_status_pedido(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:
@@ -148,23 +165,6 @@ def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: str = 
     db.commit()
     db.refresh(pedido)
     return {"detail": f"Pedido {pedido_id} cancelado com sucesso", "status": pedido.status}
-
-
-@router.get("/relatorio/comissoes")
-def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
-    # Busca pedidos concluídos agrupados por motorista
-    resultados = db.query(
-        models.Motorista.nome.label("motorista"),
-        func.count(models.Pedido.id).label("total_viagens"),
-        func.sum(models.Pedido.valor).label("faturamento_bruto")
-    ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
-     .filter(models.Pedido.status == "CONCLUIDO")\
-     .group_by(models.Motorista.id).all()
-
-    return [
-        {**r._asdict(), "comissao_estimada": float(r.faturamento_bruto or 0) * 0.8}
-        for r in resultados
-    ]
 
 
 @router.delete("/{pedido_id}")  # type: ignore

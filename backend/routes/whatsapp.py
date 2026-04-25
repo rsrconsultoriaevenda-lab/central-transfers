@@ -86,14 +86,9 @@ def _parse_date(message: str):
 
     raw = raw.replace(" às ", " ").replace(" as ", " ").replace("h", ":")
 
-    formatos = ["%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M",
-                "%d/%m/%Y", "%Y-%m-%d %H:%M", "%d/%m/%y %H:%M",
-                "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M:%S"]
-    # Adicionado formatos mais curtos e comuns em conversas de chat
     formatos = [
         "%Y-%m-%dT%H:%M", "%d/%m/%Y %H:%M", "%d/%m/%y %H:%M",
-        "%d/%m %H:%M", "%d/%m/%Y", "%Y-%m-%d %H:%M",
-        "%d-%m-%Y %H:%M", "%d/%m/%Y %H:%M:%S"
+        "%d/%m %H:%M", "%d/%m/%Y", "%Y-%m-%d %H:%M", "%d-%m-%Y %H:%M"
     ]
     for fmt in formatos:
         try:
@@ -269,12 +264,13 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
 
     # Tratamento para respostas de botões interativos
     try:
+        interactive_response = None
         msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
         if msg_obj.get("type") == "interactive":
             interactive_response = msg_obj["interactive"]["button_reply"]["id"]
             logger.info(f"Botão clicado: {interactive_response}")
 
-        if interactive_response.startswith("ACEITAR_PEDIDO_"):
+        if interactive_response and interactive_response.startswith("ACEITAR_PEDIDO_"):
             order_id = int(interactive_response.replace("ACEITAR_PEDIDO_", ""))
             # Simula a mensagem de texto para reusar a lógica existente
             lower = f"aceito pedido {order_id}"

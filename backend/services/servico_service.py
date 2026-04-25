@@ -22,25 +22,9 @@ def listar_servicos(db: Session):
 
 
 def listar_servicos_por_usuario(db: Session, usuario_id: int):
-    # Servico (categoria) não tem usuario_id no modelo atual. 
+    # Servico (categoria) não tem usuario_id no modelo atual.
     # Se precisar filtrar por usuário, a lógica deve ser nos Pedidos.
     return db.query(Servico).all()
-
-
-def atribuir_motorista(db: Session, servico_id: int, motorista_id: int):
-    servico = db.query(Servico).filter(Servico.id == servico_id).first()
-    if not servico:
-        return None
-
-    # Nota: O modelo Servico em models.py não possui motorista_id.
-    # Essa lógica provavelmente deveria estar em Pedido.
-    # servico.motorista_id = motorista_id 
-    # servico.status = "atribuido"
-
-    db.commit()
-    db.refresh(servico)
-
-    return servico
 
 
 def atualizar_status(db: Session, servico_id: int, status: str):
@@ -49,7 +33,8 @@ def atualizar_status(db: Session, servico_id: int, status: str):
     if not servico:
         return None
 
-    servico.status = status
+    # O modelo Servico usa 'ativo' (bool). Mapeamos 'ativo'/'inativo' para booleano.
+    servico.ativo = True if status.lower() == "ativo" else False
 
     db.commit()
     db.refresh(servico)

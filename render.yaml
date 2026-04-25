@@ -1,5 +1,7 @@
 services:
-  # Backend FastAPI
+  # =========================
+  # BACKEND (FastAPI)
+  # =========================
   - type: web
     name: central-transfers-backend
     env: python
@@ -7,7 +9,7 @@ services:
     startCommand: gunicorn backend.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
     envVars:
       - key: DATABASE_URL
-        sync: false # Você preencherá no painel do Render
+        sync: false
       - key: WHATSAPP_TOKEN
         sync: false
       - key: WHATSAPP_PHONE_NUMBER_ID
@@ -15,21 +17,18 @@ services:
       - key: WHATSAPP_VERIFY_TOKEN
         value: central_transfers_token_2024
       - key: ALLOWED_ORIGINS
-        value: "*" # Altere para a URL do seu frontend após o primeiro deploy
+        value: "*"
       - key: PYTHONPATH
         value: .
 
-  # App do Cliente (Frontend)
+  # =========================
+  # FRONTEND (APP CLIENTE)
+  # =========================
   - type: web
     name: central-transfers-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
-    publishDir: frontend/dist
-    staticPublishCustomHeaders:
-      - path: /*
-        headers:
-          - key: Access-Control-Allow-Origin
-            value: "*"
+    staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
         fromService:
@@ -37,17 +36,14 @@ services:
           type: web
           property: url
 
-  # Painel Administrativo (SaaS)
+  # =========================
+  # PAINEL ADMIN
+  # =========================
   - type: web
     name: central-transfers-painel
     env: static
     buildCommand: cd painel-saas && npm install && npm run build
-    publishDir: painel-saas/dist
-    staticPublishCustomHeaders:
-      - path: /*
-        headers:
-          - key: Access-Control-Allow-Origin
-            value: "*"
+    staticPublishPath: painel-saas/dist
     envVars:
       - key: VITE_API_URL
         fromService:

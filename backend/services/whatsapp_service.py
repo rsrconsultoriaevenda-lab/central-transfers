@@ -25,7 +25,7 @@ def _load_env_file():
 _load_env_file()
 
 
-def enviar_whatsapp_meta(numero: str, mensagem: str):
+def enviar_whatsapp_meta(numero: str, mensagem: str, payload_interativo: dict = None):
     token = os.getenv("WHATSAPP_TOKEN")
     phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
     api_version = os.getenv("WHATSAPP_API_VERSION", "v20.0")
@@ -39,14 +39,22 @@ def enviar_whatsapp_meta(numero: str, mensagem: str):
         "Content-Type": "application/json"
     }
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": numero,
-        "type": "text",
-        "text": {
-            "body": mensagem
+    if payload_interativo:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": numero,
+            "type": "interactive",
+            "interactive": payload_interativo
         }
-    }
+    else:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": numero,
+            "type": "text",
+            "text": {
+                "body": mensagem
+            }
+        }
 
     response = requests.post(
         base_url,

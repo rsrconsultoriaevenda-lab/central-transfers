@@ -9,7 +9,14 @@ router = APIRouter(prefix="/motoristas", tags=["Motoristas"])
 
 
 @router.get("/", response_model=List[schemas.Motorista])  # type: ignore
-def listar(db: Session = Depends(get_db)):
+def listar(db: Session = Depends(get_db), email: str = Depends(get_usuario_atual)):
+    # Proteção: Apenas admin/operador pode listar motoristas
+    usuario = db.query(models.Usuario).filter(
+        models.Usuario.email == email).first()
+    if not usuario or usuario.role not in ["admin", "operador"]:
+        raise HTTPException(
+            status_code=403, detail="Acesso negado. Apenas administradores podem ver a lista de motoristas.")
+
     return db.query(models.Motorista).all()
 
 

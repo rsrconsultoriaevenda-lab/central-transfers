@@ -98,7 +98,8 @@ def _parse_date(message: str):
     for fmt in formatos:
         try:
             dt = datetime.strptime(raw, fmt)
-            return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt # type: ignore
+            # type: ignore
+            return dt.replace(year=datetime.now().year) if dt.year == 1900 else dt
         except ValueError:
             continue
     try:
@@ -171,12 +172,29 @@ def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
     mensagens = []
     for motorista in motoristas:
         try:
+            # Configuração do botão interativo para o motorista
+            interactive_payload = {
+                "type": "button",
+                "body": {
+                    "text": (
+                        f"🚖 *Novo Pedido #{pedido.id}*\n"
+                        f"📍 Origem: {pedido.origem}\n🏁 Destino: {pedido.destino}\n"
+                        f"📅 Data: {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n\n"
+                        "Deseja aceitar este serviço?"
+                    )
+                },
+                "action": {
+                    "buttons": [
+                        {"type": "reply", "reply": {
+                            "id": f"ACEITAR_PEDIDO_{pedido.id}", "title": "Aceitar Pedido ✅"}}
+                    ]
+                }
+            }
+
             status_code, response = enviar_whatsapp_meta(
                 motorista.telefone,
-                (  # Alterado de corrida para pedido
-                    f"🚖 *Novo Pedido #{pedido.id}*\n"
-                    f"De: {pedido.origem}\nPara: {pedido.destino}\nData: {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n\nResponda 'aceito pedido {pedido.id}' para pegar este serviço."
-                ),
+                "",  # Mensagem de texto vazia pois usaremos o payload interativo
+                payload_interativo=interactive_payload
             )
             mensagens.append({"telefone": motorista.telefone,
                              "status": status_code, "response": response})
@@ -246,11 +264,25 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
     if not sender or not message:
         return {"status": "ignored", "reason": "no_content"}
 
-    logger.info(
-        f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo: {message}")
-
     message = message.strip()
     lower = message.lower()
+
+    # Tratamento para respostas de botões interativos
+    try:
+        msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
+        if msg_obj.get("type") == "interactive":
+            interactive_response = msg_obj["interactive"]["button_reply"]["id"]
+            logger.info(f"Botão clicado: {interactive_response}")
+
+        if interactive_response.startswith("ACEITAR_PEDIDO_"):
+            order_id = int(interactive_response.replace("ACEITAR_PEDIDO_", ""))
+            # Simula a mensagem de texto para reusar a lógica existente
+            lower = f"aceito pedido {order_id}"
+    except (KeyError, IndexError):
+        pass
+
+    logger.info(
+        f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo Final: {lower}")
 
     if "pago" in lower or "pagamento" in lower:
         cliente = _find_or_create_client(db, sender)
@@ -264,7 +296,8 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         if not pedido:
             pedido = db.query(models.Pedido).filter(
                 models.Pedido.cliente_id == cliente.id,
-                models.Pedido.status.in_(['AGUARDANDO_PAGAMENTO', 'PENDENTE'])
+                models.Pedido.status.in_(['AGUARDANDO_PAGAMENTO', 'PENDENTE']),
+                models.Pedido.data_servico >= datetime.now()  # Apenas pedidos futuros
             ).order_by(models.Pedido.id.desc()).first()
 
         if not pedido:
@@ -379,6 +412,52 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
             enviar_whatsapp_meta(pedido.cliente.telefone, text_cliente)
 
         return {"status": "pedido_concluido", "pedido_id": pedido.id}
+
+    if "cancelar" in lower or "cancela" in lower:
+        order_id = _parse_order_id(lower)
+        if not order_id:
+            enviar_whatsapp_meta(
+                sender, "Por favor, informe o ID do pedido. Ex: 'cancelar pedido 123'")
+            return {"status": "erro", "mensagem": "ID não informado"}
+
+        pedido = db.query(models.Pedido).filter(
+            models.Pedido.id == order_id).first()
+        if not pedido:
+            enviar_whatsapp_meta(sender, f"Pedido {order_id} não encontrado.")
+            return {"status": "erro"}
+
+        if pedido.status == "CONCLUIDO":
+            enviar_whatsapp_meta(
+                sender, "Este pedido já foi concluído e não pode ser cancelado.")
+            return {"status": "erro"}
+
+        # Verifica se quem cancela é o cliente ou o motorista do pedido
+        is_cliente = pedido.cliente.telefone == sender
+        is_motorista = pedido.motorista and pedido.motorista.telefone == sender
+
+        if not (is_cliente or is_motorista):
+            enviar_whatsapp_meta(
+                sender, "Você não tem permissão para cancelar este pedido.")
+            return {"status": "permissao_negada"}
+
+        pedido.status = "CANCELADO"
+        db.commit()
+
+        msg_confirmacao = f"❌ O pedido #{order_id} foi cancelado com sucesso."
+        enviar_whatsapp_meta(sender, msg_confirmacao)
+
+        # Notifica a outra parte
+        if is_cliente and pedido.motorista:
+            enviar_whatsapp_meta(
+                pedido.motorista.telefone,
+                f"⚠️ O cliente cancelou o pedido #{order_id} ({pedido.origem} -> {pedido.destino})."
+            )
+        elif is_motorista and pedido.cliente:
+            enviar_whatsapp_meta(
+                pedido.cliente.telefone,
+                f"⚠️ O motorista não poderá realizar o seu pedido #{order_id}. Entre em contato com a central para novo agendamento."
+            )
+        return {"status": "pedido_cancelado", "id": order_id}
 
     service_name, service_type = _guess_service(message)
     origem = _parse_field(message, "origem:")

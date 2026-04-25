@@ -10,7 +10,7 @@ from backend.routes import (
     motoristas, pedidos, auth
 )
 from backend import models
-from backend.database import Base, engine, get_db
+from backend.database import Base, engine, get_db, settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,10 @@ app = FastAPI(title="Central Transfers API")
 # =============================
 # CORS
 # =============================
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS.split(","),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -59,7 +60,7 @@ def root(db: Session = Depends(get_db)):
     except Exception:
         db_status = "erro"
 
-    return { # type: ignore
+    return {  # type: ignore
         "status": "online",
         "version": "1.0.0",
         "database": db_status

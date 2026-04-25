@@ -1,7 +1,8 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 from backend.database import get_db
 from backend import models, schemas
 from backend.auth import get_usuario_atual
@@ -10,18 +11,42 @@ router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
 @router.get("/", response_model=List[schemas.PedidoOut])  # type: ignore
-def listar(db: Session = Depends(get_db)):
-    return db.query(models.Pedido).options(
+def listar(
+    data_inicio: Optional[datetime] = Query(None),
+    data_fim: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_usuario_atual)
+):
+    query = db.query(models.Pedido).options(
         joinedload(models.Pedido.cliente),
         joinedload(models.Pedido.servico),
         joinedload(models.Pedido.motorista)
-    ).all()
+    )
+
+    if data_inicio:
+        query = query.filter(models.Pedido.data_servico >= data_inicio)
+    if data_fim:
+        query = query.filter(models.Pedido.data_servico <= data_fim)
+
+    return query.order_by(models.Pedido.data_servico.desc()).all()
 
 
 @router.get("/stats", response_model=schemas.DashboardStats)
-def obter_estatisticas(db: Session = Depends(get_db)):
-    # Busca contagem aglutinada por status
-    stats = db.query(
+def obter_estatisticas(
+    data_inicio: Optional[datetime] = Query(None),
+    data_fim: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_usuario_atual)
+):
+    # Filtro base para as estatísticas
+    base_query = db.query(models.Pedido)
+    if data_inicio:
+        base_query = base_query.filter(
+            models.Pedido.data_servico >= data_inicio)
+    if data_fim:
+        base_query = base_query.filter(models.Pedido.data_servico <= data_fim)
+
+    stats = base_query.with_entities(
         models.Pedido.status,
         func.count(models.Pedido.id)
     ).group_by(models.Pedido.status).all()
@@ -29,9 +54,9 @@ def obter_estatisticas(db: Session = Depends(get_db)):
     stats_dict = {status: count for status, count in stats}
 
     # Soma do faturamento (apenas pedidos pagos, aceitos ou concluídos)
-    faturamento = db.query(func.sum(models.Pedido.valor)).filter(
+    faturamento = base_query.with_entities(func.sum(models.Pedido.valor)).filter(
         models.Pedido.status.in_(["PAGO", "ACEITO", "CONCLUIDO"])
-    ).scalar() or 0
+    ).scalar() or 0.0
 
     return {
         "total_pedidos": sum(stats_dict.values()),
@@ -106,6 +131,40 @@ def atualizar_status(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db
     db.commit()
     db.refresh(pedido)
     return pedido
+
+
+@router.put("/{pedido_id}/cancelar")
+def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    if pedido.status == "CONCLUIDO":
+        raise HTTPException(
+            status_code=400, detail="Não é possível cancelar um pedido concluído")
+
+    pedido.status = "CANCELADO"
+    db.commit()
+    db.refresh(pedido)
+    return {"detail": f"Pedido {pedido_id} cancelado com sucesso", "status": pedido.status}
+
+
+@router.get("/relatorio/comissoes")
+def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+    # Busca pedidos concluídos agrupados por motorista
+    resultados = db.query(
+        models.Motorista.nome.label("motorista"),
+        func.count(models.Pedido.id).label("total_viagens"),
+        func.sum(models.Pedido.valor).label("faturamento_bruto")
+    ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
+     .filter(models.Pedido.status == "CONCLUIDO")\
+     .group_by(models.Motorista.id).all()
+
+    return [
+        {**r._asdict(), "comissao_estimada": float(r.faturamento_bruto or 0) * 0.8}
+        for r in resultados
+    ]
 
 
 @router.delete("/{pedido_id}")  # type: ignore

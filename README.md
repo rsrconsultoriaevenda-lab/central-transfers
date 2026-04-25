@@ -85,7 +85,7 @@ python -m venv venv
 3. Instale as dependências do backend:
 
 ```powershell
-pip install fastapi uvicorn mysql-connector-python pydantic requests sqlalchemy passlib "bcrypt<4.0.0" python-multipart python-dotenv
+pip install fastapi uvicorn mysql-connector-python pydantic requests sqlalchemy alembic passlib "bcrypt<4.0.0" python-multipart python-dotenv
 ```
 
 4. Configure o WhatsApp (opcional, necessário para envio de notificações e recepção de pedidos via WhatsApp):

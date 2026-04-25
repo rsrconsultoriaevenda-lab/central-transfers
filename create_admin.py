@@ -1,5 +1,5 @@
-from backend.database import SessionLocal, engine
-from backend.models import Usuario, Base
+from backend.database import SessionLocal, engine, settings, Base
+from backend.models import Usuario
 from backend.auth import pwd_context
 import sys
 import os
@@ -13,13 +13,14 @@ if current_dir not in sys.path:
 
 def create_initial_admin():
     print("=== Central Transfers - Cadastro de Administrador ===")
+    print(f"DEBUG: Conectando em -> {settings.full_database_url}\n")
 
     # Garante que as tabelas estejam criadas (útil para o primeiro run)
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        email = input("E-mail do administrador: ")
+        email = input("Digite o E-mail do administrador: ")
 
         user_exists = db.query(Usuario).filter(
             Usuario.email == email).first()

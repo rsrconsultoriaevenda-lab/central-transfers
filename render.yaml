@@ -26,7 +26,8 @@ services:
     buildCommand: cd frontend && npm install && npm run build
     publishDir: frontend/dist
     staticPublishCustomHeaders:
-      - values:
+      - path: /*
+        headers:
           - key: Access-Control-Allow-Origin
             value: "*"
     envVars:
@@ -34,7 +35,7 @@ services:
         fromService:
           name: central-transfers-backend
           type: web
-          property: host
+          property: url
 
   # Painel Administrativo (SaaS)
   - type: web
@@ -43,7 +44,8 @@ services:
     buildCommand: cd painel-saas && npm install && npm run build
     publishDir: painel-saas/dist
     staticPublishCustomHeaders:
-      - values:
+      - path: /*
+        headers:
           - key: Access-Control-Allow-Origin
             value: "*"
     envVars:
@@ -51,4 +53,4 @@ services:
         fromService:
           name: central-transfers-backend
           type: web
-          property: host
+          property: url

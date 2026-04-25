@@ -1,51 +1,71 @@
 import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 
 
 class Settings(BaseSettings):
     # =========================
-    # 🔐 DATABASE (PRIORIDADE: ENV)
+    # 🔐 DATABASE CONFIG
     # =========================
-    # Preferencialmente, defina a DATABASE_URL completa no Render.
+    # No Render, defina DATABASE_URL como: mysql+pymysql://user:pass@host:port/db
     DATABASE_URL: str | None = None
 
-    # Fallback para desenvolvimento local ou se DATABASE_URL não for fornecida
+    # Fallback para desenvolvimento local
     DB_HOST: str = "localhost"
+
+    # Validador para evitar o erro "PORT" (converte string suja para int)
     DB_PORT: int = 3306
+
     DB_USER: str = "root"
     DB_PASSWORD: str = "123456"
     DB_NAME: str = "central_transfers"
 
     # =========================
-    # 📲 WHATSAPP
+    # 📲 WHATSAPP & SECURITY
     # =========================
-    WHATSAPP_TOKEN: str = os.getenv("WHATSAPP_TOKEN", "")
-    PHONE_NUMBER_ID: str = os.getenv("PHONE_NUMBER_ID", "")
-    WHATSAPP_VERIFY_TOKEN: str = os.getenv(
-        "WHATSAPP_VERIFY_TOKEN", "central_secret_token")
-    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "*")
+    WHATSAPP_TOKEN: str = ""
+    PHONE_NUMBER_ID: str = ""
+    WHATSAPP_VERIFY_TOKEN: str = "central_secret_token"
+    ALLOWED_ORIGINS: str = "*"
 
-    # =========================
-    # 🔗 DATABASE URL FINAL (Propriedade computada)
-    # =========================
+    # Versão da API (útil para logs e manutenção)
+    APP_VERSION: str = "1.0.0"
+
+    @field_validator("DB_PORT", mode="before")
+    @classmethod
+    def parse_db_port(cls, v):
+        """Impede o erro de conversão se a env vier como 'PORT' ou vazia"""
+        if isinstance(v, str):
+            if not v.isdigit(): # Se for 'PORT' ou qualquer texto não numérico
+                return 3306
+            return int(v)
+            return v
+
+            # =========================
+            # 🔗 DATABASE URL COMPUTADA
+            # =========================
     @computed_field
     @property
     def full_database_url(self) -> str:
-        # Se a DATABASE_URL estiver presente e não for vazia
-        if self.DATABASE_URL and self.DATABASE_URL.strip():
-            url = self.DATABASE_URL
-            # Garante que o driver seja sempre mysql+pymysql
-            # Remove o driver existente (se houver) e adiciona o correto
-            return "mysql+pymysql://" + url.split("://", 1)[-1]
+        # 1. Prioridade absoluta para DATABASE_URL (padrão Render/Aiven)
+        if self.DATABASE_URL and "://" in self.DATABASE_URL:
+            # Garante o uso do driver pymysql para suporte a SSL
+            raw_url = self.DATABASE_URL.strip()
+            # Pega tudo após o :// e força o driver correto
+            return "mysql+pymysql://" + raw_url.split("://")[-1]
 
-        return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # 2. Fallback usando as variáveis individuais (padrão Local)
+        return (
+        f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@"
+        f"{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+    )
 
+    # Configuração do Pydantic para ler arquivos .env automaticamente
     model_config = SettingsConfigDict(
-        env_file=[".env", "backend/.env"],  # Busca em ambos os locais
+        env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
 
-settings = Settings()
+    settings = Settings()

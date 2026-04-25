@@ -22,7 +22,8 @@ app = FastAPI(title="Central Transfers API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS.split(","),
+    allow_origins=[origin.strip()
+                   for origin in settings.ALLOWED_ORIGINS.split(",")],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,10 +33,12 @@ app.add_middleware(
 # DB INIT
 # =============================
 try:
-    Base.metadata.create_all(bind=engine)
-    logger.info("Banco conectado.")
+    # Não mata a aplicação se o banco falhar no primeiro segundo
+    with engine.connect() as connection:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Tabelas sincronizadas com sucesso.")
 except Exception as e:
-    logger.error(f"Erro banco: {e}")
+    logger.error(f"❌ Erro ao conectar ou sincronizar tabelas: {e}")
 
 # =============================
 # ROUTES

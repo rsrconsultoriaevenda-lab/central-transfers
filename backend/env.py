@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
-from backend.database import Base
+from backend.database import Base, settings
 from backend import models  # Importante para o autogenerate detectar os modelos
 from dotenv import load_dotenv
 
@@ -19,11 +19,7 @@ target_metadata = Base.metadata
 
 
 def get_url():
-    user = os.getenv("DB_USER", "root")
-    password = os.getenv("DB_PASSWORD", "123456")
-    host = os.getenv("DB_HOST", "localhost")
-    db = os.getenv("DB_NAME", "central_transfers")
-    return f"mysql+mysqlconnector://{user}:{password}@{host}/{db}"
+    return settings.full_database_url
 
 
 def run_migrations_offline() -> None:
@@ -41,11 +37,18 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = get_url()
+    
+    connect_args = {}
+    if "aivencloud.com" in get_url():
+        import certifi
+        connect_args["ssl"] = {"ca": certifi.where()}
+
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        url=get_url(),
+        connect_args=connect_args
     )
 
     with connectable.connect() as connection:

@@ -38,7 +38,7 @@ try:
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Tabelas sincronizadas com sucesso.")
 except Exception as e:
-    logger.error(f"❌ Erro ao conectar ou sincronizar tabelas: {e}")
+    logger.error(f"❌ Erro crítico de banco de dados: {str(e)}", exc_info=True)
 
 # =============================
 # ROUTES

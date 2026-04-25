@@ -9,7 +9,8 @@ connect_args = {}
 # Se a URL contiver o host da Aiven, ativamos o SSL apontando para o certificado.
 if "aivencloud.com" in settings.full_database_url:
     connect_args["ssl"] = {
-        "ca": certifi.where()
+        "ca": certifi.where(),
+        "check_hostname": False  # Evita erros de handshake em alguns ambientes de nuvem
     }
 
 engine = create_engine(  # type: ignore

@@ -24,9 +24,11 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """
-        Força uso do driver pymysql (necessário para Aiven/Render)
+        Força uso do driver pymysql para suporte a SSL (Aiven/Railway)
         """
-        return "mysql+pymysql://" + self.DATABASE_URL.split("://")[-1]
+        if self.DATABASE_URL and "://" in self.DATABASE_URL:
+            return "mysql+pymysql://" + self.DATABASE_URL.split("://")[-1]
+        return self.DATABASE_URL
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -34,5 +36,4 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
-
-    settings = Settings()
+settings = Settings()

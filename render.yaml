@@ -20,7 +20,7 @@ services:
         value: .
 
   # App do Cliente (Frontend)
-  - type: static
+  - type: web
     name: central-transfers-frontend
     env: static
     buildCommand: cd frontend && npm install && npm run build
@@ -37,7 +37,7 @@ services:
           property: host
 
   # Painel Administrativo (SaaS)
-  - type: static
+  - type: web
     name: central-transfers-painel
     env: static
     buildCommand: cd painel-saas && npm install && npm run build

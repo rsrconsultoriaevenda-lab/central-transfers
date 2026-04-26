@@ -13,7 +13,7 @@ if current_dir not in sys.path:
 
 def create_initial_admin():
     print("=== Central Transfers - Cadastro de Administrador ===")
-    print(f"DEBUG: Conectando em -> {settings.full_database_url}\n")
+    print(f"DEBUG: Conectando em -> {settings.database_url}\n")
 
     # Garante que as tabelas estejam criadas (útil para o primeiro run)
     Base.metadata.create_all(bind=engine)

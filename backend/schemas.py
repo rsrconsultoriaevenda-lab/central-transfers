@@ -24,6 +24,7 @@ class MotoristaBase(BaseModel):
     placa: str
     modelo: str
     ano: int
+    status: str = "ATIVO"
 
 
 class Motorista(MotoristaBase):

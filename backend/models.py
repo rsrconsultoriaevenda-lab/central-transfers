@@ -7,30 +7,32 @@ import datetime
 class Motorista(Base):
     __tablename__ = "motoristas"
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String)
-    telefone = Column(String)
+    nome = Column(String(255))
+    telefone = Column(String(50))
     carro = Column(String(255))
     placa = Column(String(50))
     modelo = Column(String(255))
     ano = Column(Integer)
+    status = Column(String(50), default="ATIVO")
+    ativo = Column(Boolean, default=True)
     pedidos = relationship("Pedido", back_populates="motorista")
 
 
 class Cliente(Base):
     __tablename__ = "clientes"
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String)
-    telefone = Column(String)
-    email = Column(String)
+    nome = Column(String(255))
+    telefone = Column(String(50))
+    email = Column(String(255))
     pedidos = relationship("Pedido", back_populates="cliente")
 
 
 class Servico(Base):
     __tablename__ = "servicos"
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String)
-    tipo = Column(String)
-    descricao = Column(Text)
+    nome = Column(String(255))
+    tipo = Column(String(100))
+    descricao = Column(Text, nullable=True)
     valor_padrao = Column(Numeric(10, 2), default=0.0)
     ativo = Column(Boolean, default=True)
     pedidos = relationship("Pedido", back_populates="servico")

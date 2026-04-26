@@ -12,6 +12,12 @@ from backend.routes import (
 from backend import models
 from backend.database import Base, engine, get_db, settings
 
+# Configuração global de logs para exibir erros no terminal
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Central Transfers API")
@@ -33,10 +39,12 @@ app.add_middleware(
 # DB INIT
 # =============================
 try:
-    # Não mata a aplicação se o banco falhar no primeiro segundo
-    with engine.connect() as connection:
-        Base.metadata.create_all(bind=engine)
-        logger.info("✅ Tabelas sincronizadas com sucesso.")
+    # Log de diagnóstico para o deploy
+    safe_url = str(engine.url).split("@")[-1]
+    logger.info(f"🚀 Iniciando conexão com o driver: {engine.name} em {safe_url}")
+    
+    Base.metadata.create_all(bind=engine)
+    logger.info("✅ Estrutura do banco de dados verificada.")
 except Exception as e:
     logger.error(f"❌ Erro crítico de banco de dados: {str(e)}", exc_info=True)
 
@@ -58,15 +66,23 @@ app.include_router(whatsapp.router)
 @app.get("/")
 def root(db: Session = Depends(get_db)):
     try:
-        db.execute(text("SELECT 1"))
+        # Verifica a conexão e obtém o nome do banco atual
+        # Suporta tanto MySQL (DATABASE()) quanto PostgreSQL (current_database())
+        if "postgresql" in str(engine.url):
+            current_db = db.execute(text("SELECT current_database()")).scalar()
+        else:
+            current_db = db.execute(text("SELECT DATABASE()")).scalar()
         db_status = "conectado"
-    except Exception:
+    except Exception as e:
+        logger.error(f"Falha na conexão com o banco de dados: {str(e)}")
         db_status = "erro"
+        current_db = None
 
     return {  # type: ignore
         "status": "online",
-        "version": "1.0.0",
-        "database": db_status
+        "version": settings.APP_VERSION,
+        "database": db_status,
+        "active_schema": current_db
     }
 
 # =============================
@@ -103,9 +119,7 @@ def seed_database(db: Session = Depends(get_db)):
         )
         db.add(servico)
 
-        db.commit()
-        db.refresh(cliente)
-        db.refresh(servico)
+        db.flush()  # Garante IDs sem fechar a transação
 
         pedido = models.Pedido(
             cliente_id=cliente.id,
@@ -127,4 +141,5 @@ def seed_database(db: Session = Depends(get_db)):
 
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"💥 Falha no Seed do Banco: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro no banco: {str(e)}")

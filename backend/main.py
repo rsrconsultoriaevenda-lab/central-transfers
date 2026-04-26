@@ -39,12 +39,16 @@ app.add_middleware(
 # DB INIT
 # =============================
 try:
-    # Log de diagnóstico para o deploy
-    safe_url = str(engine.url).split("@")[-1]
-    logger.info(f"🚀 Iniciando conexão com o driver: {engine.name} em {safe_url}")
-    
-    Base.metadata.create_all(bind=engine)
-    logger.info("✅ Estrutura do banco de dados verificada.")
+    with engine.begin() as conn:
+        # Sincroniza tabelas base
+        Base.metadata.create_all(bind=conn)
+        
+        # Migração automática: Adiciona a coluna status se ela não existir
+        conn.execute(text("""
+            ALTER TABLE motoristas 
+            ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';
+        """))
+        logger.info("✅ Estrutura do banco de dados e migrações verificadas.")
 except Exception as e:
     logger.error(f"❌ Erro crítico de banco de dados: {str(e)}", exc_info=True)
 

@@ -1,22 +1,24 @@
 import os
-import certifi
+import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 from backend.config import settings
 
-connect_args = {}
-# O Aiven exige SSL para conexões seguras.
-# Se a URL contiver o host da Aiven, ativamos o SSL apontando para o certificado.
-if "aivencloud.com" in settings.full_database_url:
-    connect_args["ssl"] = {
-        "ca": certifi.where(),
-        "check_hostname": False  # Evita erros de handshake em alguns ambientes de nuvem
-    }
+logger = logging.getLogger(__name__)
 
-engine = create_engine(  # type: ignore
-    settings.full_database_url,
+db_url = settings.database_url
+
+if not db_url:
+    logger.error(
+        "❌ ERRO CRÍTICO: DATABASE_URL não foi carregada corretamente no sistema!")
+else:
+    safe_url = db_url.split("@")[-1] if "@" in db_url else "URL Malformada"
+    logger.info(f"📡 Tentando conexão com o banco em: {safe_url}")
+
+engine = create_engine(
+    db_url,
     pool_pre_ping=True,
-    connect_args=connect_args
+    pool_recycle=300
 )
 
 SessionLocal = sessionmaker(

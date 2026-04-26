@@ -37,17 +37,14 @@ class Settings(BaseSettings):
         if self.DATABASE_URL and str(self.DATABASE_URL).strip():
             url = str(self.DATABASE_URL).strip()
             
-            # Identifica se é PostgreSQL (pelo protocolo ou pelo host da Aiven)
             if "postgres" in url or ":16880" in url:
-                # Remove qualquer prefixo existente e força o driver correto
-                clean_body = url.split("://")[-1]
-                # Remove parâmetros que podem causar conflito se duplicados
-                clean_body = clean_body.split("?")[0]
+                # Remove parâmetros da query e força o driver postgresql+psycopg2
+                clean_body = url.split("://")[-1].split("?")[0]
                 return f"postgresql+psycopg2://{clean_body}?sslmode=require"
             
             # Identifica se é MySQL
             if "mysql" in url:
-                clean_body = url.split("://")[-1]
+                clean_body = url.split("://")[-1].split("?")[0]
                 return f"mysql+pymysql://{clean_body}"
 
             return url

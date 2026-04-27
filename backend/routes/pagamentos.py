@@ -15,24 +15,30 @@ logger = logging.getLogger(__name__)
 @router.post("/webhook/mercadopago")
 async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     payload = await request.json()
-    payment_id = payload.get("data", {}).get("id") or payload.get("id")
+    logger.info(f"Recebendo notificação do Mercado Pago: {payload}")
 
+    # O Mercado Pago envia notificações de diferentes tópicos.
+    # Filtramos para processar apenas atualizações de pagamentos.
+    resource_type = payload.get("type") or payload.get("topic")
+    if resource_type != "payment":
+        return {"status": "ignored", "reason": f"Topic {resource_type} is not handled"}
+
+    payment_id = payload.get("data", {}).get("id") or payload.get("id")
     if not payment_id:
-        return {"status": "error", "message": "no_id"}
+        return {"status": "error", "message": "Payment ID not found in payload"}
 
     sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
     payment_info = sdk.payment().get(payment_id)
     data = payment_info["response"]
 
-    if data.get("status") != "approved":
-        return {"status": "ignored", "mp_status": data.get("status")}
-
+    status_mp = data.get("status")
     order_id = data.get("external_reference")
+
     if not order_id:
         return {"status": "error", "reason": "no_external_reference"}
 
-    # Lógica de liberação do pedido
-    pedido = db.query(models.Pedido).filter(models.Pedido.id == order_id).first()
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == order_id).first()
     if not pedido:
         return {"status": "error", "message": "Pedido não encontrado"}
 
@@ -40,7 +46,7 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
         pedido.status = "PAGO"
         db.commit()
         db.refresh(pedido)
-        
+
         _notificar_liberacao(db, pedido)
 
     return {"status": "ok"}

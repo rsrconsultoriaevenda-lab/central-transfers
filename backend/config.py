@@ -7,7 +7,8 @@ from pydantic import computed_field, field_validator
 class Settings(BaseSettings):
     # =========================
     # DATABASE (OBRIGATÓRIO EM PRODUÇÃO)
-    # =========================
+    # =========================INFO:     ✅ Estrutura do banco de dados verificada com sucesso.
+    
     DATABASE_URL: str | None = None
 
     # Fallback para desenvolvimento local
@@ -36,12 +37,12 @@ class Settings(BaseSettings):
         # Se DATABASE_URL existir e não for apenas espaços em branco
         if self.DATABASE_URL and str(self.DATABASE_URL).strip():
             url = str(self.DATABASE_URL).strip()
-            
+
             if "postgres" in url or ":16880" in url:
                 # Remove parâmetros da query e força o driver postgresql+psycopg2
                 clean_body = url.split("://")[-1].split("?")[0]
                 return f"postgresql+psycopg2://{clean_body}?sslmode=require"
-            
+
             # Identifica se é MySQL
             if "mysql" in url:
                 clean_body = url.split("://")[-1].split("?")[0]
@@ -52,8 +53,12 @@ class Settings(BaseSettings):
         # Codifica o usuário e a senha para evitar problemas com caracteres especiais (@, #, :, /)
         user = urllib.parse.quote_plus(self.DB_USER)
         password = urllib.parse.quote_plus(self.DB_PASSWORD)
-        # Fallback atualizado para PostgreSQL
-        return f"postgresql+psycopg2://{user}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+
+        base_url = f"postgresql+psycopg2://{user}:{password}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+        # Senior Fix: Se for a porta padrão do Aiven ou usuário avnadmin, geralmente exige SSL
+        if self.DB_PORT == 16880 or self.DB_USER == "avnadmin":
+            base_url += "?sslmode=require"
+        return base_url
 
     model_config = SettingsConfigDict(
         env_file=".env",

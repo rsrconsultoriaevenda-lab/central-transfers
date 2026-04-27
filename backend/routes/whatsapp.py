@@ -479,6 +479,8 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         cliente = _find_or_create_client(db, sender)
         servico = _find_or_create_service(db, service_name, service_type)
 
+        comissao_calculada = float(valor) * 0.20 # Define 20% como taxa da central
+
         novo_pedido = models.Pedido(  # Agora usando models.Pedido
             cliente_id=cliente.id,
             servico_id=servico.id,
@@ -486,6 +488,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
             destino=destino,
             data_servico=data_servico,
             valor=valor,
+            valor_comissao=comissao_calculada,
             observacoes=message,
             status="AGUARDANDO_PAGAMENTO"  # Padronizado para o Painel
         )

@@ -52,6 +52,7 @@ class PedidoCreate(BaseModel):
     destino: str
     data_servico: datetime
     valor: Decimal
+    valor_comissao: Optional[Decimal] = 0.0
     observacoes: Optional[str] = None
 
 

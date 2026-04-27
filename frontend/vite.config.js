@@ -3,5 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: './', // 🔥 MUITO IMPORTANTE para Vercel SPA quebrado
+  base: './',   // 🔥 ESSENCIAL PARA VERCEL
+  build: {
+    emptyOutDir: true
+  }
 })

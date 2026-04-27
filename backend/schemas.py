@@ -11,7 +11,7 @@ class ClienteBase(BaseModel):
 
 
 class Cliente(ClienteBase):
-    id: Optional[int]
+    id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -28,7 +28,7 @@ class MotoristaBase(BaseModel):
 
 
 class Motorista(MotoristaBase):
-    id: Optional[int]
+    id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -39,7 +39,7 @@ class Servico(BaseModel):
     tipo: str
     descricao: str
     valor_padrao: Optional[Decimal] = 0.0
-    id: Optional[int]
+    id: Optional[int] = None
 
     class Config:
         from_attributes = True

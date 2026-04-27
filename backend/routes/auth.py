@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend import models, schemas
@@ -13,16 +14,16 @@ class LoginRequest(schemas.BaseModel):
 
 
 @router.post("/register")
-def register(email: str, senha: str, db: Session = Depends(get_db)):
+def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == email).first()
+        models.Usuario.email == user_data.email).first()
 
     if usuario:
         raise HTTPException(status_code=400, detail="Usuário já existe")
 
     novo_usuario = models.Usuario(
-        email=email,
-        senha=hash_senha(senha)
+        email=user_data.email,
+        senha=hash_senha(user_data.senha)
     )
 
     db.add(novo_usuario)
@@ -32,11 +33,11 @@ def register(email: str, senha: str, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+def login(data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == data.email).first()
+        models.Usuario.email == data.username).first()
 
-    if not usuario or not verificar_senha(data.senha, usuario.senha):
+    if not usuario or not verificar_senha(data.password, usuario.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     token = criar_token({"sub": usuario.email})

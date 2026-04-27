@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Text, Boolean
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Text, Boolean, func
 from sqlalchemy.orm import relationship
 from backend.database import Base
 import datetime
@@ -53,7 +53,9 @@ class Pedido(Base):
     origem = Column(String(255))
     destino = Column(String(255))
     data_servico = Column(DateTime, default=datetime.datetime.utcnow)
+    criado_at = Column(DateTime, server_default=func.now())
     valor = Column(Numeric(10, 2))
+    valor_comissao = Column(Numeric(10, 2), default=0.0)
     observacoes = Column(Text, nullable=True)
     status = Column(String(50), default="PENDENTE")
     cliente_id = Column(Integer, ForeignKey("clientes.id"))

@@ -8,6 +8,7 @@ from backend import models, schemas
 from backend.config import settings
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.database import get_db
+from backend.services.pagamento_service import criar_checkout_pro
 from backend.auth import hash_senha
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 
@@ -118,9 +119,12 @@ def _find_or_create_user_by_phone(db: Session, phone: str):
     if usuario:
         return usuario
 
-    # Segurança: Hash a senha mesmo para usuários automáticos
+    # Melhoria: Usar um segredo mais forte ou gerar UUID para senhas de contas automáticas
+    import secrets
+    senha_aleatoria = secrets.token_urlsafe(16)
+
     novo_usuario = models.Usuario(
-        email=email_simulado, senha=hash_senha("login_via_whatsapp"))
+        email=email_simulado, senha=hash_senha(senha_aleatoria))
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
@@ -161,7 +165,7 @@ def _find_or_create_client(db: Session, phone: str):
     return novo_cliente
 
 
-def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
+def broadcast_to_drivers(db: Session, pedido: models.Pedido):
     motoristas = db.query(models.Motorista).filter(
         models.Motorista.telefone != None).all()
     mensagens = []
@@ -181,7 +185,7 @@ def _broadcast_to_drivers(db: Session, pedido: models.Pedido):
                 "action": {
                     "buttons": [
                         {"type": "reply", "reply": {
-                            "id": f"ACEITAR_PEDIDO_{pedido.id}", "title": "Aceitar Pedido ✅"}}
+                            "id": f"ACEITAR_PEDIDO_{pedido.id}", "title": "Aceitar ✅"}}
                     ]
                 }
             }
@@ -259,6 +263,8 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
     if not sender or not message:
         return {"status": "ignored", "reason": "no_content"}
 
+    # Sanitização básica de entrada
+    message = "".join(char for char in message if char.isprintable())
     message = message.strip()
     lower = message.lower()
 
@@ -317,7 +323,7 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
             f"A central receberá o valor e repassará a comissão ao motorista após o serviço."
         )
         enviar_whatsapp_meta(sender, texto_cliente)
-        notificacoes = _broadcast_to_drivers(db, pedido)
+        notificacoes = broadcast_to_drivers(db, pedido)
         return {"status": "pedido_pago", "pedido_id": pedido.id, "notificacoes": notificacoes}
 
     if "aceito" in lower or "aceitar" in lower:
@@ -487,9 +493,22 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(novo_pedido)
 
+        # Fluxo de Checkout Pro (PROD)
+        try:
+            checkout_url = criar_checkout_pro(
+                novo_pedido.id, novo_pedido.valor)
+            instrucao_pagamento = (
+                f"Para finalizar sua reserva, realize o pagamento no link abaixo:\n\n"
+                f"{checkout_url}\n\n"
+                "Você pode pagar via PIX ou Cartão. O sistema liberará seu pedido automaticamente após a confirmação."
+            )
+        except Exception as e:
+            logger.error(f"Erro ao gerar Checkout: {e}")
+            instrucao_pagamento = f"Erro ao gerar link de pagamento. Por favor, use nossos dados bancários:\n{CENTRAL_BANK_DETAILS}"
+
         mensagem_retorno = (
-            f"Recebemos seu pedido {service_name}. Use {PAYMENT_METHOD} para pagar o serviço e envie 'pago pedido {novo_pedido.id}' após a transferência.\n"
-            f"Dados da central:\n{CENTRAL_BANK_DETAILS}\n{COMMISSION_NOTE}"
+            f"✅ Recebemos seu pedido {service_name} (#{novo_pedido.id}).\n\n"
+            f"{instrucao_pagamento}\n\n{COMMISSION_NOTE}"
         )
         enviar_whatsapp_meta(sender, mensagem_retorno)
         return {"status": "pedido_criado", "pedido_id": novo_pedido.id}

@@ -7,7 +7,7 @@ from datetime import datetime
 
 from backend.routes import (
     whatsapp, servicos, clientes,
-    motoristas, pedidos, auth
+    motoristas, pedidos, auth, pagamentos
 )
 from backend import models
 from backend.database import Base, engine, get_db, settings
@@ -28,7 +28,7 @@ app = FastAPI(title="Central Transfers API")
 # =============================
 
 allowed_origins = [origin.strip()
-                                for origin in settings.ALLOWED_ORIGINS.split(",")]
+                   for origin in settings.ALLOWED_ORIGINS.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,6 +66,7 @@ app.include_router(motoristas.router)
 app.include_router(servicos.router)
 app.include_router(pedidos.router)
 app.include_router(whatsapp.router)
+app.include_router(pagamentos.router)
 
 # =============================
 # HEALTH CHECK
@@ -143,7 +144,7 @@ def seed_database(db: Session = Depends(get_db)):
 
         db.flush()
 
-        pedido=models.Pedido(
+        pedido = models.Pedido(
             cliente_id=cliente.id,
             servico_id=servico.id,
             origem="Aeroporto Salgado Filho",

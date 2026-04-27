@@ -1,229 +1,151 @@
-# Central Transfers
+Central Transfers — Documentação Oficial
+🚀 Visão do Produto
 
-Central Transfers é uma aplicação FastAPI + React para gerenciar pedidos de transfer, clientes, motoristas e serviços.
+O Central Transfers é uma plataforma SaaS para gestão e automação de operações de transporte e transferências, permitindo o controle completo de:
 
-## Estrutura
+Clientes
+Motoristas
+Serviços
+Pedidos de transporte
+Operações via WhatsApp
+Painel administrativo em tempo real
 
-- `backend/` - API FastAPI em Python
-- `frontend/` - app de cliente para registrar pedidos
-- `painel-saas/` - painel administrativo para gerenciar dados e atribuir motoristas
+O sistema foi projetado para escalar operações de pequenas centrais até empresas estruturadas de logística e mobilidade.
 
-## Pré-requisitos
+🧠 Arquitetura do Sistema
+🔷 Visão Geral
+[ Frontend Cliente ]      →  React (Vite)
+[ Painel Admin ]          →  React (Vite)
+[ Backend API ]           →  FastAPI (Python)
+[ Banco de Dados ]        →  PostgreSQL (Aiven / Cloud)
+[ Integração WhatsApp ]   →  Meta API
+🧱 Estrutura do Projeto
+central-transfers/
+│
+├── backend/            # API principal (FastAPI)
+│   ├── auth/           # autenticação JWT
+│   ├── models/        # ORM (SQLAlchemy)
+│   ├── routes/        # endpoints REST
+│   ├── services/      # regras de negócio
+│   └── database/      # conexão com PostgreSQL
+│
+├── frontend/           # portal do cliente
+├── painel-saas/        # painel administrativo
+├── seed_db.py          # dados iniciais
+├── render.yaml         # deploy backend
+└── README.md
+🔐 Segurança e Autenticação
+Sistema de autenticação
 
-- Python 3.11+ (ou outra versão recente do Python 3)
-- Node.js 18+ / npm
-- MySQL rodando localmente
+O sistema utiliza:
 
-## Configuração do banco de dados
+JWT (JSON Web Token)
+Hash de senha (bcrypt)
+Middleware de proteção de rotas
+Fluxo:
+Login → Validação → Geração JWT → Acesso protegido
+Endpoints de autenticação
+Método	Endpoint	Descrição
+POST	/auth/register	Criação de usuário
+POST	/auth/login	Login e token
+GET	/auth/me	Dados do usuário autenticado
+🗄️ Modelo de Dados
+Entidades principais
+👤 Clientes
+id
+nome
+telefone
+email
+🚗 Motoristas
+id
+nome
+telefone
+carro
+placa
+status
+🧾 Pedidos
+cliente_id
+motorista_id
+origem
+destino
+data
+valor
+status
+🔄 Fluxo de Operação
+1. Criação de pedido
+Cliente envia solicitação (web ou WhatsApp)
+Sistema registra pedido
+Status inicial: PENDENTE
+2. Atribuição
+Admin seleciona motorista
+Pedido muda para ATRIBUÍDO
+3. Execução
+Motorista aceita corrida
+Status: EM_EXECUÇÃO
+4. Finalização
+Serviço concluído
+Status: FINALIZADO
+📲 Integração WhatsApp
+Visão
 
-A API se conecta a um banco MySQL com estas configurações:
+O sistema permite operação completa via WhatsApp utilizando Meta API.
 
-- host: `localhost`
-- user: `root`
-- password: `123456`
-- database: `central_transfers`
+Fluxo
+Cliente → WhatsApp → Backend → Pedido criado → Resposta automática
+Comandos suportados
+criação de pedido via texto livre
+confirmação de pagamento
+aceite de corrida por motorista
+Webhook
+POST /whatsapp/incoming
+🌐 API REST
+Base URL
+http://localhost:8000
+Principais endpoints
+Clientes
+GET /clientes
+POST /clientes
+Motoristas
+GET /motoristas
+POST /motoristas
+Serviços
+GET /servicos
+POST /servicos
+Pedidos
+GET /pedidos
+POST /pedidos
+PUT /pedidos/{id}/status
+💻 Frontend (Cliente)
+Responsabilidade
 
-Crie o banco e as tabelas necessárias antes de executar a aplicação.
+Interface para:
 
-### Exemplo de tabelas mínimas
+criação de pedidos
+acompanhamento de status
+visualização de serviços
+Stack
+React (Vite)
+Axios
+Tailwind CSS (opcional)
+🧑‍💼 Painel Administrativo
+Responsabilidade
 
-```sql
-CREATE DATABASE central_transfers;
-USE central_transfers;
+Controle operacional completo:
 
-CREATE TABLE clientes (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  telefone VARCHAR(100) NOT NULL,
-  email VARCHAR(255)
-);
-
-CREATE TABLE motoristas (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  telefone VARCHAR(100) NOT NULL,
-  carro VARCHAR(255) NOT NULL,
-  placa VARCHAR(50) NOT NULL,
-  modelo VARCHAR(255) NOT NULL,
-  ano INT NOT NULL
-);
-
-CREATE TABLE servicos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nome VARCHAR(255) NOT NULL,
-  tipo VARCHAR(255) NOT NULL,
-  descricao TEXT NOT NULL
-);
-
-CREATE TABLE pedidos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  cliente_id INT NOT NULL,
-  servico_id INT NOT NULL,
-  motorista_id INT DEFAULT NULL,
-  origem VARCHAR(255) NOT NULL,
-  destino VARCHAR(255) NOT NULL,
-  data_servico DATETIME NOT NULL,
-  valor DECIMAL(10,2) NOT NULL,
-  observacoes TEXT,
-  status VARCHAR(50) DEFAULT 'PENDENTE',
-  FOREIGN KEY (cliente_id) REFERENCES clientes(id),
-  FOREIGN KEY (servico_id) REFERENCES servicos(id),
-  FOREIGN KEY (motorista_id) REFERENCES motoristas(id)
-);
-```
-
-## Backend
-
-1. Abra um terminal no diretório raiz `central-transfers`
-2. Crie e ative o ambiente virtual:
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-3. Instale as dependências do backend:
-
-```powershell
-pip install fastapi uvicorn mysql-connector-python pydantic requests sqlalchemy alembic passlib "bcrypt<4.0.0" python-multipart python-dotenv
-```
-
-4. Configure o WhatsApp (opcional, necessário para envio de notificações e recepção de pedidos via WhatsApp):
-
-- Crie um arquivo `backend/.env` com estas variáveis:
-
-```env
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=123456
-DB_NAME=central_transfers
-WHATSAPP_TOKEN=SEU_TOKEN_REAL
-WHATSAPP_PHONE_NUMBER_ID=SEU_PHONE_NUMBER_ID
-WHATSAPP_API_VERSION=v20.0
-```
-
-- O backend carrega automaticamente `backend/.env` se existir, e também aceita variáveis de ambiente do sistema.
-
-5. Execute a API:
-
-```powershell
-python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8001
-```
-
-A API estará disponível em `http://127.0.0.1:8001` e o Swagger em `http://127.0.0.1:8001/docs`.
-
-## Frontend
-
-No diretório `frontend/`:
-
-```powershell
-cd frontend
-npm install
-npm run dev -- --host 127.0.0.1 --port 5173
-```
-
-A interface do cliente ficará disponível em `http://127.0.0.1:5173`.
-
-## Painel SaaS
-
-No diretório `painel-saas/`:
-
-```powershell
-cd painel-saas
-npm install
-npm run dev -- --host 127.0.0.1 --port 5174
-```
-
-O painel administrativo ficará disponível em `http://127.0.0.1:5174`.
-
-## Comandos de build
-
-```powershell
-npm --prefix frontend run build
-npm --prefix painel-saas run build
-```
-
-### Build e validação automática
-
-Para compilar ambos os frontends e validar o backend Python em um só comando, use:
-
-```powershell
-.\build-all.ps1
-```
-
-## Deploy e hospedagem inicial
-
-### Hospedagem gratuita recomendada
-- Frontend e painel: Vercel, Netlify ou Cloudflare Pages (sites estáticos gerados por `npm run build`).
-- Backend: Railway, Render ou Fly (serviço Python com `backend/requirements.txt` e `backend/Procfile`).
-
-> Recomendado para entrega final: backend em `Render` e frontends em `Vercel`.
-
-### Passo a passo inicial
-1. Faça deploy do backend em um serviço gratuito Python.
-   - Use `backend/requirements.txt`.
-   - Configure o comando de inicialização: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`.
-   - Configure as variáveis de ambiente no serviço:
-     - `DB_HOST`
-     - `DB_PORT`
-     - `DB_USER`
-     - `DB_PASSWORD`
-     - `DB_NAME`
-     - `WHATSAPP_TOKEN`
-     - `WHATSAPP_PHONE_NUMBER_ID`
-     - `WHATSAPP_API_VERSION`
-2. Faça deploy do `frontend/` e do `painel-saas/` como sites estáticos.
-   - Cada site deve apontar para a URL pública do backend.
-   - Configure `VITE_API_URL` no ambiente de build para a URL do backend público.
-   - Exemplo: `VITE_API_URL=https://meu-backend.onrender.com`.
-   - Se preferir, use `frontend/.env.example` e `painel-saas/.env.example` como referência.
-3. Verifique os endpoints após o deploy.
-   - Backend: `GET /` deve retornar `{ "status": "ok" }`.
-   - Frontend: formulário de pedido e listagem de serviços.
-   - Painel: cadastro de clientes, motoristas, serviços e atribuição de pedidos.
-
-### Fluxo de teste rápido local
-- Backend: `http://127.0.0.1:8001`
-- Frontend: `http://127.0.0.1:5173`
-- Painel admin: `http://127.0.0.1:5174`
-
-### Expôr localmente sem hospedagem
-- Para testes rápidos, use um túnel como `ngrok` ou `cloudflared` para expor seu backend local e/ou frontends.
-- **AVISO:** O túnel (ngrok) é apenas para desenvolvimento. Se o computador for desligado, a integração para.
-- Se o comando `ngrok` não for reconhecido, use o Node.js para rodar:
-```powershell
-npx ngrok http 8001
-```
-- Copie a URL `https` gerada e use-a na configuração do Webhook da Meta.
-
-> Para o passo a passo completo de deploy, veja `DEPLOY_PROCESS.md`.
-
-## Endpoints principais
-
-- `GET /clientes`
-- `POST /clientes`
-- `GET /motoristas`
-- `POST /motoristas`
-- `GET /servicos`
-- `POST /servicos`
-- `GET /pedidos`
-- `GET /pedidos/{pedido_id}`
-- `POST /pedidos`
-- `POST /pedidos/{pedido_id}/anunciar`
-- `PUT /pedidos/{pedido_id}/atribuir`
-- `PUT /pedidos/{pedido_id}/aceitar`
-- `PUT /pedidos/{pedido_id}/status`
-- `POST /whatsapp/incoming` (recebe pedidos via WhatsApp, confirma pagamento e aceita serviço)
-
-### Uso WhatsApp
-- Cliente pode enviar pedido em formato livre com `origem:`, `destino:`, `data:` e `valor:`.
-- Para pagar, a central poderá usar PIX ou transferência bancária.
-- Dados da central são enviados automaticamente na resposta do WhatsApp ao criar o pedido.
-- Para confirmar pagamento, envie `pago pedido <id>`.
-- Motorista cadastrado pode aceitar serviço usando `aceito pedido <id>`.
-
-## Observações
-
-- Ajuste as configurações de conexão MySQL em `backend/database.py` caso use outro usuário, senha ou host.
-- O frontend e painel usam `http://127.0.0.1:8001` como backend padrão.
+gestão de clientes
+gestão de motoristas
+atribuição de pedidos
+monitoramento em tempo real
+🚀 Deploy em Produção
+Backend (Render / Railway)
+Start command:
+uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+Variáveis obrigatórias:
+DATABASE_URL=
+WHATSAPP_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_API_VERSION=
+Frontend (Vercel / Netlify)
+npm run build
+Configuração de ambiente
+VITE_API_URL=https://api.suaempresa.com

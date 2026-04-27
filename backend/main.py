@@ -11,6 +11,7 @@ from backend.routes import (
 )
 from backend import models
 from backend.database import Base, engine, get_db, settings
+from backend.auth import hash_senha
 
 # Configuração global de logs para exibir erros no terminal
 logging.basicConfig(
@@ -26,11 +27,15 @@ app = FastAPI(title="Central Transfers API")
 # CORS
 # =============================
 
+allowed_origins = [origin.strip()
+                                for origin in settings.ALLOWED_ORIGINS.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip()
-                   for origin in settings.ALLOWED_ORIGINS.split(",")],
-    allow_credentials=False,
+    allow_origins=allowed_origins,
+    # Senior Fix: Browsers bloqueiam '*' com credentials=True.
+    # Se a origem for '*', desativamos credentials para permitir o fetch.
+    allow_credentials=True if "*" not in allowed_origins else False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -42,10 +47,10 @@ try:
     with engine.begin() as conn:
         # Sincroniza tabelas base
         Base.metadata.create_all(bind=conn)
-        
+
         # Migração automática: Adiciona a coluna status se ela não existir
         conn.execute(text("""
-            ALTER TABLE motoristas 
+            ALTER TABLE motoristas
             ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';
         """))
         logger.info("✅ Estrutura do banco de dados e migrações verificadas.")
@@ -97,6 +102,19 @@ def root(db: Session = Depends(get_db)):
 @app.post("/seed")
 def seed_database(db: Session = Depends(get_db)):
     try:
+        # 1. Criar um Usuário Administrador para Login
+        admin_existente = db.query(models.Usuario).filter(
+            models.Usuario.email == "admin@teste.com").first()
+        if not admin_existente:
+            admin = models.Usuario(
+                email="admin@teste.com",
+                senha=hash_senha("admin123"),
+                role="admin"
+            )
+            db.add(admin)
+            logger.info("👤 Usuário admin criado para testes.")
+
+        # 2. Criar Cliente
         cliente = models.Cliente(
             nome="Cliente Teste",
             telefone="5499999999",
@@ -123,9 +141,9 @@ def seed_database(db: Session = Depends(get_db)):
         )
         db.add(servico)
 
-        db.flush()  # Garante IDs sem fechar a transação
+        db.flush()
 
-        pedido = models.Pedido(
+        pedido=models.Pedido(
             cliente_id=cliente.id,
             servico_id=servico.id,
             origem="Aeroporto Salgado Filho",
@@ -140,7 +158,8 @@ def seed_database(db: Session = Depends(get_db)):
 
         return {
             "msg": "Banco populado com sucesso!",
-            "pedido_id": pedido.id
+            "pedido_id": pedido.id,
+            "login_teste": "admin@teste.com / admin123"
         }
 
     except Exception as e:

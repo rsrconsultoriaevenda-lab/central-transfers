@@ -39,16 +39,15 @@ class Settings(BaseSettings):
 
         url = self.DATABASE_URL.strip()
 
-        # Garante o driver psycopg (v3) substituindo tanto postgres:// quanto postgresql://
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+psycopg://", 1)
-        elif url.startswith("postgresql://") and "+psycopg" not in url:
-            url = url.replace("postgresql://", "postgresql+psycopg://", 1)
-
-        # Garante SSL para Aiven
-        if "sslmode" not in url:
-            sep = "&" if "?" in url else "?"
-            url += f"{sep}sslmode=require"
+        # Detecta e corrige o driver para PostgreSQL (Railway/Aiven)
+        if url.startswith("postgres://") or url.startswith("postgresql://"):
+            url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            if "sslmode" not in url:
+                url += ("&" if "?" in url else "?") + "sslmode=require"
+        # Detecta e corrige o driver para MySQL (Railway)
+        elif url.startswith("mysql://"):
+            url = url.replace("mysql://", "mysql+pymysql://", 1)
 
         return url
 

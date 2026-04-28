@@ -15,7 +15,6 @@ class Settings(BaseSettings):
     # =========================
     WHATSAPP_TOKEN: str = ""
     WHATSAPP_PHONE_NUMBER_ID: str = ""
-WHATSAPP_VERIFY_TOKEN=central-transfers-2026
     WHATSAPP_VERIFY_TOKEN: str = "central-transfers-2026"
     ALLOWED_ORIGINS: str = "*"
 

@@ -49,7 +49,8 @@ async def monitorar_expiracao_pedidos():
                 db.commit()
         except Exception as e:
             logger.error(f"Erro no monitoramento de pedidos: {e}")
-        await asyncio.sleep(300) # Checa a cada 5 minutos
+        await asyncio.sleep(300)  # Checa a cada 5 minutos
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,7 +67,8 @@ async def lifespan(app: FastAPI):
             conn.commit()
             logger.info("✅ Banco de dados conectado e tabelas verificadas")
     except Exception as e:
-        logger.error(f"🚨 Erro ao verificar tabelas (pode ser normal se já existirem): {e}")
+        logger.error(
+            f"🚨 Erro ao verificar tabelas (pode ser normal se já existirem): {e}")
 
     # Inicia tarefa em segundo plano
     task = asyncio.create_task(monitorar_expiracao_pedidos())
@@ -85,7 +87,8 @@ app = FastAPI(
 # =============================
 # CORS
 # =============================
-allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",")] if settings.ALLOWED_ORIGINS else ["*"]
+allowed_origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(
+    ",")] if settings.ALLOWED_ORIGINS else ["*"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -101,12 +104,13 @@ app.include_router(clientes.router)
 app.include_router(motoristas.router)
 app.include_router(servicos.router)
 app.include_router(pedidos.router)
-app.include_router(whatsapp.router) # Router já tem prefixo /whatsapp
+app.include_router(whatsapp.router)  # Router já tem prefixo /whatsapp
 app.include_router(pagamentos.router)
 
 # =============================
 # WEBHOOK WHATSAPP (META ENTRY POINT)
 # =============================
+
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
@@ -120,19 +124,24 @@ async def verify_webhook(request: Request):
 
     return PlainTextResponse(content="forbidden", status_code=403)
 
+
 @app.post("/webhook")
 async def webhook_incoming(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
     background_tasks.add_task(whatsapp.processar_evento_whatsapp, data)
     return {"status": "ok"}
 
-@app.get("/", tags=["Sistema"])
-def root(db: Session = Depends(get_db)):
+
+@app.get("/health", tags=["Sistema"])
+def health_check(db: Session = Depends(get_db)):
     try:
-        db.execute(text("SELECT 1"))
+        # Tenta uma operação simples no banco
+        db.execute(text("SELECT 1")).fetchone()
         return {
             "status": "online",
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        return {"status": "erro", "detalhes": str(e)}
+        logger.error(f"Health check failed: {e}")
+        raise HTTPException(
+            status_code=503, detail="Database connection failed")

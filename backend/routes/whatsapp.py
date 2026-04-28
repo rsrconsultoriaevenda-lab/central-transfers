@@ -1,7 +1,8 @@
 from datetime import datetime
 import re
 import logging
-from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks, PlainTextResponse
+from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks
+from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from backend import models, schemas

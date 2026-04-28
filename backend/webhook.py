@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request, PlainTextResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import PlainTextResponse
 from backend.config import settings
 
 router = APIRouter(prefix="/webhook")

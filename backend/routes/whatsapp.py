@@ -1,7 +1,7 @@
 from datetime import datetime
 import re
 import logging
-from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Optional
 from backend import models, schemas
@@ -203,33 +203,27 @@ def broadcast_to_drivers(db: Session, pedido: models.Pedido):
     return mensagens
 
 
-@router.get("/incoming")
-def verify_whatsapp_webhook(
-    hub_mode: str = Query(None, alias="hub.mode"),
-    hub_challenge: str = Query(None, alias="hub.challenge"),
-    hub_verify_token: str = Query(None, alias="hub.verify_token")
-):
+@router.get("/incoming")  # Use @router.get para o GET de verificação
+def verify_webhook(request: Request):
     """Endpoint para verificação do Webhook da Meta API."""
-    logger.info(
-        f"Recebendo tentativa de verificação Meta: mode={hub_mode}, token={hub_verify_token}")
-    verify_token = settings.WHATSAPP_VERIFY_TOKEN
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
 
-    if not verify_token:
-        logger.error(
-            "WHATSAPP_VERIFY_TOKEN não configurado nas variáveis de ambiente.")
-        raise HTTPException(
-            status_code=500, detail="Configuração de servidor incompleta")
+    # Adicionado para depuração, como solicitado
+    logger.info(f"MODE: {mode}")
+    logger.info(f"TOKEN: {token}")
+    logger.info(f"CHALLENGE: {challenge}")
 
-    if hub_mode == "subscribe" and hub_verify_token == verify_token:
-        logger.info(
-            f"✅ Webhook verificado com sucesso! Token: {hub_verify_token}")
-        return Response(content=hub_challenge, media_type="text/plain")
+    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
+        logger.info("✅ Webhook Meta verificado com sucesso!")
+        return PlainTextResponse(content=challenge)
 
     logger.warning(
-        f"❌ Falha na verificação!\nEsperado: {verify_token}\nRecebido: {hub_verify_token}"
-    )
-    raise HTTPException(
-        status_code=403, detail="Token de verificação inválido")
+        "❌ Falha na verificação do Webhook Meta. Token inválido ou modo incorreto.")
+    # IMPORTANTE: não devolver JSON de erro aqui, a Meta espera texto puro
+    return PlainTextResponse(content="forbidden", status_code=403)
 
 
 def processar_evento_whatsapp(data: dict):
@@ -277,19 +271,24 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     message = message.strip()
     lower = message.lower()
 
-    # Tratamento para respostas de botões interativos
+    # Tratamento seguro para respostas de botões interativos
     try:
-        interactive_response = None
-        msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
-        if msg_obj.get("type") == "interactive":
-            interactive_response = msg_obj["interactive"]["button_reply"]["id"]
-            logger.info(f"Botão clicado: {interactive_response}")
+        if "entry" in data:
+            msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
+            if msg_obj.get("type") == "interactive":
+                interactive_response = msg_obj["interactive"]["button_reply"]["id"]
+                logger.info(f"Botão clicado: {interactive_response}")
 
-        if interactive_response and interactive_response.startswith("ACEITAR_PEDIDO_"):
-            order_id = int(interactive_response.replace("ACEITAR_PEDIDO_", ""))
-            # Simula a mensagem de texto para reusar a lógica existente
-            lower = f"aceito pedido {order_id}"
-    except (KeyError, IndexError):
+                if interactive_response and interactive_response.startswith("ACEITAR_PEDIDO_"):
+                    order_id = int(interactive_response.replace(
+                        "ACEITAR_PEDIDO_", ""))
+                    lower = f"aceito pedido {order_id}"
+        elif data.get("interactive_id"):  # Fallback para simuladores simplificados
+            interactive_id = data.get("interactive_id")
+            if interactive_id.startswith("ACEITAR_PEDIDO_"):
+                order_id = int(interactive_id.replace("ACEITAR_PEDIDO_", ""))
+                lower = f"aceito pedido {order_id}"
+    except (KeyError, IndexError, TypeError):
         pass
 
     logger.info(
@@ -529,21 +528,3 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         logger.error(f"💥 Erro ao processar lógica de negócio do WhatsApp: {e}")
         db.rollback()
         raise e
-
-
-@router.post("/incoming")
-async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks):
-    """
-    Endpoint principal do Webhook. Recebe o payload e libera o cliente Meta imediatamente.
-    """
-    if not settings.WHATSAPP_TOKEN:
-        return {"status": "error", "reason": "server_misconfigured"}
-
-    try:
-        data = await request.json()
-        # Adiciona o processamento pesado na fila de tarefas de segundo plano do FastAPI
-        background_tasks.add_task(processar_evento_whatsapp, data)
-        return {"status": "received", "message": "Processamento iniciado em segundo plano"}
-    except Exception as e:
-        logger.error(f"Erro ao receber payload do WhatsApp: {e}")
-        return {"status": "error", "message": "invalid_json"}

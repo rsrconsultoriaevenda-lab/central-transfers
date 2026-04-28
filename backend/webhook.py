@@ -1,14 +1,18 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, PlainTextResponse
 from backend.config import settings
 
 router = APIRouter(prefix="/webhook")
 
 
 @router.get("")
-def verify(hub_mode: str = None, hub_challenge: str = None, hub_verify_token: str = None):
-    if hub_verify_token == settings.WHATSAPP_VERIFY_TOKEN:
-        return int(hub_challenge)
-    return "Invalid token"
+def verify(request: Request):
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+
+    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
+        return PlainTextResponse(content=challenge)
+    return PlainTextResponse(content="forbidden", status_code=403)
 
 
 @router.post("")

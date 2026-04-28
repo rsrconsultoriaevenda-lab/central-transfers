@@ -75,13 +75,14 @@ def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depen
     resultados = db.query(
         models.Motorista.nome.label("motorista"),
         func.count(models.Pedido.id).label("total_viagens"),
-        func.sum(models.Pedido.valor).label("faturamento_bruto")
+        func.sum(models.Pedido.valor).label("faturamento_bruto"),
+        func.sum(models.Pedido.valor_comissao).label("total_comissao_central")
     ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
      .filter(models.Pedido.status == "CONCLUIDO")\
      .group_by(models.Motorista.id).all()
 
     return [
-        {**r._asdict(), "comissao_estimada": float(r.faturamento_bruto or 0) * 0.8}
+        {**r._asdict(), "repasse_motorista": float(r.faturamento_bruto or 0) - float(r.total_comissao_central or 0)}
         for r in resultados
     ]
 

@@ -1,7 +1,8 @@
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -31,13 +32,11 @@ logger = logging.getLogger(__name__)
 async def monitorar_expiracao_pedidos():
     """Tarefa que roda periodicamente para cancelar pedidos não pagos."""
     while True:
+        logger.info("🔍 Iniciando checagem de pedidos expirados...")
         try:
-            logger.info("🔍 Iniciando checagem de pedidos expirados...")
             with SessionLocal() as db:
-                # Define o limite de 30 minutos atrás
-                limite = datetime.now() - timedelta(minutes=30)
+                limite = datetime.utcnow() - timedelta(minutes=30)
 
-                # Busca pedidos em 'AGUARDANDO_PAGAMENTO' criados há mais de 30 min
                 expirados = db.query(models.Pedido).filter(
                     models.Pedido.status == "AGUARDANDO_PAGAMENTO",
                     models.Pedido.criado_at <= limite
@@ -46,14 +45,14 @@ async def monitorar_expiracao_pedidos():
                 for pedido in expirados:
                     pedido.status = "CANCELADO"
                     logger.info(
-                        f"🚫 Pedido #{pedido.id} cancelado por falta de pagamento (Timeout).")
+                        f"🚫 Pedido #{pedido.id} cancelado por Timeout.")
 
                 db.commit()
         except Exception as e:
-            logger.error(f"❌ Erro na tarefa de monitoramento: {e}")
+            logger.error(f"⚠️ Erro na monitoração (aguardando retry): {e}")
 
-        # Aguarda 5 minutos antes da próxima verificação
-        await asyncio.sleep(300)
+        # Aguarda 60 segundos entre checagens para evitar loop infinito
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
@@ -62,25 +61,23 @@ async def lifespan(app: FastAPI):
     # DB INIT & MIGRATIONS
     # =============================
     try:
-        with engine.begin() as conn:
-            # Sincroniza tabelas base
-            Base.metadata.create_all(bind=conn)
-
-            # Migrações automáticas seguras
-            conn.execute(text("""
-                ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';
-            """))
-            conn.execute(text("""
-                ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at DATETIME DEFAULT CURRENT_TIMESTAMP;
-            """))
-            conn.execute(text("""
-                ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10, 2) DEFAULT 0.0;
-            """))
+        # Usamos engine.connect() em vez de begin() para evitar travar o boot em caso de erro
+        with engine.connect() as conn:
+            Base.metadata.create_all(bind=engine)
+            # Migrações manuais rápidas
+            conn.execute(text(
+                "ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
+            conn.execute(text(
+                "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text(
+                "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10, 2) DEFAULT 0.0;"))
+            conn.commit()
             logger.info(
-                "✅ Estrutura do banco de dados verificada com sucesso.")
+                "✅ Conexão com banco de dados estabelecida e tabelas verificadas.")
     except Exception as e:
-        logger.error(
-            f"❌ Erro crítico na inicialização do banco: {str(e)}", exc_info=True)
+        # O app NÃO morre se o banco falhar, ele apenas loga o erro.
+        # Isso permite que o deploy termine e você veja o erro nos logs do Health Check.
+        logger.critical(f"🚨 FALHA NA CONEXÃO COM BANCO: {e}")
 
     # Inicia tarefa de monitoramento
     task = asyncio.create_task(monitorar_expiracao_pedidos())
@@ -93,7 +90,7 @@ app = FastAPI(title="Central Transfers API", lifespan=lifespan)
 # CORS
 # =============================
 
-allowed_origins = [origin.strip()
+allowed_origins = [origin.strip() 
                    for origin in settings.ALLOWED_ORIGINS.split(",")]
 
 app.add_middleware(
@@ -102,7 +99,7 @@ app.add_middleware(
     # Senior Fix: Browsers bloqueiam '*' com credentials=True.
     # Se a origem for '*', desativamos credentials para permitir o fetch.
     allow_credentials=True if "*" not in allowed_origins else False,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -182,14 +179,14 @@ def seed_database(db: Session = Depends(get_db)):
         # 2. Criar Cliente
         cliente = models.Cliente(
             nome="Cliente Teste",
-            telefone="5499999999",
+            telefone="5554999999999",
             email="teste@cliente.com"
         )
         db.add(cliente)
 
         motorista = models.Motorista(
             nome="Motorista Exemplo",
-            telefone="5488888888",
+            telefone="5554888888888",
             carro="Sedan",
             placa="ABC-1234",
             modelo="Corolla",
@@ -231,3 +228,22 @@ def seed_database(db: Session = Depends(get_db)):
         db.rollback()
         logger.error(f"💥 Falha no Seed do Banco: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro no banco: {str(e)}")
+
+
+@app.get("/webhook")
+async def verify_webhook(request: Request):
+    hub_mode = request.query_params.get("hub.mode")
+    hub_token = request.query_params.get("hub.verify_token")
+    hub_challenge = request.query_params.get("hub.challenge")
+
+    if hub_mode == "subscribe" and hub_token == settings.WHATSAPP_VERIFY_TOKEN:
+        return PlainTextResponse(content=hub_challenge)
+
+    return {"error": "Token inválido"}
+
+
+@app.post("/webhook")
+async def whatsapp_webhook(request: Request):
+    data = await request.json()
+    logger.info(f"📩 Webhook recebido: {data}")
+    return {"status": "ok"}

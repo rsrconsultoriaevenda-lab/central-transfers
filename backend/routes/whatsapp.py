@@ -1,13 +1,13 @@
 from datetime import datetime
 import re
 import logging
-from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request
+from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import Optional
 from backend import models, schemas
 from backend.config import settings
 from backend.services.whatsapp_service import enviar_whatsapp_meta
-from backend.database import get_db
+from backend.database import get_db, SessionLocal
 from backend.services.pagamento_service import criar_checkout_pro
 from backend.auth import hash_senha
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
@@ -232,15 +232,26 @@ def verify_whatsapp_webhook(
         status_code=403, detail="Token de verificação inválido")
 
 
-@router.post("/incoming")
-async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
+def processar_evento_whatsapp(data: dict):
     """
-    Processa mensagens recebidas da Meta API ou de simuladores.
+    Tarefa executada em segundo plano para não bloquear a resposta do webhook.
+    Gerencia sua própria sessão de banco de dados.
     """
-    data = await request.json()
-    logger.info(f"Payload bruto recebido do WhatsApp: {data}")
+    db = SessionLocal()
+    try:
+        # Lógica de extração e processamento movida para cá
+        _executar_logica_negocio_whatsapp(data, db)
+    except Exception as e:
+        logger.error(
+            f"💥 Erro no processamento assíncrono do WhatsApp: {e}", exc_info=True)
+    finally:
+        db.close()
 
-    # Tenta extrair dados no formato da Meta API
+
+def _executar_logica_negocio_whatsapp(data: dict, db: Session):
+    """
+    Contém a lógica de parsing e regras de negócio que antes estava na rota.
+    """
     sender = None
     message = None
 
@@ -253,15 +264,13 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
                 sender = msg_obj.get("from")
                 message = msg_obj.get("text", {}).get("body")
         else:
-            # Formato Simplificado (para testes manuais via Postman)
             sender = data.get("sender")
             message = data.get("message")
     except (KeyError, IndexError):
-        logger.warning(f"Payload recebido em formato desconhecido: {data}")
-        return {"status": "ignored", "reason": "invalid_format"}
+        return
 
     if not sender or not message:
-        return {"status": "ignored", "reason": "no_content"}
+        return
 
     # Sanitização básica de entrada
     message = "".join(char for char in message if char.isprintable())
@@ -479,7 +488,8 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         cliente = _find_or_create_client(db, sender)
         servico = _find_or_create_service(db, service_name, service_type)
 
-        comissao_calculada = float(valor) * 0.20 # Define 20% como taxa da central
+        # Define 20% como taxa da central
+        comissao_calculada = float(valor) * 0.20
 
         novo_pedido = models.Pedido(  # Agora usando models.Pedido
             cliente_id=cliente.id,
@@ -516,6 +526,26 @@ async def whatsapp_incoming(request: Request, db: Session = Depends(get_db)):
         enviar_whatsapp_meta(sender, mensagem_retorno)
         return {"status": "pedido_criado", "pedido_id": novo_pedido.id}
     except Exception as e:
-        logger.error(f"Erro ao processar pedido via WhatsApp: {e}")
+        logger.error(f"💥 Erro ao processar lógica de negócio do WhatsApp: {e}")
         db.rollback()
-        return {"status": "erro_interno", "detalhe": str(e)}
+        # Como é uma tarefa de background, não retornamos para o request aqui
+        # mas podemos logar ou notificar o admin
+        return
+
+
+@router.post("/incoming")
+async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks):
+    """
+    Endpoint principal do Webhook. Recebe o payload e libera o cliente Meta imediatamente.
+    """
+    if not settings.WHATSAPP_TOKEN:
+        return {"status": "error", "reason": "server_misconfigured"}
+
+    try:
+        data = await request.json()
+        # Adiciona o processamento pesado na fila de tarefas de segundo plano do FastAPI
+        background_tasks.add_task(processar_evento_whatsapp, data)
+        return {"status": "received", "message": "Processamento iniciado em segundo plano"}
+    except Exception as e:
+        logger.error(f"Erro ao receber payload do WhatsApp: {e}")
+        return {"status": "error", "message": "invalid_json"}

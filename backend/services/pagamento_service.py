@@ -27,15 +27,20 @@ def criar_checkout_pro(pedido_id: int, valor: float):
         "auto_return": "approved"
     }
 
-    response = sdk.preference().create(preference_data)
-    
+    try:
+        response = sdk.preference().create(preference_data)
+    except Exception as e:
+        logger.error(f"Falha na comunicação com Mercado Pago: {e}")
+        raise Exception("Serviço de pagamento indisponível")
+
     # Acesso seguro ao init_point
     result = response.get("response")
     if result and "init_point" in result:
         return result["init_point"]
-    
+
     logger.error(f"❌ Erro ao gerar preferência no Mercado Pago: {response}")
-    raise Exception("Falha ao gerar link de pagamento. Verifique o token do Mercado Pago.")
+    raise Exception(
+        "Falha ao gerar link de pagamento. Verifique o token do Mercado Pago.")
 
 
 def consultar_status_pagamento(payment_id: str):

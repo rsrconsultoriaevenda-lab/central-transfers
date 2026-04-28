@@ -528,9 +528,7 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     except Exception as e:
         logger.error(f"💥 Erro ao processar lógica de negócio do WhatsApp: {e}")
         db.rollback()
-        # Como é uma tarefa de background, não retornamos para o request aqui
-        # mas podemos logar ou notificar o admin
-        return
+        raise e
 
 
 @router.post("/incoming")

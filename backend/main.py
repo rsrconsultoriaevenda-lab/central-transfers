@@ -232,14 +232,19 @@ def seed_database(db: Session = Depends(get_db)):
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
-    hub_mode = request.query_params.get("hub.mode")
-    hub_token = request.query_params.get("hub.verify_token")
-    hub_challenge = request.query_params.get("hub.challenge")
+    """Endpoint de verificação para o handshake da Meta API."""
+    params = request.query_params
+    mode = params.get("hub.mode")
+    token = params.get("hub.verify_token")
+    challenge = params.get("hub.challenge")
 
-    if hub_mode == "subscribe" and hub_token == settings.WHATSAPP_VERIFY_TOKEN:
-        return PlainTextResponse(content=hub_challenge)
+    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
+        logger.info("✅ Webhook validado com sucesso!")
+        # Meta espera o challenge retornado como texto puro
+        return PlainTextResponse(content=challenge)
 
-    return {"error": "Token inválido"}
+    logger.warning("❌ Falha na verificação do Webhook: Token inválido.")
+    return PlainTextResponse(content="Erro de validação", status_code=403)
 
 
 @app.post("/webhook")

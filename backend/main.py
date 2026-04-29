@@ -49,7 +49,7 @@ async def monitorar_expiracao_pedidos():
         except Exception as e:
             logger.error(f"🚨 Erro no monitoramento: {e}")
 
-            await asyncio.sleep(300)  # Executa a cada 5 minutos
+            await asyncio.sleep(300)  # Checa a cada 5 minutos
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,6 +57,7 @@ async def lifespan(app: FastAPI):
     try:
         with engine.begin() as conn:
             Base.metadata.create_all(bind=engine)
+            # Garantia de colunas (Migrações rápidas)
             conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
@@ -75,7 +76,7 @@ async def lifespan(app: FastAPI):
             logger.info("🛑 Background task finalizada.")
 
             # =============================
-            # INICIALIZAÇÃO DO APP (Fora do lifespan!)
+            # INICIALIZAÇÃO DO APP
             # =============================
             app = FastAPI(
                 title="Central Transfers API",
@@ -84,37 +85,33 @@ async def lifespan(app: FastAPI):
             )
 
             # =============================
-            # CONFIGURAÇÃO DE CORS
+            # CONFIGURAÇÃO DE CORS (MODO COMPATÍVEL)
             # =============================
-            raw_origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
-            allowed_origins = [o.strip() for o in raw_origins if o.strip()]
+            # Usando "*" temporariamente para garantir que a Vercel conecte
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=["*"],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+                expose_headers=["*"]
+            )
 
-            if not allowed_origins:
-                allowed_origins = ["http://localhost:5173", "https://central-transfers.vercel.app"]
+            # =============================
+            # REGISTRO DE ROTAS
+            # =============================
+            # As rotas DEVEM ficar fora de qualquer função para serem registradas no app
+            app.include_router(auth.router, tags=["Autenticação"])
+            app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
+            app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
+            app.include_router(servicos.router, prefix="/servicos", tags=["Serviços"])
+            app.include_router(pedidos.router, prefix="/pedidos", tags=["Pedidos"])
+            app.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
+            app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Pagamentos"])
 
-                app.add_middleware(
-                    CORSMiddleware,
-                    allow_origins=allowed_origins,
-                    allow_credentials=True,
-                    allow_methods=["*"],
-                    allow_headers=["*"],
-                )
-
-                # =============================
-                # REGISTRO DE ROTAS
-                # =============================
-                # Importante: Verifique se o seu frontend chama /login ou /auth/login
-                app.include_router(auth.router, tags=["Autenticação"])
-                app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
-                app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
-                app.include_router(servicos.router, prefix="/servicos", tags=["Serviços"])
-                app.include_router(pedidos.router, prefix="/pedidos", tags=["Pedidos"])
-                app.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
-                app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Pagamentos"])
-
-                # =============================
-                # ENDPOINTS GLOBAIS
-                # =============================
+            # =============================
+            # ENDPOINTS GLOBAIS / WEBHOOKS
+            # =============================
 @app.get("/webhook")
 async def verify_webhook(request: Request):
     params = request.query_params
@@ -132,6 +129,11 @@ async def webhook_incoming(request: Request, background_tasks: BackgroundTasks):
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1")).fetchone()
-        return {"status": "online", "db": "healthy", "time": datetime.now().isoformat()}
+        return {
+    "status": "online",
+    "db": "healthy",
+    "server_time": datetime.now().isoformat()
+}
     except Exception as e:
-        raise HTTPException(status_code=503, detail="Database Down")
+        logger.critical(f"Health check falhou: {e}")
+        raise HTTPException(status_code=503, detail="Database connection failed")

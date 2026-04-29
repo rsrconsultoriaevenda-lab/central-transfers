@@ -1,7 +1,10 @@
 import requests
 import time
 
-BASE_URL = "http://127.0.0.1:8001/whatsapp/incoming"
+# Para teste local, mude para: "http://127.0.0.1:8001/webhook"
+# Para teste em produção (Railway):
+BASE_URL = "https://central-transfers-production.up.railway.app/webhook"
+
 CLIENT_PHONE = "5554999999999"
 # Certifique-se de cadastrar este motorista no painel antes
 DRIVER_PHONE = "5554888888888"
@@ -9,10 +12,10 @@ DRIVER_PHONE = "5554888888888"
 
 def send_msg(sender, text):
     payload = {"sender": sender, "message": text}
-    print(f"\n[Enviando de {sender}]: {text}")
+    print(f"\n[Enviando de {sender} para {BASE_URL}]: {text}")
     resp = requests.post(BASE_URL, json=payload)
-    print(f"[Resposta]: {resp.status_code} - {resp.json()}")
-    return resp.json()
+    print(f"[Resposta]: {resp.status_code} - {resp.text}")
+    return resp.status_code
 
 
 def run_test_flow():
@@ -20,24 +23,18 @@ def run_test_flow():
 
     # 1. Criar pedido
     msg_pedido = "Pedido transfer origem: Aeroporto destino: Hotel data: 20/04/2026 14:00 valor: 250"
-    res = send_msg(CLIENT_PHONE, msg_pedido)
-    pedido_id = res.get("pedido_id")
+    send_msg(CLIENT_PHONE, msg_pedido)
 
-    if not pedido_id:
-        print("Falha ao criar pedido.")
-        return
+    print("\n💡 Como o processamento é assíncrono (Background Task),")
+    print("verifique o ID do pedido criado nos LOGS do Railway.")
+    print("Depois, envie manualmente no WhatsApp ou use este script")
+    print("com o ID fixo para testar os próximos passos.")
 
-    time.sleep(1)
-
-    # 2. Confirmar Pagamento
-    msg_pago = f"pago pedido {pedido_id}"
-    send_msg(CLIENT_PHONE, msg_pago)
-
-    time.sleep(1)
-
-    # 3. Motorista Aceitar (Simulando que o motorista já existe no DB com esse telefone)
-    msg_aceito = f"aceito pedido {pedido_id}"
-    send_msg(DRIVER_PHONE, msg_aceito)
+    # Exemplo de como testar passos específicos com ID conhecido:
+    # pedido_id = 15
+    # send_msg(CLIENT_PHONE, f"pago pedido {pedido_id}")
+    # time.sleep(1)
+    # send_msg(DRIVER_PHONE, f"aceito pedido {pedido_id}")
 
     print("\n=== FLUXO CONCLUÍDO ===")
 

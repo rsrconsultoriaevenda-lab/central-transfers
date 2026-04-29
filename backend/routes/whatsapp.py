@@ -168,7 +168,9 @@ def _find_or_create_client(db: Session, phone: str):
 
 def broadcast_to_drivers(db: Session, pedido: models.Pedido):
     motoristas = db.query(models.Motorista).filter(
-        models.Motorista.telefone != None).all()
+        models.Motorista.telefone.isnot(None),
+        models.Motorista.status == 'ATIVO'
+    ).all()
     mensagens = []
     for motorista in motoristas:
         try:
@@ -202,29 +204,6 @@ def broadcast_to_drivers(db: Session, pedido: models.Pedido):
             logger.error(f"Falha ao notificar motorista {motorista.id}: {e}")
             continue
     return mensagens
-
-
-@router.get("/incoming")  # Use @router.get para o GET de verificação
-def verify_webhook(request: Request):
-    """Endpoint para verificação do Webhook da Meta API."""
-    params = request.query_params
-    mode = params.get("hub.mode")
-    token = params.get("hub.verify_token")
-    challenge = params.get("hub.challenge")
-
-    # Adicionado para depuração, como solicitado
-    logger.info(f"MODE: {mode}")
-    logger.info(f"TOKEN: {token}")
-    logger.info(f"CHALLENGE: {challenge}")
-
-    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
-        logger.info("✅ Webhook Meta verificado com sucesso!")
-        return PlainTextResponse(content=challenge)
-
-    logger.warning(
-        "❌ Falha na verificação do Webhook Meta. Token inválido ou modo incorreto.")
-    # IMPORTANTE: não devolver JSON de erro aqui, a Meta espera texto puro
-    return PlainTextResponse(content="forbidden", status_code=403)
 
 
 def processar_evento_whatsapp(data: dict):

@@ -1,3 +1,13 @@
+import axios from 'axios';
+
+const api = axios.create({
+  // Use a URL do seu backend no Railway aqui
+  baseURL: 'https://central-transfers-backend-production.up.railway.app' 
+});
+
+export default api;
+
+
 {
   "name": "frontend",
   "private": true,

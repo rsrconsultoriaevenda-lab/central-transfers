@@ -66,6 +66,7 @@ async def lifespan(app: FastAPI):
 
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
         yield
+        # --- Desligamento ---
         bg_task.cancel()
         try:
             await bg_task
@@ -73,7 +74,7 @@ async def lifespan(app: FastAPI):
             logger.info("🛑 Background task finalizada.")
 
             # =============================
-            # INICIALIZAÇÃO DO APP (MANTENHA NA MARGEM ESQUERDA)
+            # INICIALIZAÇÃO DO APP (IMPORTANTE: SEM ESPAÇOS NO INÍCIO)
             # =============================
             app = FastAPI(
                 title="Central Transfers API",
@@ -124,7 +125,11 @@ async def webhook_incoming(request: Request, background_tasks: BackgroundTasks):
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1")).fetchone()
-        return {"status": "online", "db": "healthy", "server_time": datetime.now().isoformat()}
+        return {
+    "status": "online",
+    "db": "healthy",
+    "server_time": datetime.now().isoformat()
+}
     except Exception as e:
         logger.critical(f"Health check falhou: {e}")
         raise HTTPException(status_code=503, detail="Database connection failed")

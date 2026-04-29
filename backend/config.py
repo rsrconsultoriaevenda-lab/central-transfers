@@ -39,10 +39,13 @@ class Settings(BaseSettings):
 
         url = self.DATABASE_URL.strip()
 
-        # Detecta e corrige o driver para PostgreSQL (Railway/Aiven)
+        # Lógica para PostgreSQL
         if url.startswith("postgres://") or url.startswith("postgresql://"):
-            url = url.replace("postgres://", "postgresql+psycopg2://", 1)
-            url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            if url.startswith("postgres://"):
+                url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif "+psycopg2" not in url:
+                url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
             if "sslmode" not in url:
                 url += ("&" if "?" in url else "?") + "sslmode=require"
         # Detecta e corrige o driver para MySQL (Railway)

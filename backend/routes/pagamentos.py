@@ -37,8 +37,14 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     if not order_id:
         return {"status": "error", "reason": "no_external_reference"}
 
+    # Garante que o ID seja tratado como inteiro para a busca no banco
+    try:
+        order_id_int = int(order_id)
+    except (ValueError, TypeError):
+        return {"status": "error", "message": "Formato de external_reference inválido"}
+
     pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == order_id).first()
+        models.Pedido.id == order_id_int).first()
     if not pedido:
         return {"status": "error", "message": "Pedido não encontrado"}
 

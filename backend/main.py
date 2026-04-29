@@ -57,7 +57,6 @@ async def lifespan(app: FastAPI):
     try:
         with engine.begin() as conn:
             Base.metadata.create_all(bind=engine)
-            # Garantia de colunas para evolução do banco
             conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
@@ -65,10 +64,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Nota de Migração: {e}")
 
-        # Inicia tarefa em background
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
         yield
-        # --- Desligamento ---
         bg_task.cancel()
         try:
             await bg_task
@@ -76,7 +73,7 @@ async def lifespan(app: FastAPI):
             logger.info("🛑 Background task finalizada.")
 
             # ============================================================
-            # INICIALIZAÇÃO GLOBAL (EXATAMENTE NA MARGEM ESQUERDA)
+            # INICIALIZAÇÃO GLOBAL (IMPORTANTE: SEM ESPAÇOS NO INÍCIO)
             # ============================================================
             app = FastAPI(
                 title="Central Transfers API",

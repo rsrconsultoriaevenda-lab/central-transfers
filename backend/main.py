@@ -73,9 +73,9 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("🛑 Background task finalizada.")
 
-            # =============================
-            # INICIALIZAÇÃO DO APP (IMPORTANTE: SEM ESPAÇOS NO INÍCIO)
-            # =============================
+            # ============================================================
+            # INICIALIZAÇÃO DO APP (MANTENHA ESTA LINHA NA MARGEM ESQUERDA)
+            # ============================================================
             app = FastAPI(
                 title="Central Transfers API",
                 version="0.1.0",

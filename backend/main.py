@@ -49,7 +49,7 @@ async def monitorar_expiracao_pedidos():
         except Exception as e:
             logger.error(f"🚨 Erro no monitoramento: {e}")
 
-            await asyncio.sleep(300)  # Checa a cada 5 minutos
+            await asyncio.sleep(300)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -57,7 +57,6 @@ async def lifespan(app: FastAPI):
     try:
         with engine.begin() as conn:
             Base.metadata.create_all(bind=engine)
-            # Garantia de colunas (Migrações rápidas)
             conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
@@ -65,10 +64,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Nota de Migração: {e}")
 
-        # Inicia tarefa em background
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
         yield
-        # --- Desligamento ---
         bg_task.cancel()
         try:
             await bg_task
@@ -76,7 +73,7 @@ async def lifespan(app: FastAPI):
             logger.info("🛑 Background task finalizada.")
 
             # =============================
-            # INICIALIZAÇÃO DO APP
+            # INICIALIZAÇÃO DO APP (MANTENHA NA MARGEM ESQUERDA)
             # =============================
             app = FastAPI(
                 title="Central Transfers API",
@@ -85,9 +82,8 @@ async def lifespan(app: FastAPI):
             )
 
             # =============================
-            # CONFIGURAÇÃO DE CORS (MODO COMPATÍVEL)
+            # CONFIGURAÇÃO DE CORS
             # =============================
-            # Usando "*" temporariamente para garantir que a Vercel conecte
             app.add_middleware(
                 CORSMiddleware,
                 allow_origins=["*"],
@@ -100,7 +96,6 @@ async def lifespan(app: FastAPI):
             # =============================
             # REGISTRO DE ROTAS
             # =============================
-            # As rotas DEVEM ficar fora de qualquer função para serem registradas no app
             app.include_router(auth.router, tags=["Autenticação"])
             app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
             app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
@@ -129,11 +124,7 @@ async def webhook_incoming(request: Request, background_tasks: BackgroundTasks):
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1")).fetchone()
-        return {
-    "status": "online",
-    "db": "healthy",
-    "server_time": datetime.now().isoformat()
-}
+        return {"status": "online", "db": "healthy", "server_time": datetime.now().isoformat()}
     except Exception as e:
         logger.critical(f"Health check falhou: {e}")
         raise HTTPException(status_code=503, detail="Database connection failed")

@@ -54,6 +54,14 @@ class Settings(BaseSettings):
 
         return url
 
+    @computed_field
+    @property
+    def cors_origins(self) -> list[str]:
+        """Converte a string de origens em uma lista limpa para o middleware."""
+        if not self.ALLOWED_ORIGINS or self.ALLOWED_ORIGINS == "*":
+            return ["*"]
+        return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -13,7 +13,7 @@ const Login = () => {
     formData.append('password', password);
 
     try {
-      const response = await fetch('http://127.0.0.1:8001/login', {
+      const response = await fetch('https://central-transfers-backend-production.up.railway.app', {
         method: 'POST',
         body: formData,
       });

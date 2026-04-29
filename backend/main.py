@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 # =============================
 # TAREFAS EM SEGUNDO PLANO
 # =============================
+
+
 async def monitorar_expiracao_pedidos():
     while True:
         try:
@@ -44,57 +46,59 @@ async def monitorar_expiracao_pedidos():
                         db.commit()
         except Exception as e:
             logger.error(f"Erro no monitoramento: {e}")
-            await asyncio.sleep(300)
+        await asyncio.sleep(300)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup
     try:
         with engine.begin() as conn:
             Base.metadata.create_all(bind=engine)
-            conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
-            conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
-            conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
+            conn.execute(text(
+                "ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
+            conn.execute(text(
+                "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            conn.execute(text(
+                "ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
             logger.info("✅ Banco de dados sincronizado.")
     except Exception as e:
         logger.warning(f"⚠️ Nota de Migração: {e}")
 
-        bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
-        yield
-        bg_task.cancel()
+    bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
+    yield
+    # Shutdown
+    bg_task.cancel()
 
-        # ============================================================
-        # INICIALIZAÇÃO GLOBAL (IMPORTANTE: SEM ESPAÇOS NO INÍCIO)
-        # ============================================================
-        app = FastAPI(
-            title="Central Transfers API",
-            version="0.1.0",
-            lifespan=lifespan
-        )
+# ============================================================
+# INICIALIZAÇÃO GLOBAL
+# ============================================================
+app = FastAPI(
+    title="Central Transfers API",
+    version="0.1.0",
+    lifespan=lifespan
+)
 
-        # =============================
-        # CONFIGURAÇÃO DE CORS (SOLUÇÃO PARA O ERRO)
-        # =============================
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],  # Libera todas as origens para resolver o erro do PowerShell
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-            expose_headers=["*"]
-        )
+# Configuração de CORS usando as origens do settings
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
 
-        # =============================
-        # REGISTRO DE ROTAS
-        # =============================
-        app.include_router(auth.router, tags=["Autenticação"])
-        app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
-        app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
-        app.include_router(servicos.router, prefix="/servicos", tags=["Serviços"])
-        app.include_router(pedidos.router, prefix="/pedidos", tags=["Pedidos"])
-        app.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp"])
-        app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Pagamentos"])
+# Registro de rotas (Removido prefixos redundantes se já existirem nos routers)
+app.include_router(auth.router)
+app.include_router(clientes.router)
+app.include_router(motoristas.router)
+app.include_router(servicos.router)
+app.include_router(pedidos.router)
+app.include_router(whatsapp.router)
+app.include_router(pagamentos.router)
 
-        # Endpoints de sistema
+
 @app.get("/health", tags=["Sistema"])
 def health_check(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1")).fetchone()

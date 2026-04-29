@@ -41,11 +41,10 @@ async def monitorar_expiracao_pedidos():
                     models.Pedido.criado_at <= limite
                 ).all()
 
-                for pedido in expirados:
-                    pedido.status = "CANCELADO"
-                    logger.info(f"🚫 Pedido #{pedido.id} cancelado automaticamente.")
-
-                    if expirados:
+                if expirados:
+                    for pedido in expirados:
+                        pedido.status = "CANCELADO"
+                        logger.info(f"🚫 Pedido #{pedido.id} cancelado automaticamente.")
                         db.commit()
         except Exception as e:
             logger.error(f"🚨 Erro no monitoramento: {e}")
@@ -54,26 +53,20 @@ async def monitorar_expiracao_pedidos():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- Inicialização ---
+    # --- Inicialização do Banco ---
     try:
         with engine.begin() as conn:
-            # Cria tabelas se não existirem
             Base.metadata.create_all(bind=engine)
-
-            # Migrações manuais de segurança (Colunas dinâmicas)
             conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS valor_comissao DECIMAL(10,2) DEFAULT 0.0;"))
-
-            logger.info("✅ Banco de dados sincronizado e pronto.")
+            logger.info("✅ Banco de dados sincronizado.")
     except Exception as e:
         logger.warning(f"⚠️ Nota de Migração: {e}")
 
         # Inicia tarefa em background
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
-
         yield
-
         # --- Desligamento ---
         bg_task.cancel()
         try:
@@ -82,7 +75,7 @@ async def lifespan(app: FastAPI):
             logger.info("🛑 Background task finalizada.")
 
             # =============================
-            # INICIALIZAÇÃO DO APP
+            # INICIALIZAÇÃO DO APP (Fora do lifespan!)
             # =============================
             app = FastAPI(
                 title="Central Transfers API",
@@ -91,17 +84,13 @@ async def lifespan(app: FastAPI):
             )
 
             # =============================
-            # CONFIGURAÇÃO DE CORS (Crucial para Vercel)
+            # CONFIGURAÇÃO DE CORS
             # =============================
             raw_origins = settings.ALLOWED_ORIGINS.split(",") if settings.ALLOWED_ORIGINS else []
             allowed_origins = [o.strip() for o in raw_origins if o.strip()]
 
-            # Se a lista estiver vazia, define padrões de segurança em vez de "*" puro
             if not allowed_origins:
-                allowed_origins = ["http://localhost:5173"]
-
-                # Adiciona explicitamente o domínio da Vercel (opcional, mas recomendado)
-                # allowed_origins.append("https://central-transfers.vercel.app")
+                allowed_origins = ["http://localhost:5173", "https://central-transfers.vercel.app"]
 
                 app.add_middleware(
                     CORSMiddleware,
@@ -114,6 +103,7 @@ async def lifespan(app: FastAPI):
                 # =============================
                 # REGISTRO DE ROTAS
                 # =============================
+                # Importante: Verifique se o seu frontend chama /login ou /auth/login
                 app.include_router(auth.router, tags=["Autenticação"])
                 app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
                 app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
@@ -123,41 +113,25 @@ async def lifespan(app: FastAPI):
                 app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Pagamentos"])
 
                 # =============================
-                # WEBHOOK WHATSAPP (META API)
+                # ENDPOINTS GLOBAIS
                 # =============================
 @app.get("/webhook")
 async def verify_webhook(request: Request):
-    """Handshake de verificação da Meta."""
     params = request.query_params
-    mode = params.get("hub.mode")
-    token = params.get("hub.verify_token")
-    challenge = params.get("hub.challenge")
-
-    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:
-        logger.info("✅ Webhook verificado com sucesso!")
-        return PlainTextResponse(content=challenge)
-
+    if params.get("hub.mode") == "subscribe" and params.get("hub.verify_token") == settings.WHATSAPP_VERIFY_TOKEN:
+        return PlainTextResponse(content=params.get("hub.challenge"))
     return PlainTextResponse(content="forbidden", status_code=403)
 
 @app.post("/webhook")
 async def webhook_incoming(request: Request, background_tasks: BackgroundTasks):
-    """Recebe mensagens em tempo real do WhatsApp."""
     data = await request.json()
     background_tasks.add_task(whatsapp.processar_evento_whatsapp, data)
     return {"status": "ok"}
 
-# =============================
-# MONITORAMENTO DE SAÚDE
-# =============================
 @app.get("/health", tags=["Sistema"])
 def health_check(db: Session = Depends(get_db)):
     try:
         db.execute(text("SELECT 1")).fetchone()
-        return {
-    "status": "online",
-    "db_connection": "healthy",
-    "timestamp": datetime.now().isoformat()
-}
+        return {"status": "online", "db": "healthy", "time": datetime.now().isoformat()}
     except Exception as e:
-        logger.critical(f"Health check falhou: {e}")
-        raise HTTPException(status_code=503, detail="Service Unavailable")
+        raise HTTPException(status_code=503, detail="Database Down")

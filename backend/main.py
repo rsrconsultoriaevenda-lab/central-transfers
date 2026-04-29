@@ -64,8 +64,10 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"⚠️ Nota de Migração: {e}")
 
+        # Inicia tarefa em background
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
         yield
+        # --- Desligamento ---
         bg_task.cancel()
         try:
             await bg_task

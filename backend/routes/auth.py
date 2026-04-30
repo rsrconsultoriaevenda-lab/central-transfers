@@ -8,11 +8,6 @@ from backend.auth import hash_senha, verificar_senha, criar_token, get_usuario_a
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
 
-class LoginRequest(schemas.BaseModel):
-    email: str
-    senha: str
-
-
 @router.post("/register")
 def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     usuario = db.query(models.Usuario).filter(
@@ -33,9 +28,11 @@ def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
+    # Normalizamos o e-mail para evitar erros de caixa alta
+    email_clean = data.email.lower().strip()
     usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == data.email).first()
+        models.Usuario.email == email_clean).first()
 
     if not usuario or not verificar_senha(data.senha, usuario.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")

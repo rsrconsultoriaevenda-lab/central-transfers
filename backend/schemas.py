@@ -86,9 +86,14 @@ class TokenData(BaseModel):
     username: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    email: str
+    senha: str
+
+
 class UsuarioCreate(BaseModel):
-    username: str
-    password: str
+    email: str
+    senha: str
 
 
 class UsuarioResponse(BaseModel):

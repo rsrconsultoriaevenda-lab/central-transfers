@@ -3,11 +3,10 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
-from typing import Optional
 from backend.config import settings
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ALGORITHM = settings.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -33,7 +32,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def criar_token(dados: dict):
     dados_copia = dados.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + \
+        timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     dados_copia.update({"exp": expire})
 
     token = jwt.encode(dados_copia, settings.SECRET_KEY, algorithm=ALGORITHM)

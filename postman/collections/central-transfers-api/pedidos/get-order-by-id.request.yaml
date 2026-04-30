@@ -1,0 +1,8 @@
+$kind: http-request
+name: Get Order by ID
+method: GET
+url: '{{baseUrl}}/pedidos/{{pedido_id}}'
+order: 4000
+pathVariables:
+  - key: pedido_id
+    value: ''

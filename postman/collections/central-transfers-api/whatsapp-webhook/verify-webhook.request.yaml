@@ -1,0 +1,12 @@
+$kind: http-request
+name: Verify Webhook
+method: GET
+url: '{{baseUrl}}/whatsapp/webhook'
+order: 1000
+queryParams:
+  - key: hub.mode
+    value: subscribe
+  - key: hub.verify_token
+    value: '{{whatsapp_verify_token}}'
+  - key: hub.challenge
+    value: '1234567890'

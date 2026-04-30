@@ -1,0 +1,10 @@
+$kind: http-request
+name: Commission Report
+method: GET
+url: '{{baseUrl}}/pedidos/relatorio/comissoes'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'

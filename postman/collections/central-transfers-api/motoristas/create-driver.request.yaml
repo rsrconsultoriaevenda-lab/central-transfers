@@ -1,0 +1,25 @@
+$kind: http-request
+name: Create Driver
+method: POST
+url: '{{baseUrl}}/motoristas/'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Carlos Motorista",
+      "telefone": "+5551988888888",
+      "carro": "Toyota Corolla",
+      "placa": "ABC-1234",
+      "modelo": "Corolla",
+      "ano": 2022,
+      "status": "ATIVO"
+    }

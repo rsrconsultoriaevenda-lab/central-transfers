@@ -1,0 +1,22 @@
+$kind: http-request
+name: Create Service
+method: POST
+url: '{{baseUrl}}/servicos/'
+order: 3000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "nome": "Transfer Aeroporto",
+      "tipo": "Transfer",
+      "descricao": "Transfer para aeroporto",
+      "ativo": true
+    }

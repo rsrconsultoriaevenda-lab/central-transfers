@@ -1,0 +1,13 @@
+$kind: http-request
+name: Delete Order
+method: DELETE
+url: '{{baseUrl}}/pedidos/{{pedido_id}}'
+order: 9000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+pathVariables:
+  - key: pedido_id
+    value: ''

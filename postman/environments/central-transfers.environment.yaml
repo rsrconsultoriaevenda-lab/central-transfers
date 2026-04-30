@@ -1,0 +1,10 @@
+name: Central Transfers
+values:
+  - key: baseUrl
+    value: 'http://localhost:8000'
+    enabled: true
+    type: default
+  - key: token
+    value: ''
+    enabled: true
+    type: default

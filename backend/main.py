@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
+
 # Importações internas
 from backend.routes import (
     whatsapp, servicos, clientes,
@@ -97,7 +98,7 @@ allow_all = "*" in origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=not allow_all, # Credenciais apenas se a origem for específica
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]

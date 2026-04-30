@@ -1,0 +1,50 @@
+$kind: http-request
+name: Receive WhatsApp Event
+method: POST
+url: '{{baseUrl}}/whatsapp/webhook'
+order: 2000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "object": "whatsapp_business_account",
+      "entry": [
+        {
+          "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+          "changes": [
+            {
+              "value": {
+                "messaging_product": "whatsapp",
+                "metadata": {
+                  "display_phone_number": "5511999999999",
+                  "phone_number_id": "PHONE_NUMBER_ID"
+                },
+                "contacts": [
+                  {
+                    "profile": {
+                      "name": "Test User"
+                    },
+                    "wa_id": "5511988888888"
+                  }
+                ],
+                "messages": [
+                  {
+                    "from": "5511988888888",
+                    "id": "wamid.XXXXX",
+                    "timestamp": "1700000000",
+                    "text": {
+                      "body": "Olá, preciso de um transfer"
+                    },
+                    "type": "text"
+                  }
+                ]
+              },
+              "field": "messages"
+            }
+          ]
+        }
+      ]
+    }

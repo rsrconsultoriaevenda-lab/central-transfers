@@ -1,0 +1,21 @@
+$kind: http-request
+name: Create Order
+method: POST
+url: '{{baseUrl}}/pedidos/'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "cliente_id": 1,
+      "servico_id": 1,
+      "origem": "Aeroporto Salgado Filho",
+      "destino": "Hotel Centro",
+      "data_servico": "2026-05-01T10:00:00",
+      "valor": 150.00,
+      "valor_comissao": 30.00,
+      "observacoes": "Voo às 08:00"
+    }

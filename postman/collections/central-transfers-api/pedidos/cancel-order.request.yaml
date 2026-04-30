@@ -1,0 +1,22 @@
+$kind: http-request
+name: Cancel Order
+method: POST
+url: '{{baseUrl}}/pedidos/{{pedido_id}}/cancelar'
+order: 8000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+pathVariables:
+  - key: pedido_id
+    value: ''
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "motivo": "Cliente solicitou cancelamento"
+    }

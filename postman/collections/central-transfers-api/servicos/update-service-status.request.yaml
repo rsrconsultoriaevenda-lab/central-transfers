@@ -1,0 +1,22 @@
+$kind: http-request
+name: Update Service Status
+method: PUT
+url: '{{baseUrl}}/servicos/{{servico_id}}/status'
+order: 4000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+headers:
+  - key: Content-Type
+    value: application/json
+pathVariables:
+  - key: servico_id
+    value: ''
+body:
+  type: json
+  content: |-
+    {
+      "status": "ATIVO"
+    }

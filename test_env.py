@@ -15,8 +15,8 @@ def testar_configuracoes():
         print(f"    Porta: {settings.DB_PORT}")
 
     print(
-        f"[DATABASE] URL Final Computada: {settings.database_url[:30]}...")
-
+        f"[DATABASE] URL Final Computada: {settings.DATABASE_URL[:30]}..."
+    )
     print(
         f"\n[WHATSAPP] Token: {'✅ Configurado' if settings.WHATSAPP_TOKEN else '❌ Vazio'}")
     print(f"[WHATSAPP] Verify Token: {settings.WHATSAPP_VERIFY_TOKEN}")

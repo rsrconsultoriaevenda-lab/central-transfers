@@ -3,8 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 
-from fastapi import FastAPI, Depends, HTTPException, Request, BackgroundTasks
-from fastapi.responses import PlainTextResponse
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
@@ -18,11 +17,25 @@ from backend import models
 from backend.database import Base, engine, get_db, SessionLocal
 from backend.config import settings
 
-# 1. Configuração de Log
+# 1. LOGGING
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# 2. Monitor de Pedidos (Background)
+# ============================================================
+# 2. INICIALIZAÇÃO DO APP (MANTIDA NO TOPO PARA EVITAR NAMEERROR)
+# ============================================================
+app = FastAPI(title="Central Transfers API", version="0.1.0")
+
+# 3. CONFIGURAÇÃO DE CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 4. MONITOR DE PEDIDOS (TASK DE BACKGROUND)
 async def monitorar_expiracao_pedidos():
     while True:
         try:
@@ -36,40 +49,31 @@ async def monitorar_expiracao_pedidos():
                     for pedido in expirados:
                         pedido.status = "CANCELADO"
                         db.commit()
+                        logger.info(f"Monitor: {len(expirados)} pedidos expirados cancelados.")
         except Exception as e:
             logger.error(f"Erro no monitoramento: {e}")
             await asyncio.sleep(300)
 
-            # 3. Ciclo de Vida (Lifespan)
-@asynccontextmanager
-async def lifespan(app: FastAPI):
+            # 5. LIFESPAN (EVENTOS DE INICIALIZAÇÃO)
+@app.on_event("startup")
+async def startup_event():
     try:
         with engine.begin() as conn:
             Base.metadata.create_all(bind=engine)
-            conn.execute(text("ALTER TABLE motoristas ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'ATIVO';"))
-            conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            # Alterações seguras para SQLite/MySQL
+            try:
+                conn.execute(text("ALTER TABLE motoristas ADD COLUMN status VARCHAR(50) DEFAULT 'ATIVO';"))
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE pedidos ADD COLUMN criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
+            except Exception: pass
             logger.info("✅ Banco sincronizado.")
     except Exception as e:
-        logger.warning(f"Nota de startup: {e}")
-        bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
-        yield
-        bg_task.cancel()
+        logger.warning(f"Aviso Startup: {e}")
 
-        # ============================================================
-        # 4. INICIALIZAÇÃO DO APP (DEFINIDO ANTES DE QUALQUER ROTA)
-        # ============================================================
-        app = FastAPI(title="Central Transfers API", version="0.1.0", lifespan=lifespan)
+        asyncio.create_task(monitorar_expiracao_pedidos())
 
-        # 5. Configuração de CORS (Liberação para o Frontend)
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-
-        # 6. Registro de Rotas (Usando o app já definido)
+        # 6. REGISTRO DE ROUTERS
         app.include_router(auth.router)
         app.include_router(clientes.router)
         app.include_router(motoristas.router)
@@ -78,12 +82,11 @@ async def lifespan(app: FastAPI):
         app.include_router(whatsapp.router)
         app.include_router(pagamentos.router)
 
-        # Rota de Login Fallback
+        # 7. ENDPOINTS GLOBAIS
 @app.post("/login", tags=["Autenticação"])
 async def login_fallback(request: Request, db: Session = Depends(get_db)):
     return await auth.login(db=db, request=request)
 
-# 7. Endpoints Globais
 @app.get("/", tags=["Sistema"])
 def read_root():
     return {"message": "Central Transfers API Online", "status": "online"}

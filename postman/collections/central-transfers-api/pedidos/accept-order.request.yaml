@@ -1,0 +1,13 @@
+$kind: http-request
+name: Accept Order
+method: POST
+url: '{{baseUrl}}/pedidos/{{pedido_id}}/aceitar'
+order: 6000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+pathVariables:
+  - key: pedido_id
+    value: ''

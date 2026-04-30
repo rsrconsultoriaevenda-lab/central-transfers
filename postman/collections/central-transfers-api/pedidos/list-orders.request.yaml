@@ -1,0 +1,17 @@
+$kind: http-request
+name: List Orders
+method: GET
+url: '{{baseUrl}}/pedidos/'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+queryParams:
+  - key: data_inicio
+    value: ''
+    disabled: true
+  - key: data_fim
+    value: ''
+    disabled: true

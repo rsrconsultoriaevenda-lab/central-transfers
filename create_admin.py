@@ -17,7 +17,7 @@ def setup_database():
             novo_admin = Usuario(
                 email=email_admin,
                 senha=hash_senha(senha_admin),
-                username="admin"
+                role="admin"
             )
             db.add(novo_admin)
             db.commit()

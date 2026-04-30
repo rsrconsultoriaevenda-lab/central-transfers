@@ -1,0 +1,10 @@
+$kind: http-request
+name: Get Order Stats
+method: GET
+url: '{{baseUrl}}/pedidos/stats'
+order: 2000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'

@@ -1,0 +1,5 @@
+$kind: http-request
+name: My Services
+method: GET
+url: '{{baseUrl}}/servicos/meus'
+order: 2000

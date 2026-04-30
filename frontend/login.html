@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Central Transfers | Login Administrativo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-900 flex items-center justify-center min-h-screen">
+
+    <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all hover:scale-[1.01]">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="bg-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/50">
+                <i class="fas fa-car-side text-white text-2xl"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800">Central Transfers</h1>
+            <p class="text-slate-500 text-sm">Painel de Logística Gramado</p>
+        </div>
+
+        <!-- Formulário -->
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">E-mail Profissional</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <i class="fas fa-envelope"></i>
+                    </span>
+                    <input type="email" id="email" required 
+                        class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        placeholder="seu@email.com">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Senha</label>
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                        <i class="fas fa-lock"></i>
+                    </span>
+                    <input type="password" id="senha" required 
+                        class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                        placeholder="••••••••">
+                </div>
+            </div>
+
+            <button type="submit" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg shadow-lg shadow-blue-500/30 transition-all active:scale-95">
+                Acessar Painel
+            </button>
+        </form>
+
+        <div id="mensagem" class="mt-4 text-center text-sm hidden"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('loginForm');
+        const mensagemDiv = document.getElementById('mensagem');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const senha = document.getElementById('senha').value;
+
+            mensagemDiv.classList.remove('hidden');
+            mensagemDiv.innerText = "⏳ Autenticando...";
+            mensagemDiv.className = "mt-4 text-center text-sm text-blue-600";
+
+            try {
+                const response = await fetch('https://central-transfers-production.up.railway.app/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, senha })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // SUCESSO: Salva o token no navegador
+                    localStorage.setItem('access_token', data.access_token);
+                    mensagemDiv.innerText = "✅ Login realizado! Redirecionando...";
+                    mensagemDiv.className = "mt-4 text-center text-sm text-green-600 font-bold";
+                    
+                    // Simula redirecionamento (vamos criar o dashboard a seguir)
+                    setTimeout(() => {
+                        alert("Login OK! Agora vamos criar o seu Dashboard visual.");
+                    }, 1000);
+                } else {
+                    mensagemDiv.innerText = "❌ " + (data.detail || "Erro ao acessar");
+                    mensagemDiv.className = "mt-4 text-center text-sm text-red-600";
+                }
+            } catch (error) {
+                mensagemDiv.innerText = "❌ Erro de conexão com o servidor.";
+                mensagemDiv.className = "mt-4 text-center text-sm text-red-600";
+            }
+        });
+    </script>
+</body>
+</html>

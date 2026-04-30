@@ -1,0 +1,10 @@
+$kind: http-request
+name: List Drivers
+method: GET
+url: '{{baseUrl}}/motoristas/'
+order: 1000
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'

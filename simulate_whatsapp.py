@@ -3,7 +3,8 @@ import time
 
 # Para teste local, mude para: "http://127.0.0.1:8001/webhook"
 # Para teste em produção (Railway):
-BASE_URL = "https://central-transfers-production.up.railway.app/webhook"
+# Ajustado para o prefixo da rota
+BASE_URL = "https://sua-url-aqui.up.railway.app/whatsapp/webhook"
 
 CLIENT_PHONE = "5554999999999"
 # Certifique-se de cadastrar este motorista no painel antes

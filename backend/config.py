@@ -1,33 +1,29 @@
 import os
+from pydantic_settings import BaseSettings
 from pathlib import Path
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
-# Localiza a raiz do projeto (onde o .env está guardado)
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 class Settings(BaseSettings):
-    # APP CONFIG
-    app_name: str = "central-transfers"
-    env: str = "production"
+    APP_NAME: str = "central-transfers"
+    ENV: str = "production"
+    SECRET_KEY: str = "placeholder_key"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    DATABASE_URL: str = ""
+    MERCADO_PAGO_ACCESS_TOKEN: str = ""
+    MERCADO_PAGO_WEBHOOK_SECRET: str = ""
+    WHATSAPP_TOKEN: str = ""
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_API_VERSION: str = "v20.0"
+    WHATSAPP_VERIFY_TOKEN: str = ""
+    ALLOWED_ORIGINS: str = "*"
 
-    # SEGURANÇA (O alias garante que ele leia exatamente o nome no .env)
-    secret_key: str = Field(..., alias="SECRET_KEY")
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 60
+    model_config = {
+        "env_file": str(BASE_DIR / ".env"),
+        "extra": "ignore",
+        "case_sensitive": False
+    }
 
-    # DATABASE
-    database_url: str = Field(..., alias="DATABASE_URL")
-
-    # CORS (Para aceitar requisições da Vercel)
-    cors_origins: list = ["*"]
-
-    # Configuração do Pydantic para carregar o arquivo
-    model_config = SettingsConfigDict(
-        env_file=str(BASE_DIR / ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore",
-        case_sensitive=False
-    )
-
-    settings = Settings()
+    # ESTA LINHA DEVE FICAR COLADA NA MARGEM ESQUERDA
+settings = Settings()

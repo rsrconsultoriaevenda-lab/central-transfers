@@ -20,9 +20,9 @@ def criar_checkout_pro(pedido_id: int, valor: float):
         ],
         "external_reference": str(pedido_id),
         "back_urls": {
-            "success": "https://central-transfers-admin.vercel.app/success",
-            "failure": "https://central-transfers-admin.vercel.app/failure",
-            "pending": "https://central-transfers-admin.vercel.app/pending"
+            "success": f"{settings.FRONTEND_ADMIN_URL}/success",
+            "failure": f"{settings.FRONTEND_ADMIN_URL}/failure",
+            "pending": f"{settings.FRONTEND_ADMIN_URL}/pending"
         },
         "auto_return": "approved"
     }
@@ -35,7 +35,8 @@ def criar_checkout_pro(pedido_id: int, valor: float):
         return init_point
     except Exception as e:
         logger.error(f"Erro ao gerar checkout Mercado Pago: {e}")
-        raise Exception("Serviço de pagamento indisponível ou erro na criação da preferência")
+        raise Exception(
+            "Serviço de pagamento indisponível ou erro na criação da preferência")
 
 
 def consultar_status_pagamento(payment_id: str):

@@ -83,13 +83,12 @@ class Token(BaseModel):
 
 
 class TokenData(BaseModel):
-    username: Optional[str] = None
+    email: Optional[str] = None
 
 
 class LoginRequest(BaseModel):
     email: str
     senha: str
-
 
 class UsuarioCreate(BaseModel):
     email: str

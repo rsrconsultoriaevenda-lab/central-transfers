@@ -12,7 +12,7 @@ router = APIRouter(prefix="/auth", tags=["Autenticação"])
 def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     usuario = db.query(models.Usuario).filter(
         models.Usuario.email == user_data.email).first()
-
+    
     if usuario:
         raise HTTPException(status_code=400, detail="Usuário já existe")
 
@@ -28,7 +28,7 @@ def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
+def login(data: schemas.LoginRequest, db: Session = Depends(get_db)): # Espera JSON com email e senha
     # Normalizamos o e-mail para evitar erros de caixa alta
     email_clean = data.email.lower().strip()
     usuario = db.query(models.Usuario).filter(
@@ -36,7 +36,7 @@ def login(data: schemas.LoginRequest, db: Session = Depends(get_db)):
 
     if not usuario or not verificar_senha(data.senha, usuario.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
-
+    
     token = criar_token({"sub": usuario.email})
     return {"access_token": token, "token_type": "bearer"}
 

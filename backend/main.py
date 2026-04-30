@@ -55,7 +55,9 @@ async def lifespan(app: FastAPI):
         yield
         bg_task.cancel()
 
-        # 4. Inicialização do App
+        # ============================================================
+        # 4. INICIALIZAÇÃO DO APP (DEFINIDO ANTES DE QUALQUER ROTA)
+        # ============================================================
         app = FastAPI(title="Central Transfers API", version="0.1.0", lifespan=lifespan)
 
         # 5. Configuração de CORS (Liberação para o Frontend)
@@ -67,7 +69,7 @@ async def lifespan(app: FastAPI):
             allow_headers=["*"],
         )
 
-        # 6. Registro de Rotas
+        # 6. Registro de Rotas (Usando o app já definido)
         app.include_router(auth.router)
         app.include_router(clientes.router)
         app.include_router(motoristas.router)
@@ -76,7 +78,7 @@ async def lifespan(app: FastAPI):
         app.include_router(whatsapp.router)
         app.include_router(pagamentos.router)
 
-        # Rota de Login (Substituindo a sintaxe que deu erro)
+        # Rota de Login Fallback
 @app.post("/login", tags=["Autenticação"])
 async def login_fallback(request: Request, db: Session = Depends(get_db)):
     return await auth.login(db=db, request=request)

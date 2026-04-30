@@ -1,48 +1,34 @@
-from backend.database import SessionLocal, engine, settings, Base
+from backend.database import SessionLocal, engine, Base
 from backend.models import Usuario
-from backend.auth import pwd_context
-import sys
-import os
-import getpass
+from backend.auth import hash_senha
 
-# Adiciona o diretório raiz ao path antes das importações do projeto
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
-
-
-def create_initial_admin():
-    print("=== Central Transfers - Cadastro de Administrador ===")
-    print(f"DEBUG: Conectando em -> {settings.database_url}\n")
-
-    # Garante que as tabelas estejam criadas (útil para o primeiro run)
-    Base.metadata.create_all(bind=engine)
-
+def setup_database():
     db = SessionLocal()
     try:
-        email = input("Digite o E-mail do administrador: ")
+        print("⏳ Conectando ao Aiven e criando tabelas...")
+        Base.metadata.create_all(bind=engine)
 
-        user_exists = db.query(Usuario).filter(
-            Usuario.email == email).first()
-        if user_exists:
-            print(f"Erro: O usuário '{email}' já existe.")
-            return
+        email_admin = "rsrconsultoriaevenda@gmail.com" 
+        senha_admin = "Ren@220382"      
 
-        password = getpass.getpass("Senha: ")
-        role = "admin"
+        user = db.query(Usuario).filter(Usuario.email == email_admin).first()
 
-        hashed_pwd = pwd_context.hash(password)
-        new_user = Usuario(email=email, senha=hashed_pwd, role=role)
+        if not user:
+            novo_admin = Usuario(
+                email=email_admin,
+                senha=hash_senha(senha_admin),
+                username="admin"
+            )
+            db.add(novo_admin)
+            db.commit()
+            print(f"✅ Sucesso! Admin {email_admin} criado.")
+        else:
+            print(f"ℹ️ O usuário {email_admin} já existe no banco.")
 
-        db.add(new_user)
-        db.commit()
-        print(f"\nUsuário '{email}' criado com sucesso como ADMIN!")
     except Exception as e:
-        db.rollback()
-        print(f"\nErro ao criar usuário: {e}")
+        print(f"❌ Erro de conexão: {e}")
     finally:
         db.close()
 
-
 if __name__ == "__main__":
-    create_initial_admin()
+    setup_database()

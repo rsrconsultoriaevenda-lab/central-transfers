@@ -2,3 +2,10 @@
 backend/.env
 venv/
 __pycache__/
+create_admin.py
+.gitignore
+backend/.en.example
+backend/config.py
+backend/main.py
+backend/routes/auth.py
+create_admin.py

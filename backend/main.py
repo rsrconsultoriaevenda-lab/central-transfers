@@ -50,17 +50,15 @@ async def lifespan(app: FastAPI):
             conn.execute(text("ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS criado_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"))
             logger.info("✅ Banco sincronizado.")
     except Exception as e:
-        logger.warning(f"Nota: {e}")
+        logger.warning(f"Nota de startup: {e}")
         bg_task = asyncio.create_task(monitorar_expiracao_pedidos())
         yield
         bg_task.cancel()
 
-        # ============================================================
-        # 4. INICIALIZAÇÃO DO APP (MANTENHA ESTA ORDEM)
-        # ============================================================
+        # 4. Inicialização do App
         app = FastAPI(title="Central Transfers API", version="0.1.0", lifespan=lifespan)
 
-        # 5. MIDDLEWARE DE CORS (LIBERA O FRONTEND)
+        # 5. Configuração de CORS (Liberação para o Frontend)
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
@@ -69,7 +67,7 @@ async def lifespan(app: FastAPI):
             allow_headers=["*"],
         )
 
-        # 6. REGISTRO DE ROTAS
+        # 6. Registro de Rotas
         app.include_router(auth.router)
         app.include_router(clientes.router)
         app.include_router(motoristas.router)
@@ -78,7 +76,12 @@ async def lifespan(app: FastAPI):
         app.include_router(whatsapp.router)
         app.include_router(pagamentos.router)
 
-        # 7. ENDPOINTS GLOBAIS
+        # Rota de Login (Substituindo a sintaxe que deu erro)
+@app.post("/login", tags=["Autenticação"])
+async def login_fallback(request: Request, db: Session = Depends(get_db)):
+    return await auth.login(db=db, request=request)
+
+# 7. Endpoints Globais
 @app.get("/", tags=["Sistema"])
 def read_root():
     return {"message": "Central Transfers API Online", "status": "online"}
@@ -87,5 +90,3 @@ def read_root():
 def health_check(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1")).fetchone()
     return {"status": "healthy"}
-
-@app.post("/login", tags=["Autenticação"])(auth.login)

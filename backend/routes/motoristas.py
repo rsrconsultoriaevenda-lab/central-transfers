@@ -31,3 +31,20 @@ def criar(motorista: schemas.Motorista, db: Session = Depends(get_db), current_u
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.patch("/{motorista_id}")
+def atualizar_plano_motorista(
+    motorista_id: int, 
+    update_data: schemas.MotoristaBase, 
+    db: Session = Depends(get_db), 
+    email: str = Depends(get_usuario_atual)
+):
+    """Atualiza o modelo de cobrança (MENSAL ou MASTER) de um motorista."""
+    db_motorista = db.query(models.Motorista).filter(models.Motorista.id == motorista_id).first()
+    if not db_motorista:
+        raise HTTPException(status_code=404, detail="Motorista não encontrado")
+        
+    db_motorista.plano = update_data.plano
+    db.commit()
+    db.refresh(db_motorista)
+    return db_motorista

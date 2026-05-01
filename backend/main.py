@@ -3,8 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # IMPORTANTE: importar o auth
-from backend.routes import auth, pagamentos, dashboard, whatsapp
-
+from routes import auth, pagamentos, dashboard, whatsapp
 app = FastAPI(title="Central Transfers API")
 
 # CORS (ajustado para produção + local)

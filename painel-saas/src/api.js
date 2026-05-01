@@ -1,32 +1,26 @@
-const API = import.meta.env.VITE_API_URL;
+const API_URL = "https://central-transfers-production.up.railway.app";
 
-let token = localStorage.getItem("token") || null;
-
-export const setToken = (newToken) => {
-  token = newToken;
-  localStorage.setItem("token", newToken);
+export const getToken = () => {
+  return localStorage.getItem("token");
 };
 
-const request = async (endpoint, options = {}) => {
-  const headers = options.headers || {};
+export const apiFetch = async (endpoint, options = {}) => {
+  const token = getToken();
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${API}${endpoint}`, {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(options.headers || {}),
+    },
   });
 
-  if (!response.ok) {
-    throw new Error("Erro na requisição");
+  if (response.status === 401) {
+    localStorage.removeItem("token");
+    window.location.href = "/";
+    return;
   }
 
   return response.json();
-};
-
-export default {
-  request,
-  setToken,
 };

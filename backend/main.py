@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from backend.routes import auth
-app.include_router(auth.router)
 
 app = FastAPI()
+
+app.include_router(auth.router, prefix="/auth")
 
 @app.get("/health")
 def health():

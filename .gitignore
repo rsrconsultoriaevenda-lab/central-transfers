@@ -9,3 +9,5 @@ backend/config.py
 backend/main.py
 backend/routes/auth.py
 create_admin.py
+node_modules
+

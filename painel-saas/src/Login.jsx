@@ -12,21 +12,19 @@ const Login = () => {
     setError('');
     setLoading(true);
 
-    const API = import.meta.env.VITE_API_URL;
+const API = import.meta.env.VITE_API_URL;
 
-    const formData = new URLSearchParams();
-    formData.append('username', username);
-    formData.append('password', password);
+const formData = new URLSearchParams();
+formData.append('username', username);
+formData.append('password', password);
 
-    try {
-      const response = await fetch(`${API}/auth/login`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      });
-
+const response = await fetch(`${API}/auth/login`, {
+  method: 'POST',
+  body: formData,
+  headers: {
+    'Content-Type': 'application/x-www-form-urlencoded',
+  },
+});
       const data = await response.json();
 
       if (!response.ok) {

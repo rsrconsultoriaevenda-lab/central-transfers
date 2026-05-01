@@ -349,14 +349,19 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         pedido.status = 'ACEITO'
         db.commit()
         db.refresh(pedido)
-        # Alterado pedido.data para pedido.data_servico e adicionado formatação
-        text_driver = f"Você aceitou o pedido {order_id}. Origem: {pedido.origem} Destino: {pedido.destino} Data: {pedido.data_servico} Valor: R$ {pedido.valor}."
+
+        # Lógica de Cobrança baseada no Plano
+        nota_plano = ""
+        if getattr(driver, 'plano', 'MENSAL') == 'MASTER':
+            nota_plano = f"\n📉 *Comissão Central (20%):* R$ {pedido.valor_comissao:.2f}\n💰 *Líquido:* R$ {pedido.valor - pedido.valor_comissao:.2f}"
+        else:
+            nota_plano = "\n✅ *Plano Mensal:* Sem desconto de comissão nesta corrida."
 
         # Melhoria: Formatação amigável da data para o motorista
         data_formatada = pedido.data_servico.strftime('%d/%m/%Y %H:%M')
         text_driver = (
             f"✅ Você aceitou o pedido #{order_id}!\n\n"
-            f"📍 Origem: {pedido.origem}\n🏁 Destino: {pedido.destino}\n📅 Data: {data_formatada}\n💰 Valor: R$ {pedido.valor}"
+            f"📍 Origem: {pedido.origem}\n🏁 Destino: {pedido.destino}\n📅 Data: {data_formatada}\n💰 Valor: R$ {pedido.valor}{nota_plano}"
         )
         enviar_whatsapp_meta(sender, text_driver)
 

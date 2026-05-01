@@ -246,6 +246,11 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     if not sender or not message:
         return
 
+    # Sanitização básica de entrada e definição de lower logo no início
+    message = "".join(char for char in message if char.isprintable())
+    message = message.strip()
+    lower = message.lower()
+
     # 0. Verificação: O remetente é um motorista cadastrado?
     driver = db.query(models.Motorista).filter(models.Motorista.telefone == sender).first()
 
@@ -272,11 +277,6 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         
         enviar_whatsapp_meta(sender, texto_vagas)
         return {"status": "vagas_listadas"}
-
-    # Sanitização básica de entrada
-    message = "".join(char for char in message if char.isprintable())
-    message = message.strip()
-    lower = message.lower()
 
     # Tratamento seguro para respostas de botões interativos
     try:

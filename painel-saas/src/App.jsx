@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import Login from './Login';
 
 // Configuração da API baseada no ambiente
@@ -23,9 +23,11 @@ function Dashboard() {
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
   const [showAddDriver, setShowAddDriver] = useState(false);
-  const [stats, setStats] = useState({ faturamento: 0, comissao: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {}, faturamentoHistorico: [] });
+  const [stats, setStats] = useState({ faturamento: 0, comissao: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {}, faturamentoHistorico: [], statusChartData: [] });
   const [motoristas, setMotoristas] = useState([]);
   const [adminInfo, setAdminInfo] = useState({ name: "Renato Rocha", email: "renato@centraltransfers.com" });
+
+  const COLORS = ['#4c1d95', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#64748b'];
 
   // Estado para novo motorista
   const [newDriver, setNewDriver] = useState({
@@ -43,8 +45,8 @@ function Dashboard() {
     setLoading(true);
     try {
       const [pedidosRes, motoristasRes] = await Promise.all([
-        axios.get(`${API_URL}/pedidos`),
-        axios.get(`${API_URL}/motoristas`)
+        axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
+        axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() })
       ]);
 
       const pedidosValidos = (pedidosRes.data || []).filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status));
@@ -91,7 +93,8 @@ function Dashboard() {
         pedidosRecentes: (pedidosRes.data || []).slice(-5).reverse(), // Últimos 5 pedidos
         totalMotoristas: (motoristasRes.data || []).length,
         pedidosPorStatus: porStatus,
-        faturamentoHistorico: historico
+        faturamentoHistorico: historico,
+        statusChartData: Object.entries(porStatus).map(([name, value]) => ({ name, value }))
       });
     } catch (error) {
       console.error("Erro ao carregar dados do SaaS:", error);
@@ -165,8 +168,9 @@ function Dashboard() {
         <header style={ds.header}>
           <div>
             <h1 style={ds.welcomeText}>Bom dia, <span style={{fontWeight:800}}>{adminInfo.name}</span></h1>
-            <p style={ds.subWelcome}>Status: {loading ? 'Atualizando...' : 'Sistema Online'}</p>
+            <p style={ds.subWelcome}>Status: {loading ? 'Sincronizando...' : 'Sistema Online'}</p>
           </div>
+          <button onClick={carregarDadosReais} style={ds.btnRefresh} title="Sincronizar Agora">🔄</button>
           <div style={ds.adminProfile}>
             <div style={ds.adminTextGroup}>
               <p style={ds.adminName}>{adminInfo.name}</p>
@@ -203,13 +207,20 @@ function Dashboard() {
             </section>
 
             <section style={ds.cardWhite}>
-              <h4>Últimos Pedidos (Real-time)</h4>
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
+                <h4 style={{margin:0}}>Últimos Pedidos (Real-time)</h4>
+              </div>
               {stats.pedidosRecentes.map((pedido) => (
                 <div key={pedido.id} style={ds.row} onClick={() => alert(`Pedido de ${pedido.origem} para ${pedido.destino}`)}>
-                  <div style={ds.rowIcon}>{pedido.status === 'PAGO' ? '✅' : '⏳'}</div>
+                  <div style={ds.rowIcon}>
+                    {pedido.status === 'PAGO' ? '💰' : pedido.status === 'ACEITO' ? '🚖' : pedido.status === 'CONCLUIDO' ? '✅' : '⏳'}
+                  </div>
                   <div style={{flex: 1}}>
                     <div style={{fontSize: '14px', fontWeight: 'bold'}}>{pedido.origem} → {pedido.destino}</div>
-                    <small style={{opacity: 0.6}}>{pedido.status}</small>
+                    <div style={{display:'flex', gap:'8px', marginTop:'4px'}}>
+                      <small style={{opacity: 0.6}}>{new Date(pedido.data_servico).toLocaleDateString('pt-BR')}</small>
+                      <span style={{...ds.badge, ...ds[`status_${pedido.status}`]}}>{pedido.status}</span>
+                    </div>
                   </div>
                   <div style={{fontWeight:'bold', color:'#4c1d95'}}>R$ {pedido.valor}</div>
                 </div>
@@ -268,7 +279,7 @@ function Dashboard() {
           </div>
         ) : tab === 'Stats' ? (
           <div style={ds.grid}>
-            <div style={{...ds.cardWhite, gridColumn: '1 / 3'}}>
+            <div style={{...ds.cardWhite, gridColumn: '1 / 2'}}>
               <h3>📈 Evolução de Faturamento (7 dias)</h3>
               <div style={{ width: '100%', height: 250, marginTop: '20px' }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -297,17 +308,38 @@ function Dashboard() {
                   </LineChart>
                 </ResponsiveContainer>
               </div>
+            </div>
 
-              <h3 style={{marginTop: '40px'}}>📊 Resumo de Performance</h3>
+            <div style={{...ds.cardWhite, gridColumn: '2 / 3'}}>
+              <h3>📦 Distribuição por Status</h3>
+              <div style={{ width: '100%', height: 250, marginTop: '20px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.statusChartData}
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {stats.statusChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip borderRadius="15px" border="none" />
+                    <Legend verticalAlign="bottom" />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={{...ds.cardWhite, gridColumn: '1 / 3', marginTop: '20px'}}>
+              <h3>📊 Resumo de Performance</h3>
               <div style={{display:'flex', gap:'20px', marginTop:'20px'}}>
                 <div style={ds.statBox}><strong style={ds.statLabel}>Total Pedidos</strong><span style={ds.statValue}>{Object.values(stats.pedidosPorStatus || {}).reduce((a, b) => a + b, 0)}</span></div>
                 <div style={ds.statBox}><strong style={ds.statLabel}>Faturamento Real</strong><span style={ds.statValue}>R$ {(stats.faturamento || 0).toLocaleString('pt-BR')}</span></div>
                 <div style={ds.statBox}><strong style={ds.statLabel}>Comissão Acumulada</strong><span style={{...ds.statValue, color: '#10b981'}}>R$ {(stats.comissao || 0).toLocaleString('pt-BR')}</span></div>
               </div>
-              <h4 style={{marginTop:'30px'}}>Pedidos por Status</h4>
-              {Object.entries(stats.pedidosPorStatus || {}).map(([status, count]) => (
-                <div key={status} style={ds.row}><span>{status}</span><strong>{count}</strong></div>
-              ))}
             </div>
           </div>
         ) : tab === 'Plans' ? (
@@ -401,7 +433,13 @@ const ds = {
   formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
   formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '90%', maxWidth: '600px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' },
-  input: { width: '100%', padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box', background: '#fcfdfe' }
+  input: { width: '100%', padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box', background: '#fcfdfe' },
+  btnRefresh: { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', transition: 'all 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+  badge: { fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' },
+  status_PAGO: { background: '#dcfce7', color: '#166534' },
+  status_ACEITO: { background: '#dbeafe', color: '#1e40af' },
+  status_CONCLUIDO: { background: '#f1f5f9', color: '#475569' },
+  status_PENDENTE: { background: '#fef3c7', color: '#92400e' }
 };
 
 export default function App() {

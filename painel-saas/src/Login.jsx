@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
-function Login() {
+export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -83,21 +83,6 @@ function Login() {
         <div style={loginStyles.animatedVan}>🚐💨</div>
       </div>
     </div>
-  );
-}
-
-// O componente Dashboard permanece o mesmo (omitido aqui para brevidade)
-function Dashboard() { return <div style={{padding: '50px'}}><h1>Dashboard Corrigido</h1></div>; }
-
-export default function App() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/" element={<Navigate to="/login" />} />
-      </Routes>
-    </Router>
   );
 }
 

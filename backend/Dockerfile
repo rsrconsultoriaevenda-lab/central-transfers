@@ -2,19 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Como o Root Directory é /backend, o arquivo está na "raiz" do contexto
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia tudo o que está em /backend para a raiz /app do container
-COPY . .
+# Para manter a estrutura de pacotes e os imports funcionando (ex: from backend import models)
+# copiamos os arquivos para dentro de uma pasta chamada 'backend' no WORKDIR
+COPY . ./backend/
 
-EXPOSE 8000
+EXPOSE 8080
 
-# O comando agora aponta para main:app diretamente, pois estamos dentro de /app
-# ... (mantenha o restante como está)
-
-EXPOSE 8000
-
-# Usar o formato de string simples permite que o sistema entenda o $PORT
-CMD uvicorn backend.main:app --host 0.0.0.0 --port $PORT
+# Usamos sh -c para garantir que o shell expanda a variável $PORT do Railway/Render
+CMD sh -c "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"

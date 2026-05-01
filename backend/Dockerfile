@@ -12,4 +12,9 @@ COPY . .
 EXPOSE 8000
 
 # O comando agora aponta para main:app diretamente, pois estamos dentro de /app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# ... (mantenha o restante como está)
+
+EXPOSE 8000
+
+# Usar o formato de string simples permite que o sistema entenda o $PORT
+CMD uvicorn backend.main:app --host 0.0.0.0 --port $PORT

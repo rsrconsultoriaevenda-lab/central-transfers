@@ -54,13 +54,12 @@ const Login = () => {
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
 
         {/* VAN ANIMADA */}
-        <div
-          className={`absolute top-4 left-1/2 transform -translate-x-1/2 text-4xl transition-all duration-1000
-          ${animando ? "translate-x-[200px] opacity-0" : "animate-bounce"}`}
-        >
-          🚐
-        </div>
-
+<div
+  className={`absolute top-4 left-0 text-4xl transition-all duration-1000
+  ${animando ? "translate-x-[400px] opacity-0" : "translate-x-[120px]"}`}
+>
+  🚐
+</div>
         <div className="text-center mb-6 mt-6">
           <h1 className="text-2xl font-bold text-slate-800">
             Central Transfers

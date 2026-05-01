@@ -47,19 +47,19 @@ function Dashboard() {
         axios.get(`${API_URL}/motoristas`)
       ]);
 
-      const pedidosValidos = pedidosRes.data.filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status));
+      const pedidosValidos = (pedidosRes.data || []).filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status));
 
       const faturamentoTotal = pedidosValidos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
       
       // Cálculo da comissão (parte que fica para a central)
       const comissaoTotal = pedidosValidos.reduce((acc, p) => acc + (parseFloat(p.valor_comissao) || 0), 0);
 
-      const porStatus = pedidosRes.data.reduce((acc, p) => {
+      const porStatus = (pedidosRes.data || []).reduce((acc, p) => {
         acc[p.status] = (acc[p.status] || 0) + 1;
         return acc;
       }, {});
 
-      const totalGeral = pedidosRes.data.reduce((acc, p) => acc + (p.valor || 0), 0);
+      const totalGeral = (pedidosRes.data || []).reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
 
       // Gerar dados para o gráfico (últimos 7 dias)
       const hoje = new Date();
@@ -70,23 +70,26 @@ function Dashboard() {
         const diaIso = dataAlvo.toISOString().split('T')[0];
 
         // Soma pedidos daquela data específica
-        const totalDia = pedidosRes.data
+        const totalDia = (pedidosRes.data || [])
           .filter(p => {
-            const pData = new Date(p.data_servico).toISOString().split('T')[0];
-            return pData === diaIso && ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status);
+            if (!p.data_servico) return false;
+            try {
+              const pData = new Date(p.data_servico).toISOString().split('T')[0];
+              return pData === diaIso && ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status);
+            } catch (e) { return false; }
           })
           .reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
 
         return { name: diaSemana, valor: totalDia };
       });
 
-      setMotoristas(motoristasRes.data);
+      setMotoristas(motoristasRes.data || []);
       setStats({
         faturamento: faturamentoTotal,
         comissao: comissaoTotal,
         totalBruto: totalGeral,
-        pedidosRecentes: pedidosRes.data.slice(-5).reverse(), // Últimos 5 pedidos
-        totalMotoristas: motoristasRes.data.length,
+        pedidosRecentes: (pedidosRes.data || []).slice(-5).reverse(), // Últimos 5 pedidos
+        totalMotoristas: (motoristasRes.data || []).length,
         pedidosPorStatus: porStatus,
         faturamentoHistorico: historico
       });
@@ -216,10 +219,11 @@ function Dashboard() {
           </div>
         ) : tab === 'User' ? (
           <div style={ds.cardWhite}>
-            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '30px'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '20px'}}>
               <h2 style={{margin:0, color: '#1e293b'}}>Gestão de Frota</h2>
               <button style={ds.btnPrimarySmall} onClick={() => setShowAddDriver(true)}>+ Novo Motorista</button>
             </div>
+            <p style={{color: '#64748b', marginBottom: '30px', fontSize: '14px'}}>Gerencie os motoristas parceiros e seus respectivos planos de cobrança.</p>
 
             {showAddDriver && (
               <div style={ds.formOverlay}>
@@ -264,11 +268,11 @@ function Dashboard() {
           </div>
         ) : tab === 'Stats' ? (
           <div style={ds.grid}>
-            <div style={ds.cardWhite}>
+            <div style={{...ds.cardWhite, gridColumn: '1 / 3'}}>
               <h3>📈 Evolução de Faturamento (7 dias)</h3>
               <div style={{ width: '100%', height: 250, marginTop: '20px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={stats.faturamentoHistorico}>
+                  <LineChart data={stats.faturamentoHistorico || []}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 
                       dataKey="name" 
@@ -296,12 +300,12 @@ function Dashboard() {
 
               <h3 style={{marginTop: '40px'}}>📊 Resumo de Performance</h3>
               <div style={{display:'flex', gap:'20px', marginTop:'20px'}}>
-                <div style={ds.statBox}><strong>Total Pedidos</strong><span>{Object.values(stats.pedidosPorStatus).reduce((a, b) => a + b, 0)}</span></div>
-                <div style={ds.statBox}><strong>Faturamento Real</strong><span>R$ {stats.faturamento.toLocaleString('pt-BR')}</span></div>
-                <div style={ds.statBox}><strong>Comissão Acumulada</strong><span style={{color: '#10b981'}}>R$ {stats.comissao.toLocaleString('pt-BR')}</span></div>
+                <div style={ds.statBox}><strong style={ds.statLabel}>Total Pedidos</strong><span style={ds.statValue}>{Object.values(stats.pedidosPorStatus || {}).reduce((a, b) => a + b, 0)}</span></div>
+                <div style={ds.statBox}><strong style={ds.statLabel}>Faturamento Real</strong><span style={ds.statValue}>R$ {(stats.faturamento || 0).toLocaleString('pt-BR')}</span></div>
+                <div style={ds.statBox}><strong style={ds.statLabel}>Comissão Acumulada</strong><span style={{...ds.statValue, color: '#10b981'}}>R$ {(stats.comissao || 0).toLocaleString('pt-BR')}</span></div>
               </div>
               <h4 style={{marginTop:'30px'}}>Pedidos por Status</h4>
-              {Object.entries(stats.pedidosPorStatus).map(([status, count]) => (
+              {Object.entries(stats.pedidosPorStatus || {}).map(([status, count]) => (
                 <div key={status} style={ds.row}><span>{status}</span><strong>{count}</strong></div>
               ))}
             </div>
@@ -366,7 +370,7 @@ const ds = {
   avatar: { width: '45px', height: '45px', background: '#4c1d95', color: '#fff', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
   grid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '25px' },
   cardMain: {
-    background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', borderRadius: '30px', padding: '30px', color: '#fff', cursor: 'pointer', boxShadow: '0 20px 40px rgba(76, 29, 149, 0.2)', transition: 'transform 0.2s'
+    background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', borderRadius: '30px', padding: '30px', color: '#fff', cursor: 'pointer', boxShadow: '0 10px 30px rgba(76, 29, 149, 0.3)', transition: 'transform 0.2s'
   },
   chartContainer: { display: 'flex', alignItems: 'flex-end', gap: '8px', height: '60px', marginTop: '20px' },
   bar: { width: '100%', borderRadius: '4px' },
@@ -387,12 +391,17 @@ const ds = {
   badgeGold: { background: '#fef3c7', color: '#92400e', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' },
   badgeBlue: { background: '#dbeafe', color: '#1e40af', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 'bold' },
   btnOutline: { background: 'transparent', border: '1px solid #e2e8f0', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' },
+  btnPrimarySmall: { background: '#4c1d95', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' },
   cardPlan: { background: '#fff', padding: '40px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
   planList: { listStyle: 'none', padding: 0, margin: '30px 0', textAlign: 'left', fontSize: '14px', color: '#64748b' },
   btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: '100%' },
-  statBox: { 
-    flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '5px', border: '1px solid #e2e8f0'
-  }
+  statBox: { flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '5px', border: '1px solid #e2e8f0' },
+  statLabel: { fontSize: '12px', color: '#64748b', fontWeight: '600' },
+  statValue: { fontSize: '20px', color: '#1e293b', fontWeight: '800' },
+  formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
+  formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '90%', maxWidth: '600px', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' },
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '20px' },
+  input: { width: '100%', padding: '12px 15px', borderRadius: '12px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', boxSizing: 'border-box', background: '#fcfdfe' }
 };
 
 export default function App() {

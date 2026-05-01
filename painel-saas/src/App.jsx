@@ -21,7 +21,7 @@ function Dashboard() {
   // ESTADOS PARA CONTROLE DE TELA E DADOS REAIS
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ faturamento: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {} });
+  const [stats, setStats] = useState({ faturamento: 0, comissao: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {} });
   const [motoristas, setMotoristas] = useState([]);
   const [adminInfo, setAdminInfo] = useState({ name: "Renato Rocha", email: "renato@centraltransfers.com" });
 
@@ -34,9 +34,12 @@ function Dashboard() {
         axios.get(`${API_URL}/motoristas`)
       ]);
 
-      const faturamentoTotal = pedidosRes.data
-        .filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status))
-        .reduce((acc, p) => acc + (p.valor || 0), 0);
+      const pedidosValidos = pedidosRes.data.filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status));
+
+      const faturamentoTotal = pedidosValidos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+      
+      // Cálculo da comissão (parte que fica para a central)
+      const comissaoTotal = pedidosValidos.reduce((acc, p) => acc + (parseFloat(p.valor_comissao) || 0), 0);
 
       const porStatus = pedidosRes.data.reduce((acc, p) => {
         acc[p.status] = (acc[p.status] || 0) + 1;
@@ -48,6 +51,7 @@ function Dashboard() {
       setMotoristas(motoristasRes.data);
       setStats({
         faturamento: faturamentoTotal,
+        comissao: comissaoTotal,
         totalBruto: totalGeral,
         pedidosRecentes: pedidosRes.data.slice(-5).reverse(), // Últimos 5 pedidos
         totalMotoristas: motoristasRes.data.length,
@@ -55,6 +59,22 @@ function Dashboard() {
       });
     } catch (error) {
       console.error("Erro ao carregar dados do SaaS:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const alterarPlanoMotorista = async (id, planoAtual) => {
+    const novoPlano = planoAtual === 'MASTER' ? 'MENSAL' : 'MASTER';
+    if (!window.confirm(`Deseja alterar o plano do motorista para ${novoPlano}?`)) return;
+
+    try {
+      setLoading(true);
+      await axios.patch(`${API_URL}/motoristas/${id}`, { plano: novoPlano });
+      await carregarDadosReais();
+    } catch (error) {
+      console.error("Erro ao atualizar plano:", error);
+      alert("Erro ao conectar com o servidor para atualizar o plano.");
     } finally {
       setLoading(false);
     }

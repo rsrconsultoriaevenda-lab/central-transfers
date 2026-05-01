@@ -7,42 +7,39 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
+const handleLogin = async (e) => {
+  e.preventDefault();
 
-    const API = import.meta.env.VITE_API_URL;
+  const formData = new URLSearchParams();
+  formData.append('username', username);
+  formData.append('password', password);
 
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
-
-    try {
-      const response = await fetch(`${API}/auth/login`, {
-        method: "POST",
-        body: formData,
+  try {
+    const response = await fetch(
+      'https://central-transfers-production.up.railway.app/auth/login',
+      {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Erro no login");
+        body: formData,
       }
+    );
 
-      api.setToken(data.access_token);
+    const data = await response.json();
 
-      window.location.href = "/";
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+    if (!response.ok) {
+      throw new Error(data.detail || 'Erro no login');
     }
-  };
 
+    localStorage.setItem('token', data.access_token);
+
+    window.location.href = '/';
+  } catch (err) {
+    console.error(err);
+    setError(err.message);
+  }
+};
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">

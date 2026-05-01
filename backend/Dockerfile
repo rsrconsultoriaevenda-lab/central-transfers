@@ -2,11 +2,14 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY backend/requirements.txt ./
+# Como o Root Directory é /backend, o arquivo está na "raiz" do contexto
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend ./backend
+# Copia tudo o que está em /backend para a raiz /app do container
+COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# O comando agora aponta para main:app diretamente, pois estamos dentro de /app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

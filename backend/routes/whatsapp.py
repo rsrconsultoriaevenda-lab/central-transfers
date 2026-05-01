@@ -246,6 +246,33 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     if not sender or not message:
         return
 
+    # 0. Verificação: O remetente é um motorista cadastrado?
+    driver = db.query(models.Motorista).filter(models.Motorista.telefone == sender).first()
+
+    # 1. Comando de consulta de disponibilidade (Apenas para motoristas)
+    if driver and ("vaga" in lower or "disponivel" in lower or "disponíveis" in lower):
+        pedidos_vagos = db.query(models.Pedido).filter(
+            models.Pedido.motorista_id == None,
+            models.Pedido.status == "PAGO", # Ou PENDENTE, dependendo da sua regra
+            models.Pedido.data_servico >= datetime.now()
+        ).all()
+
+        if not pedidos_vagos:
+            enviar_whatsapp_meta(sender, "📭 No momento não há novos serviços disponíveis.")
+            return {"status": "sem_vagas"}
+
+        texto_vagas = "📋 *Serviços Disponíveis:*\n\n"
+        for p in pedidos_vagos:
+            texto_vagas += (
+                f"🔹 *ID #{p.id}* - {p.origem} ➔ {p.destino}\n"
+                f"📅 {p.data_servico.strftime('%d/%m %H:%M')}\n"
+                f"💰 Valor: R$ {p.valor}\n"
+                f"Para aceitar, responda: *aceito pedido {p.id}*\n\n"
+            )
+        
+        enviar_whatsapp_meta(sender, texto_vagas)
+        return {"status": "vagas_listadas"}
+
     # Sanitização básica de entrada
     message = "".join(char for char in message if char.isprintable())
     message = message.strip()

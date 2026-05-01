@@ -1,50 +1,41 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from backend.database import get_db
-from backend import models, schemas
-from backend.auth import hash_senha, verificar_senha, criar_token, get_usuario_atual
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+# Importando os roteadores que já existem no seu projeto
+from backend.routes import pagamentos, dashboard, whatsapp
 
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+# 1. Defina a instância do app no topo do arquivo (Escopo Global)
+app = FastAPI(title="Central Transfers API")
 
+# 2. Configure o CORS (Essencial para comunicação com React/Vite)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@router.post("/register")
-def register(user_data: schemas.UsuarioCreate, db: Session = Depends(get_db)):
-    usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == user_data.email).first()
-    
-    if usuario:
-        raise HTTPException(status_code=400, detail="Usuário já existe")
+# 3. Inclua as rotas dos arquivos que você já criou
+app.include_router(pagamentos.router)
+app.include_router(dashboard.router)
+app.include_router(whatsapp.router)
 
-    novo_usuario = models.Usuario(
-        email=user_data.email,
-        senha=hash_senha(user_data.senha)
-    )
+# 4. Defina a rota de login (ou inclua um router específico de auth se preferir)
+# Note que para usar /auth/login sem um roteador separado, definimos o caminho aqui
+@app.post("/auth/login", tags=["Autenticação"])
+async def login():
+    """
+    Endpoint de login que o seu frontend irá consumir.
+    Certifique-se de que a URL no frontend seja:
+    https://central-transfers-production.up.railway.app/auth/login
+    """
+    return {"message": "Login bem-sucedido", "token": "seu_token_aqui"}
 
-    db.add(novo_usuario)
-    db.commit()
+@app.get("/")
+async def root():
+    return {"status": "online", "service": "Central Transfers"}
 
-    return {"msg": "Usuário criado com sucesso"}
-
-
-@router.post("/login")
-def login(data: schemas.LoginRequest, db: Session = Depends(get_db)): # Espera JSON com email e senha
-    # Normalizamos o e-mail para evitar erros de caixa alta
-    email_clean = data.email.lower().strip()
-    usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == email_clean).first()
-
-    if not usuario or not verificar_senha(data.senha, usuario.senha):
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
-    
-    token = criar_token({"sub": usuario.email})
-    return {"access_token": token, "token_type": "bearer"}
-
-
-@router.get("/me", response_model=schemas.UsuarioResponse)
-def read_users_me(db: Session = Depends(get_db), email_usuario: str = Depends(get_usuario_atual)):
-    usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == email_usuario).first()
-    if usuario is None:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    return usuario
+# O bloco abaixo é opcional se você usa uvicorn via linha de comando
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)

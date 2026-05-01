@@ -4,9 +4,17 @@ from sqlalchemy import func
 from backend.database import get_db
 from backend import models
 from datetime import datetime, timedelta
+from backend.auth import get_usuario_atual
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
+@router.get("/stats")
+def get_dashboard_stats(usuario=Depends(get_usuario_atual)):
+    return {
+"clientes": 12,
+"motoristas": 5,
+"pedidos": 23
+}
 
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):

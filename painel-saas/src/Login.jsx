@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import api from "./api";
 
 const Login = () => {
   const [username, setUsername] = useState("");
@@ -7,39 +6,44 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-const handleLogin = async (e) => {
-  e.preventDefault();
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
 
-  const formData = new URLSearchParams();
-  formData.append('username', username);
-  formData.append('password', password);
+    const formData = new URLSearchParams();
+    formData.append("username", username);
+    formData.append("password", password);
 
-  try {
-    const response = await fetch(
-      'https://central-transfers-production.up.railway.app/auth/login',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: formData,
+    try {
+      const response = await fetch(
+        "https://central-transfers-production.up.railway.app/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: formData,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Erro no login");
       }
-    );
 
-    const data = await response.json();
+      localStorage.setItem("token", data.access_token);
 
-    if (!response.ok) {
-      throw new Error(data.detail || 'Erro no login');
+      // Atualiza a tela
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    localStorage.setItem('token', data.access_token);
-
-    window.location.href = '/';
-  } catch (err) {
-    console.error(err);
-    setError(err.message);
-  }
-};
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
@@ -56,6 +60,7 @@ const handleLogin = async (e) => {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             className="w-full p-3 border rounded"
+            required
           />
 
           <input
@@ -64,6 +69,7 @@ const handleLogin = async (e) => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full p-3 border rounded"
+            required
           />
 
           <button

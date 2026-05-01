@@ -51,16 +51,14 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     try:
-        with engine.begin() as conn:
-            Base.metadata.create_all(bind=engine)
-            logger.info("✅ Banco sincronizado.")
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Banco sincronizado.")
 
-            # Inicia monitor em background
-            asyncio.create_task(monitorar_expiracao_pedidos())
+        # inicia monitor
+        asyncio.create_task(monitorar_expiracao_pedidos())
 
     except Exception as e:
-        logger.error(f"Erro no startup: {e}")
-
+        logger.error(f"❌ Erro no startup: {e}")
         # ============================================================
         # MONITOR DE PEDIDOS
         # ============================================================

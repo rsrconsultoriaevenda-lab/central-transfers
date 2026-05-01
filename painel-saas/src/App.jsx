@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Login from './Login';
 
 // Configuração da API baseada no ambiente
@@ -21,9 +22,21 @@ function Dashboard() {
   // ESTADOS PARA CONTROLE DE TELA E DADOS REAIS
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ faturamento: 0, comissao: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {} });
+  const [showAddDriver, setShowAddDriver] = useState(false);
+  const [stats, setStats] = useState({ faturamento: 0, comissao: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {}, faturamentoHistorico: [] });
   const [motoristas, setMotoristas] = useState([]);
   const [adminInfo, setAdminInfo] = useState({ name: "Renato Rocha", email: "renato@centraltransfers.com" });
+
+  // Estado para novo motorista
+  const [newDriver, setNewDriver] = useState({
+    nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL'
+  });
+
+  // Configuração de Headers para Auth (Placeholder para o token que você configurou no backend)
+  const getAuthHeader = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
 
   // BUSCA DE DADOS REAIS DO BACKEND FASTAPI
   const carregarDadosReais = async () => {
@@ -48,6 +61,25 @@ function Dashboard() {
 
       const totalGeral = pedidosRes.data.reduce((acc, p) => acc + (p.valor || 0), 0);
 
+      // Gerar dados para o gráfico (últimos 7 dias)
+      const hoje = new Date();
+      const historico = Array.from({ length: 7 }, (_, i) => {
+        const dataAlvo = new Date();
+        dataAlvo.setDate(hoje.getDate() - (6 - i));
+        const diaSemana = dataAlvo.toLocaleDateString('pt-BR', { weekday: 'short' });
+        const diaIso = dataAlvo.toISOString().split('T')[0];
+
+        // Soma pedidos daquela data específica
+        const totalDia = pedidosRes.data
+          .filter(p => {
+            const pData = new Date(p.data_servico).toISOString().split('T')[0];
+            return pData === diaIso && ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status);
+          })
+          .reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
+
+        return { name: diaSemana, valor: totalDia };
+      });
+
       setMotoristas(motoristasRes.data);
       setStats({
         faturamento: faturamentoTotal,
@@ -55,7 +87,8 @@ function Dashboard() {
         totalBruto: totalGeral,
         pedidosRecentes: pedidosRes.data.slice(-5).reverse(), // Últimos 5 pedidos
         totalMotoristas: motoristasRes.data.length,
-        pedidosPorStatus: porStatus
+        pedidosPorStatus: porStatus,
+        faturamentoHistorico: historico
       });
     } catch (error) {
       console.error("Erro ao carregar dados do SaaS:", error);
@@ -75,6 +108,23 @@ function Dashboard() {
     } catch (error) {
       console.error("Erro ao atualizar plano:", error);
       alert("Erro ao conectar com o servidor para atualizar o plano.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cadastrarMotorista = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/motoristas/`, newDriver, { headers: getAuthHeader() });
+      setShowAddDriver(false);
+      setNewDriver({ nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL' });
+      await carregarDadosReais();
+      alert("Motorista cadastrado com sucesso! 🎉");
+    } catch (error) {
+      console.error("Erro ao cadastrar:", error);
+      alert("Erro ao cadastrar motorista. Verifique os dados.");
     } finally {
       setLoading(false);
     }
@@ -166,26 +216,85 @@ function Dashboard() {
           </div>
         ) : tab === 'User' ? (
           <div style={ds.cardWhite}>
-            <h3>Gestão de Motoristas & Planos</h3>
-            {motoristas.map(m => (
-              <div key={m.id} style={ds.row}>
-                <div style={ds.avatarSmall}>{m.nome[0]}</div>
-                <div style={{flex: 1}}>
-                  <strong>{m.nome}</strong>
-                  <div style={{fontSize: '12px', color: '#64748b'}}>{m.carro} - {m.placa}</div>
-                </div>
-                <div style={m.plano === 'MASTER' ? ds.badgeGold : ds.badgeBlue}>
-                  {m.plano || 'MENSAL'}
-                </div>
-                <button style={ds.btnOutline} onClick={() => alterarPlanoMotorista(m.id, m.plano)}>Alterar Plano</button>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '30px'}}>
+              <h2 style={{margin:0, color: '#1e293b'}}>Gestão de Frota</h2>
+              <button style={ds.btnPrimarySmall} onClick={() => setShowAddDriver(true)}>+ Novo Motorista</button>
+            </div>
+
+            {showAddDriver && (
+              <div style={ds.formOverlay}>
+                <form onSubmit={cadastrarMotorista} style={ds.formCard}>
+                  <h3>Cadastrar Novo Motorista</h3>
+                  <div style={ds.formGrid}>
+                    <input placeholder="Nome Completo" style={ds.input} value={newDriver.nome} onChange={e => setNewDriver({...newDriver, nome: e.target.value})} required />
+                    <input placeholder="Telefone (WhatsApp)" style={ds.input} value={newDriver.telefone} onChange={e => setNewDriver({...newDriver, telefone: e.target.value})} required />
+                    <input placeholder="Carro (Ex: Spin)" style={ds.input} value={newDriver.carro} onChange={e => setNewDriver({...newDriver, carro: e.target.value})} required />
+                    <input placeholder="Placa" style={ds.input} value={newDriver.placa} onChange={e => setNewDriver({...newDriver, placa: e.target.value})} required />
+                    <input placeholder="Modelo/Versão" style={ds.input} value={newDriver.modelo} onChange={e => setNewDriver({...newDriver, modelo: e.target.value})} required />
+                    <input type="number" placeholder="Ano" style={ds.input} value={newDriver.ano} onChange={e => setNewDriver({...newDriver, ano: e.target.value})} required />
+                    <select style={ds.input} value={newDriver.plano} onChange={e => setNewDriver({...newDriver, plano: e.target.value})}>
+                      <option value="MENSAL">Plano Mensal</option>
+                      <option value="MASTER">Plano Master (Comissão)</option>
+                    </select>
+                  </div>
+                  <div style={{display:'flex', gap: '10px', marginTop: '20px'}}>
+                    <button type="submit" style={ds.btnPrimary} disabled={loading}>{loading ? 'Salvando...' : 'Confirmar Cadastro'}</button>
+                    <button type="button" style={ds.btnOutline} onClick={() => setShowAddDriver(false)}>Cancelar</button>
+                  </div>
+                </form>
               </div>
-            ))}
+            )}
+
+            <div style={{marginTop: '20px'}}>
+              {motoristas.map(m => (
+                <div key={m.id} style={ds.row}>
+                  <div style={ds.avatarSmall}>{m.nome ? m.nome[0] : 'M'}</div>
+                  <div style={{flex: 1}}>
+                    <strong style={{color: '#1e293b'}}>{m.nome}</strong>
+                    <div style={{fontSize: '12px', color: '#64748b'}}>{m.carro} • {m.placa} • {m.telefone}</div>
+                  </div>
+                  <div style={m.plano === 'MASTER' ? ds.badgeGold : ds.badgeBlue}>
+                    {m.plano || 'MENSAL'}
+                  </div>
+                  <button style={ds.btnOutline} onClick={() => alterarPlanoMotorista(m.id, m.plano)}>Trocar Plano</button>
+                </div>
+              ))}
+            </div>
             {motoristas.length === 0 && <p style={{textAlign:'center', opacity: 0.5, padding: '20px'}}>Nenhum motorista cadastrado no sistema.</p>}
           </div>
         ) : tab === 'Stats' ? (
           <div style={ds.grid}>
             <div style={ds.cardWhite}>
-              <h3>📊 Resumo de Performance</h3>
+              <h3>📈 Evolução de Faturamento (7 dias)</h3>
+              <div style={{ width: '100%', height: 250, marginTop: '20px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats.faturamentoHistorico}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 12}} 
+                      dy={10} 
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' }}
+                      formatter={(value) => [`R$ ${value.toLocaleString()}`, 'Faturamento']}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="valor" 
+                      stroke="#4c1d95" 
+                      strokeWidth={4} 
+                      dot={{ r: 4, fill: '#4c1d95', strokeWidth: 2, stroke: '#fff' }} 
+                      activeDot={{ r: 8 }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <h3 style={{marginTop: '40px'}}>📊 Resumo de Performance</h3>
               <div style={{display:'flex', gap:'20px', marginTop:'20px'}}>
                 <div style={ds.statBox}><strong>Total Pedidos</strong><span>{Object.values(stats.pedidosPorStatus).reduce((a, b) => a + b, 0)}</span></div>
                 <div style={ds.statBox}><strong>Faturamento Real</strong><span>R$ {stats.faturamento.toLocaleString('pt-BR')}</span></div>

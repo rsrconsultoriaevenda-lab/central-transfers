@@ -1,198 +1,114 @@
-﻿import { useEffect, useState } from "react";
-import api from "./services/api";
-
+﻿import { useState } from 'react';
+import api from './api.js'; // Adicione o .js explicitamente se necessário
 function App() {
-  const [pedidos, setPedidos] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [servicos, setServicos] = useState([]);
-  const [form, setForm] = useState({
-    cliente_id: "",
-    servico_id: "",
-    origem: "",
-    destino: "",
-    data_servico: "",
-    valor: "",
-    observacoes: "",
-  });
-  const [message, setMessage] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    carregarDados();
-  }, []);
-
-  async function carregarDados() {
-    try {
-      const [pedidosRes, clientesRes, servicosRes] = await Promise.all([
-        api.get("/pedidos"),
-        api.get("/clientes"),
-        api.get("/servicos"),
-      ]);
-
-      setPedidos(pedidosRes.data);
-      setClientes(clientesRes.data);
-      setServicos(servicosRes.data);
-    } catch (err) {
-      console.error(err);
-      setMessage("Erro ao carregar dados. Verifique o backend.");
-    }
-  }
-
-  async function criarPedido(event) {
-    event.preventDefault();
-    setMessage(null);
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
 
     try {
-      await api.post("/pedidos", {
-        cliente_id: Number(form.cliente_id),
-        servico_id: Number(form.servico_id),
-        origem: form.origem,
-        destino: form.destino,
-        data_servico: new Date(form.data_servico).toISOString(),
-        valor: Number(form.valor),
-        observacoes: form.observacoes,
+      // Ajuste o endpoint '/login' conforme a rota criada no seu FastAPI
+      const response = await api.post('/login', {
+        email: email,
+        password: password
       });
 
-      setForm({
-        cliente_id: "",
-        servico_id: "",
-        origem: "",
-        destino: "",
-        data_servico: "",
-        valor: "",
-        observacoes: "",
-      });
-      setMessage("Pedido criado com sucesso.");
-      carregarDados();
-    } catch (err) {
-      console.error(err);
-      setMessage(err.response?.data?.detail || "Erro ao criar pedido.");
+      setMessage('Login realizado com sucesso! Redirecionando...');
+      console.log('Dados do Usuário:', response.data);
+      // Aqui você salvaria o token no localStorage futuramente
+    } catch (error) {
+      const errorMsg = error.response?.data?.detail || 'Erro ao conectar com o servidor.';
+      setMessage(`Erro: ${errorMsg}`);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div style={{ padding: 20, fontFamily: "Arial, sans-serif", maxWidth: 960, margin: "0 auto", background: "#282a36", color: "#f8f8f2" }}>
-      <h1>Central Transfers</h1>
-      <p>Faça pedidos de transferência diretamente para a central.</p>
-
-      {message && (
-        <div style={{ marginBottom: 12, padding: 10, background: "#44475a", borderRadius: 6, color: "#f8f8f2" }}>
-          {message}
-        </div>
-      )}
-
-      <section style={{ marginBottom: 40 }}>
-        <h2>Novo pedido</h2>
-        <form onSubmit={criarPedido} style={{ display: "grid", gap: 12, maxWidth: 500 }}>
-          <label>
-            Cliente
-            <select
-              value={form.cliente_id}
-              onChange={(e) => setForm({ ...form, cliente_id: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            >
-              <option value="">Selecione um cliente</option>
-              {clientes.map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Serviço
-            <select
-              value={form.servico_id}
-              onChange={(e) => setForm({ ...form, servico_id: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            >
-              <option value="">Selecione um serviço</option>
-              {servicos.map((s) => (
-                <option key={s.id} value={s.id}>{s.nome} - {s.tipo}</option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            Origem
-            <input
-              type="text"
-              value={form.origem}
-              onChange={(e) => setForm({ ...form, origem: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-
-          <label>
-            Destino
-            <input
-              type="text"
-              value={form.destino}
-              onChange={(e) => setForm({ ...form, destino: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-
-          <label>
-            Data do serviço
-            <input
-              type="datetime-local"
-              value={form.data_servico}
-              onChange={(e) => setForm({ ...form, data_servico: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-
-          <label>
-            Valor
-            <input
-              type="number"
-              step="0.01"
-              value={form.valor}
-              onChange={(e) => setForm({ ...form, valor: e.target.value })}
-              required
-              style={{ width: "100%", padding: 8 }}
-            />
-          </label>
-
-          <label>
-            Observações
-            <textarea
-              value={form.observacoes}
-              onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
-              style={{ width: "100%", padding: 8, minHeight: 80 }}
-            />
-          </label>
-
-          <button type="submit" style={{ padding: "10px 16px", background: "#bd93f9", color: "#282a36", border: "none", borderRadius: 6, cursor: "pointer" }}>
-            Enviar pedido
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>🚐 Central Transfers</h1>
+        <p style={styles.subtitle}>Gestão de Logística - Login</p>
+        
+        <form onSubmit={handleLogin} style={styles.form}>
+          <input
+            type="email"
+            placeholder="Seu e-mail"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <input
+            type="password"
+            placeholder="Sua senha"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            style={styles.input}
+          />
+          <button type="submit" disabled={loading} style={styles.button}>
+            {loading ? 'Autenticando...' : 'Entrar'}
           </button>
         </form>
-      </section>
 
-      <section>
-        <h2>Pedidos</h2>
-        {pedidos.length === 0 ? (
-          <p>Nenhum pedido encontrado.</p>
-        ) : (
-          pedidos.map((p) => (
-            <div key={p.id} style={{ background: "#373a4f", border: "1px solid #6272a4", borderRadius: 8, padding: 16, marginBottom: 14 }}>
-              <strong>{p.cliente_nome || `Cliente ${p.cliente_id}`}</strong> — <span>{p.servico_nome || `Serviço ${p.servico_id}`}</span>
-              <p><b>Origem:</b> {p.origem}</p>
-              <p><b>Destino:</b> {p.destino}</p>
-              <p><b>Data:</b> {new Date(p.data_servico).toLocaleString()}</p>
-              <p><b>Valor:</b> R$ {p.valor}</p>
-              <p><b>Status:</b> {p.status || "PENDENTE"}</p>
-              <p><b>Motorista:</b> {p.motorista_nome || "Ainda não atribuído"}</p>
-            </div>
-          ))
+        {message && (
+          <p style={{ 
+            marginTop: '15px', 
+            color: message.includes('Erro') ? '#ff4d4d' : '#4caf50' 
+          }}>
+            {message}
+          </p>
         )}
-      </section>
+      </div>
     </div>
   );
 }
+
+const styles = {
+  container: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100vh',
+    backgroundColor: '#121212',
+    color: '#fff',
+    fontFamily: 'Arial, sans-serif'
+  },
+  card: {
+    padding: '40px',
+    borderRadius: '12px',
+    backgroundColor: '#1e1e1e',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+    textAlign: 'center',
+    width: '350px'
+  },
+  title: { margin: '0 0 10px 0', fontSize: '24px' },
+  subtitle: { color: '#888', marginBottom: '20px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '15px' },
+  input: {
+    padding: '12px',
+    borderRadius: '6px',
+    border: '1px solid #333',
+    backgroundColor: '#2a2a2a',
+    color: '#fff',
+    fontSize: '16px'
+  },
+  button: {
+    padding: '12px',
+    borderRadius: '6px',
+    border: 'none',
+    backgroundColor: '#007bff',
+    color: '#fff',
+    fontSize: '16px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  }
+};
 
 export default App;

@@ -1,5 +1,5 @@
 ﻿import { useState } from 'react';
-import api from './api.js'; // Adicione o .js explicitamente se necessário
+import api from '../../painel-saas/src/api.js'; // Adicione o .js explicitamente se necessário
 function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

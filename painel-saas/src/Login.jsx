@@ -5,10 +5,12 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [animando, setAnimando] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError("");
 
     const formData = new URLSearchParams();
     formData.append("username", username);
@@ -32,35 +34,54 @@ const Login = () => {
         throw new Error(data.detail || "Erro no login");
       }
 
-      localStorage.setItem("token", data.access_token);
+      // 👉 animação antes de entrar
+      setAnimando(true);
 
-      // Atualiza a tela
-      window.location.reload();
+      setTimeout(() => {
+        localStorage.setItem("token", data.access_token);
+        window.location.href = "/";
+      }, 1200);
     } catch (err) {
-      console.error(err);
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">
-          Central Transfers
-        </h1>
+    <div className="min-h-screen flex items-center justify-center bg-slate-900">
+
+      {/* CARD */}
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
+
+        {/* VAN ANIMADA */}
+        <div
+          className={`absolute top-4 left-1/2 transform -translate-x-1/2 text-4xl transition-all duration-1000
+          ${animando ? "translate-x-[200px] opacity-0" : "animate-bounce"}`}
+        >
+          🚐
+        </div>
+
+        <div className="text-center mb-6 mt-6">
+          <h1 className="text-2xl font-bold text-slate-800">
+            Central Transfers
+          </h1>
+          <p className="text-sm text-slate-500">
+            Painel de Logística Gramado
+          </p>
+        </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
-          {error && <p className="text-red-500">{error}</p>}
+
+          {error && (
+            <p className="text-red-500 text-sm text-center">{error}</p>
+          )}
 
           <input
             type="text"
-            placeholder="Usuário"
+            placeholder="E-mail"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full p-3 border rounded"
-            required
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
 
           <input
@@ -68,16 +89,15 @@ const Login = () => {
             placeholder="Senha"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded"
-            required
+            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 text-white p-3 rounded"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition-all"
           >
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? "Entrando..." : "Acessar Painel"}
           </button>
         </form>
       </div>

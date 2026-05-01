@@ -21,7 +21,7 @@ function Dashboard() {
   // ESTADOS PARA CONTROLE DE TELA E DADOS REAIS
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
-  const [stats, setStats] = useState({ faturamento: 0, pedidosRecentes: [], totalMotoristas: 0 });
+  const [stats, setStats] = useState({ faturamento: 0, pedidosRecentes: [], totalMotoristas: 0, pedidosPorStatus: {} });
   const [motoristas, setMotoristas] = useState([]);
   const [adminInfo, setAdminInfo] = useState({ name: "Renato Rocha", email: "renato@centraltransfers.com" });
 
@@ -38,11 +38,20 @@ function Dashboard() {
         .filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status))
         .reduce((acc, p) => acc + (p.valor || 0), 0);
 
+      const porStatus = pedidosRes.data.reduce((acc, p) => {
+        acc[p.status] = (acc[p.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      const totalGeral = pedidosRes.data.reduce((acc, p) => acc + (p.valor || 0), 0);
+
       setMotoristas(motoristasRes.data);
       setStats({
         faturamento: faturamentoTotal,
+        totalBruto: totalGeral,
         pedidosRecentes: pedidosRes.data.slice(-5).reverse(), // Últimos 5 pedidos
-        totalMotoristas: motoristasRes.data.length
+        totalMotoristas: motoristasRes.data.length,
+        pedidosPorStatus: porStatus
       });
     } catch (error) {
       console.error("Erro ao carregar dados do SaaS:", error);
@@ -148,9 +157,25 @@ function Dashboard() {
                 <div style={m.plano === 'MASTER' ? ds.badgeGold : ds.badgeBlue}>
                   {m.plano || 'MENSAL'}
                 </div>
-                <button style={ds.btnOutline}>Alterar Plano</button>
+                <button style={ds.btnOutline} onClick={() => alterarPlanoMotorista(m.id, m.plano)}>Alterar Plano</button>
               </div>
             ))}
+            {motoristas.length === 0 && <p style={{textAlign:'center', opacity: 0.5, padding: '20px'}}>Nenhum motorista cadastrado no sistema.</p>}
+          </div>
+        ) : tab === 'Stats' ? (
+          <div style={ds.grid}>
+            <div style={ds.cardWhite}>
+              <h3>📊 Resumo de Performance</h3>
+              <div style={{display:'flex', gap:'20px', marginTop:'20px'}}>
+                <div style={ds.statBox}><strong>Total Pedidos</strong><span>{Object.values(stats.pedidosPorStatus).reduce((a, b) => a + b, 0)}</span></div>
+                <div style={ds.statBox}><strong>Faturamento Real</strong><span>R$ {stats.faturamento.toLocaleString('pt-BR')}</span></div>
+                <div style={ds.statBox}><strong>Comissão Acumulada</strong><span style={{color: '#10b981'}}>R$ {stats.comissao.toLocaleString('pt-BR')}</span></div>
+              </div>
+              <h4 style={{marginTop:'30px'}}>Pedidos por Status</h4>
+              {Object.entries(stats.pedidosPorStatus).map(([status, count]) => (
+                <div key={status} style={ds.row}><span>{status}</span><strong>{count}</strong></div>
+              ))}
+            </div>
           </div>
         ) : tab === 'Plans' ? (
           <div style={ds.grid}>
@@ -235,7 +260,10 @@ const ds = {
   btnOutline: { background: 'transparent', border: '1px solid #e2e8f0', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', cursor: 'pointer' },
   cardPlan: { background: '#fff', padding: '40px', borderRadius: '30px', textAlign: 'center', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' },
   planList: { listStyle: 'none', padding: 0, margin: '30px 0', textAlign: 'left', fontSize: '14px', color: '#64748b' },
-  btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: '100%' }
+  btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', width: '100%' },
+  statBox: { 
+    flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', display: 'flex', flexDirection: 'column', gap: '5px', border: '1px solid #e2e8f0'
+  }
 };
 
 export default function App() {

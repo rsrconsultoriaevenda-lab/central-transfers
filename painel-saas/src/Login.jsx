@@ -1,107 +1,169 @@
-import React, { useState } from "react";
+import { useState } from 'react';
+import api from './api';
 
-const Login = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [animando, setAnimando] = useState(false);
+function Login({ onLoginSuccess }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error
+  const [message, setMessage] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    const formData = new URLSearchParams();
-    formData.append("username", username);
-    formData.append("password", password);
+    setStatus('loading'); // A van chega!
+    setMessage('');
 
     try {
-      const response = await fetch(
-        "https://central-transfers-production.up.railway.app/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: formData,
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Erro no login");
-      }
-
-      // 👉 animação antes de entrar
-      setAnimando(true);
-
+      // Simulando a chamada da API (Substitua pela sua rota real)
+      const response = await api.post('/login', { email, password });
+      
+      setStatus('success'); // A van sai!
+      setMessage('Acesso autorizado! Boa viagem.');
+      
+      // Espera a animação da van sair da tela para mudar de página
       setTimeout(() => {
-        localStorage.setItem("token", data.access_token);
-        window.location.href = "/";
-      }, 1200);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
+        onLoginSuccess(response.data);
+      }, 1500);
+
+    } catch (error) {
+      setStatus('error');
+      setMessage('Ops! Verifique suas credenciais.');
+      // Volta ao estado normal após o erro para tentar de novo
+      setTimeout(() => setStatus('idle'), 2000);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900">
-
-      {/* CARD */}
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
-
-        {/* VAN ANIMADA */}
-<div
-  className={`absolute top-4 left-0 text-4xl transition-all duration-1000
-  ${animando ? "translate-x-[400px] opacity-0" : "translate-x-[120px]"}`}
->
-  🚐
-</div>
-        <div className="text-center mb-6 mt-6">
-          <h1 className="text-2xl font-bold text-slate-800">
-            Central Transfers
-          </h1>
-          <p className="text-sm text-slate-500">
-            Painel de Logística Gramado
-          </p>
+    <div style={styles.container}>
+      {/* Estrada/Pista por onde a van passa */}
+      <div style={styles.road}>
+        <div style={{
+          ...styles.van,
+          ...(status === 'loading' ? styles.vanArriving : {}),
+          ...(status === 'success' ? styles.vanDeparting : {})
+        }}>
+          🚐
+          <div style={styles.vanLight}></div>
         </div>
+      </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+      <div style={styles.loginCard}>
+        <h1 style={styles.title}>Central Transfers</h1>
+        <p style={styles.subtitle}>Gestão de Logística</p>
 
-          {error && (
-            <p className="text-red-500 text-sm text-center">{error}</p>
-          )}
-
+        <form onSubmit={handleLogin} style={styles.form}>
           <input
-            type="text"
+            type="email"
             placeholder="E-mail"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            style={styles.input}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
           />
-
           <input
             type="password"
             placeholder="Senha"
+            style={styles.input}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+            required
           />
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition-all"
+          <button 
+            type="submit" 
+            disabled={status === 'loading' || status === 'success'}
+            style={status === 'success' ? styles.buttonSuccess : styles.button}
           >
-            {loading ? "Entrando..." : "Acessar Painel"}
+            {status === 'loading' ? 'Autenticando...' : 
+             status === 'success' ? 'Sucesso!' : 'Entrar'}
           </button>
         </form>
+
+        {message && (
+          <p style={{ 
+            marginTop: '20px', 
+            color: status === 'error' ? '#ef4444' : '#a855f7',
+            fontWeight: '500'
+          }}>
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );
+}
+
+const styles = {
+  container: {
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f7',
+    overflow: 'hidden',
+    fontFamily: '"Inter", sans-serif',
+  },
+  road: {
+    width: '100%',
+    height: '60px',
+    position: 'relative',
+    marginBottom: '20px',
+  },
+  van: {
+    fontSize: '50px',
+    position: 'absolute',
+    left: '-100px', // Começa fora da tela à esquerda
+    transition: 'all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+    zIndex: 10,
+  },
+  vanArriving: {
+    left: 'calc(50% - 25px)', // Para no meio da tela (em cima do card)
+  },
+  vanDeparting: {
+    left: '110vw', // Sai pela direita
+    transition: 'all 1s ease-in',
+  },
+  loginCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backdropFilter: 'blur(10px)',
+    padding: '50px',
+    borderRadius: '30px',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
+    width: '380px',
+    textAlign: 'center',
+    border: '1px solid rgba(255,255,255,0.3)',
+  },
+  title: { fontSize: '28px', margin: '0 0 5px 0', fontWeight: '700' },
+  subtitle: { color: '#888', marginBottom: '30px' },
+  form: { display: 'flex', flexDirection: 'column', gap: '15px' },
+  input: {
+    padding: '15px 20px',
+    borderRadius: '15px',
+    border: '1px solid #eee',
+    backgroundColor: '#fff',
+    outline: 'none',
+    fontSize: '16px',
+  },
+  button: {
+    padding: '15px',
+    borderRadius: '15px',
+    border: 'none',
+    background: 'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: '16px',
+    cursor: 'pointer',
+    boxShadow: '0 10px 20px rgba(168, 85, 247, 0.2)',
+    transition: 'transform 0.2s',
+  },
+  buttonSuccess: {
+    padding: '15px',
+    borderRadius: '15px',
+    border: 'none',
+    backgroundColor: '#10b981',
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: '16px',
+  }
 };
 
 export default Login;

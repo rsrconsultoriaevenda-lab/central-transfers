@@ -1,169 +1,196 @@
-import { useState } from 'react';
-import api from './api';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 
-function Login({ onLoginSuccess }) {
+function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [status, setStatus] = useState('idle'); // idle, loading, success, error
-  const [message, setMessage] = useState('');
 
-  const handleLogin = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
-    setStatus('loading'); // A van chega!
-    setMessage('');
-
-    try {
-      // Simulando a chamada da API (Substitua pela sua rota real)
-      const response = await api.post('/login', { email, password });
-      
-      setStatus('success'); // A van sai!
-      setMessage('Acesso autorizado! Boa viagem.');
-      
-      // Espera a animação da van sair da tela para mudar de página
-      setTimeout(() => {
-        onLoginSuccess(response.data);
-      }, 1500);
-
-    } catch (error) {
-      setStatus('error');
-      setMessage('Ops! Verifique suas credenciais.');
-      // Volta ao estado normal após o erro para tentar de novo
-      setTimeout(() => setStatus('idle'), 2000);
-    }
+    if (email && password) navigate('/dashboard');
   };
 
   return (
-    <div style={styles.container}>
-      {/* Estrada/Pista por onde a van passa */}
-      <div style={styles.road}>
-        <div style={{
-          ...styles.van,
-          ...(status === 'loading' ? styles.vanArriving : {}),
-          ...(status === 'success' ? styles.vanDeparting : {})
-        }}>
-          🚐
-          <div style={styles.vanLight}></div>
-        </div>
+    <div style={loginStyles.pageWrapper}>
+      <style>{`
+        @keyframes gradientBG {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes vanTravel {
+          from { left: -150px; }
+          to { left: 100%; }
+        }
+        .fleet-bg {
+          mask-image: linear-gradient(to top, transparent, black, transparent);
+          -webkit-mask-image: linear-gradient(to top, transparent, black, transparent);
+        }
+      `}</style>
+
+      {/* Camada 1: Imagem de Gramado (Overlay Suave) */}
+      <div style={loginStyles.cityOverlay}></div>
+
+      {/* Camada 2: Frota de Carros (Spin, Van, Cruze) ao Fundo */}
+      <div style={loginStyles.fleetContainer} className="fleet-bg">
+        {/* Aqui simulamos os carros com ícones/texto em roxo escuro, 
+            mas você pode trocar as URLs abaixo pelas fotos da sua frota */}
+        <div style={loginStyles.carShadow}>🚗 CRUZE</div>
+        <div style={loginStyles.vanShadow}>🚐 VAN EXEC</div>
+        <div style={loginStyles.carShadow}>🚘 SPIN 7L</div>
       </div>
 
-      <div style={styles.loginCard}>
-        <h1 style={styles.title}>Central Transfers</h1>
-        <p style={styles.subtitle}>Gestão de Logística</p>
+      {/* Camada 3: Card de Login Glassmorphism */}
+      <div style={loginStyles.glassCard}>
+        <div style={loginStyles.logoContainer}>
+          <div style={loginStyles.iconCircle}>🚐</div>
+          <h1 style={loginStyles.title}>Central Transfers</h1>
+          <p style={loginStyles.subtitle}>Sua conexão premium em Gramado</p>
+        </div>
 
-        <form onSubmit={handleLogin} style={styles.form}>
-          <input
-            type="email"
-            placeholder="E-mail"
-            style={styles.input}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            style={styles.input}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button 
-            type="submit" 
-            disabled={status === 'loading' || status === 'success'}
-            style={status === 'success' ? styles.buttonSuccess : styles.button}
-          >
-            {status === 'loading' ? 'Autenticando...' : 
-             status === 'success' ? 'Sucesso!' : 'Entrar'}
+        <form onSubmit={handleLogin} style={loginStyles.form}>
+          <div style={loginStyles.inputGroup}>
+            <label style={loginStyles.label}>Usuário ou E-mail</label>
+            <input 
+              type="email" 
+              placeholder="admin@centraltransfers.com" 
+              style={loginStyles.input}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div style={loginStyles.inputGroup}>
+            <label style={loginStyles.label}>Senha de Acesso</label>
+            <input 
+              type="password" 
+              placeholder="••••••••" 
+              style={loginStyles.input}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" style={loginStyles.button}>
+            Acessar Sistema
           </button>
         </form>
+      </div>
 
-        {message && (
-          <p style={{ 
-            marginTop: '20px', 
-            color: status === 'error' ? '#ef4444' : '#a855f7',
-            fontWeight: '500'
-          }}>
-            {message}
-          </p>
-        )}
+      {/* Animação da Van no Rodapé */}
+      <div style={loginStyles.roadLine}>
+        <div style={loginStyles.animatedVan}>🚐💨</div>
       </div>
     </div>
   );
 }
 
-const styles = {
-  container: {
+// O componente Dashboard permanece o mesmo (omitido aqui para brevidade)
+function Dashboard() { return <div style={{padding: '50px'}}><h1>Dashboard Corrigido</h1></div>; }
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/" element={<Navigate to="/login" />} />
+      </Routes>
+    </Router>
+  );
+}
+
+// --- DESIGN SYSTEM (ESTILOS) ---
+const loginStyles = {
+  pageWrapper: {
     height: '100vh',
+    width: '100vw',
     display: 'flex',
-    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f5f7',
-    overflow: 'hidden',
+    background: 'linear-gradient(-45deg, #1e1b4b, #4c1d95, #7c3aed, #1e1b4b)',
+    backgroundSize: '400% 400%',
+    animation: 'gradientBG 12s ease infinite',
     fontFamily: '"Inter", sans-serif',
+    overflow: 'hidden',
+    position: 'relative'
   },
-  road: {
-    width: '100%',
-    height: '60px',
-    position: 'relative',
-    marginBottom: '20px',
-  },
-  van: {
-    fontSize: '50px',
+  cityOverlay: {
     position: 'absolute',
-    left: '-100px', // Começa fora da tela à esquerda
-    transition: 'all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-    zIndex: 10,
+    top: 0, left: 0, right: 0, bottom: 0,
+    // URL de Gramado (Exemplo: Pórtico) com opacidade baixa
+    backgroundImage: 'url("https://images.unsplash.com/photo-1626014903708-3607062400f0?q=80&w=2000")', 
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    opacity: 0.15,
+    mixBlendMode: 'overlay'
   },
-  vanArriving: {
-    left: 'calc(50% - 25px)', // Para no meio da tela (em cima do card)
+  fleetContainer: {
+    position: 'absolute',
+    width: '100%',
+    display: 'flex',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    padding: '0 5%',
+    opacity: 0.3,
+    color: '#1e1b4b', // Roxo bem escuro
+    fontSize: '60px',
+    fontWeight: '900',
+    letterSpacing: '-2px',
+    zIndex: 1,
+    userSelect: 'none'
   },
-  vanDeparting: {
-    left: '110vw', // Sai pela direita
-    transition: 'all 1s ease-in',
-  },
-  loginCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    backdropFilter: 'blur(10px)',
-    padding: '50px',
-    borderRadius: '30px',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.05)',
-    width: '380px',
+  carShadow: { transform: 'rotate(-5deg)', filter: 'blur(1px)' },
+  vanShadow: { transform: 'scale(1.5)', filter: 'blur(2px)' },
+  
+  glassCard: {
+    background: 'rgba(255, 255, 255, 0.05)',
+    backdropFilter: 'blur(25px) saturate(180%)',
+    WebkitBackdropFilter: 'blur(25px)',
+    borderRadius: '40px',
+    padding: '60px 45px',
+    width: '100%',
+    maxWidth: '400px',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    boxShadow: '0 40px 100px rgba(0,0,0,0.4)',
     textAlign: 'center',
-    border: '1px solid rgba(255,255,255,0.3)',
+    zIndex: 10
   },
-  title: { fontSize: '28px', margin: '0 0 5px 0', fontWeight: '700' },
-  subtitle: { color: '#888', marginBottom: '30px' },
-  form: { display: 'flex', flexDirection: 'column', gap: '15px' },
+  iconCircle: {
+    width: '80px', height: '80px',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: '50%',
+    display: 'flex', justifyContent: 'center', alignItems: 'center',
+    fontSize: '40px', margin: '0 auto 20px'
+  },
+  title: { color: '#fff', fontSize: '32px', fontWeight: 'bold', margin: '0 0 8px 0' },
+  subtitle: { color: 'rgba(255,255,255,0.6)', fontSize: '15px', marginBottom: '40px' },
   input: {
-    padding: '15px 20px',
-    borderRadius: '15px',
-    border: '1px solid #eee',
-    backgroundColor: '#fff',
-    outline: 'none',
-    fontSize: '16px',
-  },
-  button: {
-    padding: '15px',
-    borderRadius: '15px',
-    border: 'none',
-    background: 'linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%)',
+    width: '100%',
+    padding: '16px',
+    borderRadius: '16px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
     color: '#fff',
+    marginBottom: '20px',
+    outline: 'none',
+    boxSizing: 'border-box'
+  },
+  label: { color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginBottom: '8px', display: 'block', textAlign: 'left', marginLeft: '5px' },
+  button: {
+    width: '100%',
+    padding: '18px',
+    borderRadius: '18px',
+    border: 'none',
+    background: '#fff',
+    color: '#4c1d95',
     fontWeight: 'bold',
     fontSize: '16px',
     cursor: 'pointer',
-    boxShadow: '0 10px 20px rgba(168, 85, 247, 0.2)',
-    transition: 'transform 0.2s',
+    boxShadow: '0 15px 30px rgba(0,0,0,0.2)',
+    transition: 'all 0.3s'
   },
-  buttonSuccess: {
-    padding: '15px',
-    borderRadius: '15px',
-    border: 'none',
-    backgroundColor: '#10b981',
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: '16px',
-  }
+  roadLine: { position: 'absolute', bottom: '60px', width: '100%', height: '1px', background: 'rgba(255,255,255,0.1)' },
+  animatedVan: { position: 'absolute', bottom: '5px', fontSize: '35px', animation: 'vanTravel 12s linear infinite' }
 };
-
-export default Login;

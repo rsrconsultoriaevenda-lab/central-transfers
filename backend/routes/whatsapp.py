@@ -226,39 +226,69 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     """
     Contém a lógica de parsing e regras de negócio que antes estava na rota.
     """
-    sender = None
-    message = None
+    # Extração robusta do remetente e mensagem (suporte a Meta e formato simplificado)
+    sender = data.get("from") or data.get("sender")
+    message = (data.get("text", {}).get("body") if data.get("text") else None) or data.get("message")
 
-    try:
-        if "entry" in data:
-            # Formato Real da Meta
-            value = data["entry"][0]["changes"][0]["value"]
-            if "messages" in value:
-                msg_obj = value["messages"][0]
-                sender = msg_obj.get("from")
-                message = msg_obj.get("text", {}).get("body")
-        else:
-            sender = data.get("sender")
-            message = data.get("message")
-    except (KeyError, IndexError):
+    if "entry" in data and not sender:
+        try:
+            changes = data.get("entry", [])[0].get("changes", [])
+            value = changes[0].get("value", {}) if changes else {}
+            msg_obj = value.get("messages", [{}])[0]
+            sender = msg_obj.get("from")
+            message = msg_obj.get("text", {}).get("body")
+        except (KeyError, IndexError):
+            pass
+
+    if not sender:
         return
 
-    if not sender or not message:
-        return
-
-    # Sanitização básica de entrada e definição de lower logo no início
-    message = "".join(char for char in message if char.isprintable())
-    message = message.strip()
-    lower = message.lower()
+    # Tratamento seguro para mensagens None
+    if message:
+        message = "".join(char for char in message if char.isprintable())
+        message = message.strip()
+        lower = message.lower()
+    else:
+        lower = ""
 
     # 0. Verificação: O remetente é um motorista cadastrado?
-    driver = db.query(models.Motorista).filter(models.Motorista.telefone == sender).first()
+    driver = db.query(models.Motorista).filter(
+        models.Motorista.telefone == sender
+    ).first()
 
-    # 1. Comando de consulta de disponibilidade (Apenas para motoristas)
+    # 1. Tratamento de respostas interativas (botões/listas)
+    try:
+        changes = data.get("entry", [])[0].get("changes", []) if "entry" in data else []
+        value = changes[0].get("value", {}) if changes else {}
+        messages = value.get("messages", [{}])
+        interactive = messages[0].get("interactive") if messages else None
+
+        selected_id = None
+        if interactive:
+            selected_id = interactive.get("button_reply", {}).get("id")
+        elif data.get("interactive_id"):
+            selected_id = data.get("interactive_id")
+
+        if selected_id:
+            logger.info(f"Botão clicado: {selected_id}")
+            if selected_id.startswith("ACEITAR_PEDIDO_"):
+                # Reproveita a lógica de texto para processar a aceitação do pedido
+                order_id = int(selected_id.replace("ACEITAR_PEDIDO_", ""))
+                lower = f"aceito pedido {order_id}"
+            else:
+                return {"status": "botao_processado"}
+    except Exception as e:
+        logger.error(f"Erro ao processar interativo: {e}")
+
+    logger.info(f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo Final: {lower}")
+
+    # 2. Fluxo normal baseado em texto
+
+    # Comando de consulta de disponibilidade (Apenas para motoristas)
     if driver and ("vaga" in lower or "disponivel" in lower or "disponíveis" in lower):
         pedidos_vagos = db.query(models.Pedido).filter(
             models.Pedido.motorista_id == None,
-            models.Pedido.status == "PAGO", # Ou PENDENTE, dependendo da sua regra
+            models.Pedido.status == "PAGO",
             models.Pedido.data_servico >= datetime.now()
         ).all()
 
@@ -277,29 +307,6 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         
         enviar_whatsapp_meta(sender, texto_vagas)
         return {"status": "vagas_listadas"}
-
-    # Tratamento seguro para respostas de botões interativos
-    try:
-        if "entry" in data:
-            msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
-            if msg_obj.get("type") == "interactive":
-                interactive_response = msg_obj["interactive"]["button_reply"]["id"]
-                logger.info(f"Botão clicado: {interactive_response}")
-
-                if interactive_response and interactive_response.startswith("ACEITAR_PEDIDO_"):
-                    order_id = int(interactive_response.replace(
-                        "ACEITAR_PEDIDO_", ""))
-                    lower = f"aceito pedido {order_id}"
-        elif data.get("interactive_id"):  # Fallback para simuladores simplificados
-            interactive_id = data.get("interactive_id")
-            if interactive_id.startswith("ACEITAR_PEDIDO_"):
-                order_id = int(interactive_id.replace("ACEITAR_PEDIDO_", ""))
-                lower = f"aceito pedido {order_id}"
-    except (KeyError, IndexError, TypeError):
-        pass
-
-    logger.info(
-        f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo Final: {lower}")
 
     if "pago" in lower or "pagamento" in lower:
         cliente = _find_or_create_client(db, sender)

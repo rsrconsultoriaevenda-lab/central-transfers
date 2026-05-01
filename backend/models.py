@@ -14,6 +14,7 @@ class Motorista(Base):
     modelo = Column(String(255))
     ano = Column(Integer)
     status = Column(String(50), default="ATIVO")
+    plano = Column(String(50), default="MENSAL")  # MENSAL ou MASTER
     ativo = Column(Boolean, default=True)
     pedidos = relationship("Pedido", back_populates="motorista")
 

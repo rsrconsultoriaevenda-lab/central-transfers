@@ -66,7 +66,7 @@ function Dashboard() {
     setLoading(true);
     try {
       const [pedidosRes, motoristasRes] = await Promise.all([
-        axios.get(`${API_URL}/dashboard/pedidos`, { headers: getAuthHeader() }),
+        axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
         axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() })
       ]);
 

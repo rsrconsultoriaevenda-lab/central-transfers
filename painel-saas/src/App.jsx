@@ -172,7 +172,7 @@ function Dashboard() {
     formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
     formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '95%', maxWidth: '700px', boxShadow: '0 25px 50px rgba(0,0,0,0.1)' },
     input: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '10px', color: '#1e293b', background: '#fff', fontWeight: '500', outline: 'none' },
-    label: { display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginLeft: '5px' },
+    label: { display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#1e293b', marginLeft: '5px' },
     btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
     btnOutline: { background: 'transparent', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', color: '#1e293b', cursor: 'pointer', fontWeight: '600' },
     statBox: { flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }
@@ -275,8 +275,12 @@ function Dashboard() {
                   <input style={ds.input} placeholder="ABC-1234" value={newDriver.placa} onChange={e => setNewDriver({...newDriver, placa: e.target.value})} required/>
                 </div>
                 <div>
-                  <label style={ds.label}>Modelo / Ano</label>
-                  <input style={ds.input} placeholder="LTZ 2024" value={newDriver.modelo} onChange={e => setNewDriver({...newDriver, modelo: e.target.value})} required/>
+                  <label style={ds.label}>Modelo (Versão)</label>
+                  <input style={ds.input} placeholder="Ex: LTZ" value={newDriver.modelo} onChange={e => setNewDriver({...newDriver, modelo: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Ano do Veículo</label>
+                  <input type="number" style={ds.input} placeholder="2024" value={newDriver.ano} onChange={e => setNewDriver({...newDriver, ano: parseInt(e.target.value)})} required/>
                 </div>
                 <div>
                   <label style={ds.label}>Plano Inicial</label>

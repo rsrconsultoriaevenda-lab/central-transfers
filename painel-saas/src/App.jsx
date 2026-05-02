@@ -66,6 +66,34 @@ function Dashboard() {
     setLoading(true);
     try {
       const [pedidosRes, motoristasRes] = await Promise.all([
+from fastapi.middleware.cors import CORSMiddleware
+
+# ... (restante do código)
+
+app = FastAPI(title="Central Transfers API")
+
+# Defina as origens permitidas em uma única lista
+origins = [
+    "http://localhost:5173",
+    "https://central-transfers.vercel.app",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Apenas uma vez aqui
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+// painel-saas/src/App.jsx (Verifique se está assim)
+const carregarDadosReais = async () => {
+  setLoading(true);
+  try {
+    const [pedidosRes, motoristasRes] = await Promise.all([
+      axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
+      axios.get(`/motoristas`, { headers: getAuthHeader() })
+    ]);
+    // ...
         axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
         axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() })
       ]);

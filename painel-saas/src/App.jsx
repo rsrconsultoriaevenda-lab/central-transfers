@@ -203,7 +203,7 @@ function Dashboard() {
         <div onClick={() => setTab('Home')} style={tab === 'Home' ? ds.sideIconActive : ds.sideIcon}><Icons.Home /><span style={ds.sideLabel}>HOME</span></div>
         <div onClick={() => setTab('Stats')} style={tab === 'Stats' ? ds.sideIconActive : ds.sideIcon}><Icons.Stats /><span style={ds.sideLabel}>STAT</span></div>
         <div onClick={() => setTab('User')} style={tab === 'User' ? ds.sideIconActive : ds.sideIcon}><Icons.User /><span style={ds.sideLabel}>USER</span></div>
-        <div onClick={() => setTab('Plans')} style={tab === 'Plans' ? ds.sideIconActive : ds.sideIcon} title="Catálogo de Serviços"><Icons.Catalog /><span style={ds.sideLabel}>CATÁLOGO</span></div>
+        <div onClick={() => setTab('Catalog')} style={tab === 'Catalog' ? ds.sideIconActive : ds.sideIcon} title="Catálogo de Serviços"><Icons.Catalog /><span style={ds.sideLabel}>CATÁLOGO</span></div>
         <div onClick={handleLogout} style={ds.sideIcon}><Icons.Settings /><span style={ds.sideLabel}>SAIR</span></div>
       </aside>
 
@@ -292,7 +292,7 @@ function Dashboard() {
               </div>
             </div>
           </div>
-        ) : tab === 'Plans' ? (
+        ) : tab === 'Catalog' ? (
           <div style={ds.cardWhite}>
             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
               <h2 style={{color: '#1e293b'}}>Gestão de Serviços e Experiências</h2>

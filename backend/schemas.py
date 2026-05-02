@@ -25,6 +25,7 @@ class MotoristaBase(BaseModel):
     modelo: str
     ano: int
     status: str = "ATIVO"
+    plano: str = "MENSAL"
 
 
 class Motorista(MotoristaBase):
@@ -36,9 +37,12 @@ class Motorista(MotoristaBase):
 
 class Servico(BaseModel):
     nome: str
-    tipo: str
+    tipo: Optional[str] = "TRANSFERS"
+    categoria: Optional[str] = "TRANSFERS"
     descricao: str
+    valor: Optional[Decimal] = 0.0
     valor_padrao: Optional[Decimal] = 0.0
+    imagem_url: Optional[str] = None
     id: Optional[int] = None
 
     class Config:
@@ -89,6 +93,7 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     senha: str
+
 
 class UsuarioCreate(BaseModel):
     email: str

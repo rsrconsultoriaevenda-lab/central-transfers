@@ -8,7 +8,10 @@ export default function Login() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (email && password) navigate('/dashboard');
+    if (email && password) {
+      localStorage.setItem('token', 'dev-access-token'); // Simula token para o backend
+      navigate('/dashboard');
+    }
   };
 
   return (

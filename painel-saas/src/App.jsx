@@ -214,7 +214,13 @@ function Dashboard() {
               </div>
             ))}
           </div>
-        ) : (
+ALTER TABLE servicos 
+ADD COLUMN valor DECIMAL(10,2) DEFAULT 0.00,
+ADD COLUMN imagem_url VARCHAR(500),
+ADD COLUMN categoria ENUM('TRANSFERS', 'INGRESSOS', 'PACOTES', 'EXPERIENCIAS') DEFAULT 'TRANSFERS',
+ADD COLUMN destaque TINYINT(1) DEFAULT 0,
+ADD COLUMN ativo TINYINT(1) DEFAULT 1;
+        ) : tab === 'Stats' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
             <div style={ds.cardWhite}>
               <h3 style={{color: '#1e293b', marginBottom: '20px'}}>Evolução de Faturamento</h3>
@@ -253,6 +259,23 @@ function Dashboard() {
               </div>
             </div>
           </div>
+        ) : tab === 'Plans' ? (
+          <div style={ds.cardWhite}>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
+              <h2 style={{color: '#1e293b'}}>Gestão de Serviços e Experiências</h2>
+              <button style={ds.btnPrimary}>+ Novo Item</button>
+            </div>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px'}}>
+              {/* Aqui listaremos os serviços vindo da API */}
+              <div style={{...ds.statBox, textAlign: 'center'}}>
+                <span style={{fontSize: '30px'}}>🎟️</span>
+                <h4 style={{margin: '10px 0'}}>Configurar Catálogo</h4>
+                <p style={{fontSize: '12px', color: '#64748b'}}>Adicione fotos e preços para seus serviços de transfer e ingressos.</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={ds.cardWhite}>Selecione uma opção no menu lateral.</div>
         )}
 
         {showAddDriver && (

@@ -214,12 +214,6 @@ function Dashboard() {
               </div>
             ))}
           </div>
-ALTER TABLE servicos 
-ADD COLUMN valor DECIMAL(10,2) DEFAULT 0.00,
-ADD COLUMN imagem_url VARCHAR(500),
-ADD COLUMN categoria ENUM('TRANSFERS', 'INGRESSOS', 'PACOTES', 'EXPERIENCIAS') DEFAULT 'TRANSFERS',
-ADD COLUMN destaque TINYINT(1) DEFAULT 0,
-ADD COLUMN ativo TINYINT(1) DEFAULT 1;
         ) : tab === 'Stats' ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
             <div style={ds.cardWhite}>

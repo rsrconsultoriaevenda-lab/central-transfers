@@ -41,6 +41,7 @@ function Dashboard() {
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [showAddService, setShowAddService] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const [stats, setStats] = useState({
@@ -57,12 +58,17 @@ function Dashboard() {
   });
 
   const [motoristas, setMotoristas] = useState([]);
+  const [servicos, setServicos] = useState([]);
 
   const adminInfo = { name: "Renato Rocha", email: "renato@centraltransfers.com" };
   const COLORS = ['#4c1d95', '#10b981', '#f59e0b', '#3b82f6', '#ef4444'];
 
   const [newDriver, setNewDriver] = useState({
     nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL'
+  });
+
+  const [newService, setNewService] = useState({
+    nome: '', categoria: 'TRANSFERS', valor: '', descricao: '', imagem: null
   });
 
   const getAuthHeader = () => {
@@ -73,13 +79,15 @@ function Dashboard() {
   const carregarDadosReais = async () => {
     setLoading(true);
     try {
-      const [pedidosRes, motoristasRes] = await Promise.all([
+      const [pedidosRes, motoristasRes, servicosRes] = await Promise.all([
         axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
-        axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() })
+        axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() }),
+        axios.get(`${API_URL}/servicos`, { headers: getAuthHeader() })
       ]);
 
       const pedidos = pedidosRes.data || [];
       const motoristasData = motoristasRes.data || [];
+      const servicosData = servicosRes.data || [];
 
       const pedidosValidos = pedidos.filter(p => ['PAGO', 'CONCLUIDO', 'ACEITO'].includes(p.status));
       const faturamento = pedidosValidos.reduce((acc, p) => acc + (parseFloat(p.valor) || 0), 0);
@@ -102,6 +110,7 @@ function Dashboard() {
       });
 
       setMotoristas(motoristasData);
+      setServicos(servicosData);
 
       setStats({
         faturamento,
@@ -145,6 +154,30 @@ function Dashboard() {
       setShowSuccessAnimation(true); // Mostrar animação de sucesso
       setTimeout(() => setShowSuccessAnimation(false), 2000); // Esconder após 2 segundos
     } catch (err) { console.error("Erro ao cadastrar:", err); alert("Erro ao cadastrar motorista. Verifique os dados."); }
+    finally { setLoading(false); }
+  };
+
+  const cadastrarServico = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const formData = new FormData();
+    formData.append('nome', newService.nome);
+    formData.append('categoria', newService.categoria);
+    formData.append('valor', newService.valor);
+    formData.append('descricao', newService.descricao);
+    if (newService.imagem) formData.append('imagem', newService.imagem);
+
+    try {
+      await axios.post(`${API_URL}/servicos/`, formData, { 
+        headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
+      });
+      setShowAddService(false);
+      setNewService({ nome: '', categoria: 'TRANSFERS', valor: '', descricao: '', imagem: null });
+      await carregarDadosReais();
+      setShowSuccessAnimation(true);
+      setTimeout(() => setShowSuccessAnimation(false), 2000);
+    } catch (err) { alert("Erro ao cadastrar serviço."); }
     finally { setLoading(false); }
   };
 
@@ -257,15 +290,20 @@ function Dashboard() {
           <div style={ds.cardWhite}>
             <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
               <h2 style={{color: '#1e293b'}}>Gestão de Serviços e Experiências</h2>
-              <button style={ds.btnPrimary}>+ Novo Item</button>
+              <button style={ds.btnPrimary} onClick={() => setShowAddService(true)}>+ Novo Item</button>
             </div>
             <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px'}}>
-              {/* Aqui listaremos os serviços vindo da API */}
-              <div style={{...ds.statBox, textAlign: 'center'}}>
-                <span style={{fontSize: '30px'}}>🎟️</span>
-                <h4 style={{margin: '10px 0'}}>Configurar Catálogo</h4>
-                <p style={{fontSize: '12px', color: '#64748b'}}>Adicione fotos e preços para seus serviços de transfer e ingressos.</p>
-              </div>
+              {servicos.map(s => (
+                <div key={s.id} style={ds.statBox}>
+                  {s.imagem_url ? (
+                    <img src={s.imagem_url} alt={s.nome} style={{width: '100%', height: '100px', objectFit: 'cover', borderRadius: '10px'}} />
+                  ) : (
+                    <div style={{height: '100px', background: '#e2e8f0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>📸</div>
+                  )}
+                  <h4 style={{margin: '10px 0', fontSize: '14px'}}>{s.nome}</h4>
+                  <div style={{fontWeight: 'bold', color: '#4c1d95'}}>R$ {parseFloat(s.valor || 0).toFixed(2)}</div>
+                </div>
+              ))}
             </div>
           </div>
         ) : (
@@ -314,6 +352,45 @@ function Dashboard() {
               <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
                 <button type="submit" style={ds.btnPrimary}>Confirmar</button>
                 <button type="button" style={ds.btnOutline} onClick={() => setShowAddDriver(false)}>Cancelar</button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {showAddService && (
+          <div style={ds.formOverlay}>
+            <form style={ds.formCard} onSubmit={cadastrarServico}>
+              <h2 style={{color: '#4c1d95', marginBottom: '25px', textAlign: 'center'}}>Novo Item no Catálogo</h2>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Nome do Serviço/Experiência</label>
+                  <input style={ds.input} placeholder="Ex: Tour Uva e Vinho" value={newService.nome} onChange={e => setNewService({...newService, nome: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Categoria</label>
+                  <select style={ds.input} value={newService.categoria} onChange={e => setNewService({...newService, categoria: e.target.value})}>
+                    <option value="TRANSFERS">Transfers</option>
+                    <option value="INGRESSOS">Ingressos</option>
+                    <option value="PACOTES">Pacotes</option>
+                    <option value="EXPERIENCIAS">Experiências</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={ds.label}>Preço Base (R$)</label>
+                  <input type="number" style={ds.input} placeholder="150.00" value={newService.valor} onChange={e => setNewService({...newService, valor: e.target.value})} required/>
+                </div>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Descrição Curta</label>
+                  <textarea style={{...ds.input, height: '80px', resize: 'none'}} placeholder="Detalhes que o cliente verá no site..." value={newService.descricao} onChange={e => setNewService({...newService, descricao: e.target.value})} required/>
+                </div>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Foto de Capa</label>
+                  <input type="file" accept="image/*" onChange={e => setNewService({...newService, imagem: e.target.files[0]})} />
+                </div>
+              </div>
+              <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                <button type="submit" style={ds.btnPrimary}>Salvar no Catálogo</button>
+                <button type="button" style={ds.btnOutline} onClick={() => setShowAddService(false)}>Cancelar</button>
               </div>
             </form>
           </div>

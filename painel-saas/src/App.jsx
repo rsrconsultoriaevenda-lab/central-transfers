@@ -21,11 +21,16 @@ import Storefront from './Storefront';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('token');
-  if (!token) {
-    return <Navigate to="/login" replace />;
+  const role = localStorage.getItem('user_role');
+
+  if (!token) return <Navigate to="/login" replace />;
+  
+  if (allowedRoles && !allowedRoles.includes(role)) {
+    return <Navigate to="/login" replace />; 
   }
+
   return children;
 };
 
@@ -425,12 +430,12 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/driver" element={<ProtectedRoute><DriverApp /></ProtectedRoute>} />
+        <Route path="/driver" element={<ProtectedRoute allowedRoles={['motorista', 'admin']}><DriverApp /></ProtectedRoute>} />
         <Route path="/store" element={<Storefront />} />
         <Route 
           path="/dashboard" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['admin']}>
               <Dashboard />
             </ProtectedRoute>
           } 

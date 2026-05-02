@@ -1,16 +1,42 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
 export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    if (email && password) {
-      localStorage.setItem('token', 'dev-access-token'); // Simula token para o backend
-      navigate('/dashboard');
+    setLoading(true);
+    try {
+      // Faz o login real no backend
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email: email,
+        senha: password
+      });
+
+      const { access_token, role } = response.data;
+
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user_role', role);
+
+      // Redirecionamento lógico baseado no papel (role)
+      if (role === 'admin') {
+        navigate('/dashboard');
+      } else if (role === 'motorista') {
+        navigate('/driver');
+      } else {
+        navigate('/store');
+      }
+    } catch (err) {
+      alert("Falha no login: Verifique seu e-mail e senha.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,8 +108,8 @@ export default function Login() {
               required
             />
           </div>
-          <button type="submit" style={loginStyles.button}>
-            Acessar Sistema
+          <button type="submit" style={loginStyles.button} disabled={loading}>
+            {loading ? 'Autenticando...' : 'Acessar Sistema'}
           </button>
         </form>
       </div>

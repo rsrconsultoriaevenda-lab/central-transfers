@@ -12,6 +12,7 @@ class ClienteBase(BaseModel):
 
 class Cliente(ClienteBase):
     id: Optional[int] = None
+    empresa_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -26,6 +27,7 @@ class MotoristaBase(BaseModel):
     ano: int
     status: str = "ATIVO"
     plano: str = "MENSAL"
+    empresa_id: Optional[int] = None
 
 
 class Motorista(MotoristaBase):
@@ -43,6 +45,7 @@ class Servico(BaseModel):
     valor: Optional[Decimal] = 0.0
     valor_padrao: Optional[Decimal] = 0.0
     imagem_url: Optional[str] = None
+    empresa_id: Optional[int] = None
     id: Optional[int] = None
 
     class Config:

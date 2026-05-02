@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from backend.database import get_db
 from backend.schemas import PedidoOut
-from backend.servico import ServicoCreate, ServicoUpdateStatus, ServicoResponse
+from backend.servico import ServicoUpdateStatus, ServicoResponse
 from backend.auth import get_usuario_atual
 from backend import models, schemas
 from backend.services.servico_service import (
@@ -17,12 +17,30 @@ router = APIRouter(prefix="/servicos", tags=["Serviços"])
 
 
 @router.post("/", response_model=ServicoResponse)
-def criar_servico_route(data: ServicoCreate, db: Session = Depends(get_db), email: str = Depends(get_usuario_atual)):
+async def criar_servico_route(
+    nome: str = Form(...),
+    categoria: str = Form(...),
+    valor: float = Form(...),
+    descricao: str = Form(...),
+    imagem: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    email: str = Depends(get_usuario_atual)
+):
     usuario = db.query(models.Usuario).filter(
         models.Usuario.email == email).first()
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
-    return criar_servico(db, data, usuario.id)
+
+    # Simulação de criação do objeto de dados (ajuste conforme seu servico_service.py)
+    from backend.schemas import Servico
+    data_obj = Servico(
+        nome=nome,
+        categoria=categoria,
+        valor=valor,
+        descricao=descricao,
+        empresa_id=usuario.id  # O ID do usuário admin representa a empresa no SaaS
+    )
+    return criar_servico(db, data_obj, usuario.id)
 
 
 @router.get("/", response_model=List[ServicoResponse])

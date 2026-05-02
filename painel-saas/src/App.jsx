@@ -31,7 +31,7 @@ const Icons = {
   Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
   Stats: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 20V10M12 20V4M18 20V14"/></svg>,
   User: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>,
-  Plans: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+  Catalog: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82zM6.5 8.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>,
   Settings: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 };
 
@@ -147,13 +147,16 @@ function Dashboard() {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/motoristas/`, newDriver, { headers: getAuthHeader() });
+      await axios.post(`${API_URL}/motoristas`, newDriver, { headers: getAuthHeader() });
       setShowAddDriver(false);
       setNewDriver({ nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL' });
       await carregarDadosReais();
       setShowSuccessAnimation(true); // Mostrar animação de sucesso
       setTimeout(() => setShowSuccessAnimation(false), 2000); // Esconder após 2 segundos
-    } catch (err) { console.error("Erro ao cadastrar:", err); alert("Erro ao cadastrar motorista. Verifique os dados."); }
+    } catch (err) { 
+      console.error("Erro ao cadastrar motorista:", err.response?.data || err.message); 
+      alert(`Erro ao cadastrar motorista: ${JSON.stringify(err.response?.data?.detail || "Erro interno")}`); 
+    }
     finally { setLoading(false); }
   };
 
@@ -169,7 +172,7 @@ function Dashboard() {
     if (newService.imagem) formData.append('imagem', newService.imagem);
 
     try {
-      await axios.post(`${API_URL}/servicos/`, formData, { 
+      await axios.post(`${API_URL}/servicos`, formData, { 
         headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
       });
       setShowAddService(false);
@@ -177,7 +180,10 @@ function Dashboard() {
       await carregarDadosReais();
       setShowSuccessAnimation(true);
       setTimeout(() => setShowSuccessAnimation(false), 2000);
-    } catch (err) { alert("Erro ao cadastrar serviço."); }
+    } catch (err) { 
+      console.error("Erro ao cadastrar serviço:", err.response?.data || err.message); 
+      alert(`Erro ao cadastrar serviço: ${JSON.stringify(err.response?.data?.detail || "Verifique se as colunas categoria/valor existem no banco.")}`); 
+    }
     finally { setLoading(false); }
   };
 
@@ -197,7 +203,7 @@ function Dashboard() {
         <div onClick={() => setTab('Home')} style={tab === 'Home' ? ds.sideIconActive : ds.sideIcon}><Icons.Home /><span style={ds.sideLabel}>HOME</span></div>
         <div onClick={() => setTab('Stats')} style={tab === 'Stats' ? ds.sideIconActive : ds.sideIcon}><Icons.Stats /><span style={ds.sideLabel}>STAT</span></div>
         <div onClick={() => setTab('User')} style={tab === 'User' ? ds.sideIconActive : ds.sideIcon}><Icons.User /><span style={ds.sideLabel}>USER</span></div>
-        <div onClick={() => setTab('Plans')} style={tab === 'Plans' ? ds.sideIconActive : ds.sideIcon} title="Configuração de Planos"><Icons.Plans /><span style={ds.sideLabel}>PLANS</span></div>
+        <div onClick={() => setTab('Plans')} style={tab === 'Plans' ? ds.sideIconActive : ds.sideIcon} title="Catálogo de Serviços"><Icons.Catalog /><span style={ds.sideLabel}>CATÁLOGO</span></div>
         <div onClick={handleLogout} style={ds.sideIcon}><Icons.Settings /><span style={ds.sideLabel}>SAIR</span></div>
       </aside>
 

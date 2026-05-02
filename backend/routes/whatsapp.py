@@ -141,7 +141,9 @@ def _find_or_create_service(db: Session, nome: str, tipo: str):
     novo_servico = models.Servico(
         nome=nome,
         tipo=tipo,
-        descricao=f"Serviço gerado automaticamente para {nome}"
+        categoria=tipo.upper() if tipo else "TRANSFERS",
+        descricao=f"Serviço gerado automaticamente para {nome}",
+        valor=0.0
     )
     db.add(novo_servico)
     db.commit()

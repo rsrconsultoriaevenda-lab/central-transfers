@@ -21,9 +21,9 @@ def listar(db: Session = Depends(get_db), email: str = Depends(get_usuario_atual
 
 
 @router.post("/")
-def criar(motorista: schemas.Motorista, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
     try:
-        novo = models.Motorista(**motorista.model_dump(exclude={"id"}))
+        novo = models.Motorista(**motorista.model_dump())
         db.add(novo)
         db.commit()
         db.refresh(novo)

@@ -20,10 +20,11 @@ import Login from './Login';
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
 const Icons = {
-  Home: () => <svg width="20" height="20" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
-  Stats: () => <svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 20V10M12 20V4M18 20V14"/></svg>,
-  User: () => <svg width="20" height="20"><circle cx="12" cy="7" r="4"/></svg>,
-  Settings: () => <svg width="20" height="20"><circle cx="12" cy="12" r="3"/></svg>
+  Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
+  Stats: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 20V10M12 20V4M18 20V14"/></svg>,
+  User: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>,
+  Plans: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+  Settings: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 };
 
 function Dashboard() {
@@ -32,6 +33,7 @@ function Dashboard() {
   const [tab, setTab] = useState('Home');
   const [loading, setLoading] = useState(false);
   const [showAddDriver, setShowAddDriver] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   const [stats, setStats] = useState({
     faturamento: 0,
@@ -132,7 +134,9 @@ function Dashboard() {
       setShowAddDriver(false);
       setNewDriver({ nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL' });
       await carregarDadosReais();
-    } catch (err) { alert("Erro ao cadastrar motorista."); }
+      setShowSuccessAnimation(true); // Mostrar animação de sucesso
+      setTimeout(() => setShowSuccessAnimation(false), 2000); // Esconder após 2 segundos
+    } catch (err) { console.error("Erro ao cadastrar:", err); alert("Erro ao cadastrar motorista. Verifique os dados."); }
     finally { setLoading(false); }
   };
 
@@ -146,18 +150,18 @@ function Dashboard() {
     sideIcon: { cursor: 'pointer', marginBottom: '30px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%' },
     sideIconActive: { cursor: 'pointer', marginBottom: '30px', color: '#4c1d95', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%', borderLeft: '4px solid #4c1d95' },
     sideLabel: { fontSize: '10px', fontWeight: 'bold', marginTop: '5px' },
-    main: { flex: 1, padding: '40px', overflowY: 'auto' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
-    welcomeText: { fontSize: '24px', margin: 0, color: '#1e293b' },
-    subWelcome: { color: '#64748b', margin: '5px 0 0 0' },
+    main: { flex: 1, padding: '40px', overflowY: 'auto', background: '#f8fafc' },
+    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', paddingRight: '20px' },
+    welcomeText: { fontSize: '28px', margin: 0, color: '#1e293b', fontWeight: '800' },
+    subWelcome: { color: '#475569', margin: '5px 0 0 0', fontWeight: '500' },
     adminProfile: { display: 'flex', alignItems: 'center', gap: '15px' },
-    adminName: { margin: 0, fontWeight: 'bold', color: '#1e293b' },
-    adminEmail: { margin: 0, fontSize: '12px', color: '#64748b' },
+    adminName: { margin: 0, fontWeight: '700', color: '#1e293b' },
+    adminEmail: { margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '400' },
     avatar: { width: '45px', height: '45px', background: '#4c1d95', color: '#fff', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
     grid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '25px' },
-    cardMain: { background: 'linear-gradient(135deg, #4c1d95 0%, #7c3aed 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 10px 30px rgba(76, 29, 149, 0.3)' },
-    cardGreen: { background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 10px 30px rgba(16, 185, 129, 0.3)' },
-    cardYellow: { background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 10px 30px rgba(245, 158, 11, 0.3)' },
+    cardMain: { background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(76, 29, 149, 0.25)', border: '1px solid rgba(255,255,255,0.1)' },
+    cardGreen: { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(5, 150, 105, 0.2)' },
+    cardYellow: { background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(217, 119, 6, 0.2)' },
     cardWhite: { background: '#fff', borderRadius: '30px', padding: '30px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
     row: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: '1px solid #f1f5f9' },
     rowIcon: { width: '40px', height: '40px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' },
@@ -166,10 +170,11 @@ function Dashboard() {
     status_ACEITO: { background: '#dbeafe', color: '#1e40af' },
     status_PENDENTE: { background: '#fef3c7', color: '#92400e' },
     formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
-    formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '90%', maxWidth: '600px' },
-    input: { width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '10px', color: '#1e293b' },
+    formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '95%', maxWidth: '700px', boxShadow: '0 25px 50px rgba(0,0,0,0.1)' },
+    input: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '10px', color: '#1e293b', background: '#fff', fontWeight: '500', outline: 'none' },
+    label: { display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginLeft: '5px' },
     btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
-    btnOutline: { background: 'transparent', border: '1px solid #e2e8f0', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', color: '#1e293b', cursor: 'pointer' },
+    btnOutline: { background: 'transparent', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', color: '#1e293b', cursor: 'pointer', fontWeight: '600' },
     statBox: { flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }
   };
 
@@ -180,6 +185,7 @@ function Dashboard() {
         <div onClick={() => setTab('Home')} style={tab === 'Home' ? ds.sideIconActive : ds.sideIcon}><Icons.Home /><span style={ds.sideLabel}>HOME</span></div>
         <div onClick={() => setTab('Stats')} style={tab === 'Stats' ? ds.sideIconActive : ds.sideIcon}><Icons.Stats /><span style={ds.sideLabel}>STAT</span></div>
         <div onClick={() => setTab('User')} style={tab === 'User' ? ds.sideIconActive : ds.sideIcon}><Icons.User /><span style={ds.sideLabel}>USER</span></div>
+        <div onClick={() => setTab('Plans')} style={tab === 'Plans' ? ds.sideIconActive : ds.sideIcon} title="Configuração de Planos"><Icons.Plans /><span style={ds.sideLabel}>PLANS</span></div>
         <div onClick={() => navigate('/login')} style={ds.sideIcon}><Icons.Settings /><span style={ds.sideLabel}>SAIR</span></div>
       </aside>
 
@@ -249,15 +255,55 @@ function Dashboard() {
         {showAddDriver && (
           <div style={ds.formOverlay}>
             <form style={ds.formCard} onSubmit={cadastrarMotorista}>
-              <h3 style={{color: '#1e293b', marginBottom: '20px'}}>Cadastrar Motorista</h3>
-              <input style={ds.input} placeholder="Nome Completo" value={newDriver.nome} onChange={e => setNewDriver({...newDriver, nome: e.target.value})} required/>
-              <input style={ds.input} placeholder="Telefone (WhatsApp)" value={newDriver.telefone} onChange={e => setNewDriver({...newDriver, telefone: e.target.value})} required/>
-              <input style={ds.input} placeholder="Veículo (Ex: Spin, Van)" value={newDriver.carro} onChange={e => setNewDriver({...newDriver, carro: e.target.value})} required/>
+              <h2 style={{color: '#4c1d95', marginBottom: '25px', textAlign: 'center'}}>Novo Parceiro de Frota</h2>
+              
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div>
+                  <label style={ds.label}>Nome Completo</label>
+                  <input style={ds.input} placeholder="Ex: João Silva" value={newDriver.nome} onChange={e => setNewDriver({...newDriver, nome: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>WhatsApp</label>
+                  <input style={ds.input} placeholder="5554..." value={newDriver.telefone} onChange={e => setNewDriver({...newDriver, telefone: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Carro</label>
+                  <input style={ds.input} placeholder="Ex: Spin" value={newDriver.carro} onChange={e => setNewDriver({...newDriver, carro: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Placa</label>
+                  <input style={ds.input} placeholder="ABC-1234" value={newDriver.placa} onChange={e => setNewDriver({...newDriver, placa: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Modelo / Ano</label>
+                  <input style={ds.input} placeholder="LTZ 2024" value={newDriver.modelo} onChange={e => setNewDriver({...newDriver, modelo: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Plano Inicial</label>
+                  <select style={ds.input} value={newDriver.plano} onChange={e => setNewDriver({...newDriver, plano: e.target.value})}>
+                    <option value="MENSAL">Mensalidade Fixa</option>
+                    <option value="MASTER">Comissão Master (20%)</option>
+                  </select>
+                </div>
+              </div>
+
               <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
                 <button type="submit" style={ds.btnPrimary}>Confirmar</button>
                 <button type="button" style={ds.btnOutline} onClick={() => setShowAddDriver(false)}>Cancelar</button>
               </div>
             </form>
+          </div>
+        )}
+
+        {showSuccessAnimation && (
+          <div style={ds.successOverlay}>
+            <style>{`
+              @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+              @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            `}</style>
+            <div style={ds.successCheck}>
+              ✅
+            </div>
           </div>
         )}
       </main>
@@ -276,3 +322,47 @@ export default function App() {
     </Router>
   );
 }
+
+const ds = {
+  wrapper: { display: 'flex', height: '100vh', width: '100vw', background: '#f8fafc', overflow: 'hidden', fontFamily: '"Inter", sans-serif' },
+  sidebar: { width: '100px', background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' },
+  sideIcon: { cursor: 'pointer', marginBottom: '30px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%' },
+  sideIconActive: { cursor: 'pointer', marginBottom: '30px', color: '#4c1d95', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%', borderLeft: '4px solid #4c1d95' },
+  sideLabel: { fontSize: '10px', fontWeight: 'bold', marginTop: '5px' },
+  main: { flex: 1, padding: '40px', overflowY: 'auto', background: '#f8fafc' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', paddingRight: '20px' },
+  welcomeText: { fontSize: '28px', margin: 0, color: '#1e293b', fontWeight: '800' },
+  subWelcome: { color: '#475569', margin: '5px 0 0 0', fontWeight: '500' },
+  adminProfile: { display: 'flex', alignItems: 'center', gap: '15px' },
+  adminName: { margin: 0, fontWeight: '700', color: '#1e293b' },
+  adminEmail: { margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '400' },
+  avatar: { width: '45px', height: '45px', background: '#4c1d95', color: '#fff', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
+  grid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '25px' },
+  cardMain: { background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(76, 29, 149, 0.25)', border: '1px solid rgba(255,255,255,0.1)' },
+  cardGreen: { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(5, 150, 105, 0.2)' },
+  cardYellow: { background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(217, 119, 6, 0.2)' },
+  cardWhite: { background: '#fff', borderRadius: '30px', padding: '30px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
+  row: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: '1px solid #f1f5f9' },
+  rowIcon: { width: '40px', height: '40px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' },
+  badge: { fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' },
+  status_PAGO: { background: '#dcfce7', color: '#166534' },
+  status_ACEITO: { background: '#dbeafe', color: '#1e40af' },
+  status_PENDENTE: { background: '#fef3c7', color: '#92400e' },
+  formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
+  formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '95%', maxWidth: '700px', boxShadow: '0 25px 50px rgba(0,0,0,0.1)' },
+  input: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '10px', color: '#1e293b', background: '#fff', fontWeight: '500', outline: 'none' },
+  label: { display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#475569', marginLeft: '5px' },
+  btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
+  btnOutline: { background: 'transparent', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', color: '#1e293b', cursor: 'pointer', fontWeight: '600' },
+  statBox: { flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' },
+  successOverlay: {
+    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+    background: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+    zIndex: 2000, backdropFilter: 'blur(8px)', animation: 'fadeIn 0.3s ease-out'
+  },
+  successCheck: {
+    fontSize: '80px', color: '#10b981', background: '#fff', borderRadius: '50%',
+    width: '120px', height: '120px', display: 'flex', justifyContent: 'center', alignItems: 'center',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.3)', animation: 'popIn 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55)'
+  }
+};

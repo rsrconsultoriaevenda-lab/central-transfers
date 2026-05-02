@@ -16,6 +16,7 @@ class Motorista(Base):
     status = Column(String(50), default="ATIVO")
     plano = Column(String(50), default="MENSAL")  # MENSAL ou MASTER
     ativo = Column(Boolean, default=True)
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True) # ID do Admin/Dono
     pedidos = relationship("Pedido", back_populates="motorista")
 
 
@@ -25,6 +26,7 @@ class Cliente(Base):
     nome = Column(String(255))
     telefone = Column(String(50))
     email = Column(String(255))
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True)
     pedidos = relationship("Pedido", back_populates="cliente")
 
 
@@ -36,6 +38,7 @@ class Servico(Base):
     descricao = Column(Text, nullable=True)
     valor_padrao = Column(Numeric(10, 2), default=0.0)
     ativo = Column(Boolean, default=True)
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True)
     pedidos = relationship("Pedido", back_populates="servico")
 
 
@@ -44,6 +47,7 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True)
     senha = Column(String(255))
+    empresa_id = Column(Integer, nullable=True) # Se for nulo, ele é o dono da empresa
     role = Column(String(50), default="cliente")  # Adicionado campo role
     # No direct relationship to Pedido here, as Pedido is linked to Cliente
 
@@ -62,6 +66,7 @@ class Pedido(Base):
     cliente_id = Column(Integer, ForeignKey("clientes.id"))
     servico_id = Column(Integer, ForeignKey("servicos.id"))
     motorista_id = Column(Integer, ForeignKey("motoristas.id"), nullable=True)
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True)
 
     cliente = relationship("Cliente", back_populates="pedidos")
     servico = relationship("Servico", back_populates="pedidos")

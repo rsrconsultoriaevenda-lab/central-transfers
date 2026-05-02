@@ -4,10 +4,10 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from backend.config import settings
+from backend.database import tenant_id
 
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
-{"status": "online", "db": "healthy", "server_time": "2026-04-30T13:00:00.000000"}
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -16,9 +16,17 @@ def get_usuario_atual(token: str = Depends(oauth2_scheme)):
         payload = jwt.decode(token, settings.SECRET_KEY,
                              algorithms=[ALGORITHM])
         email = payload.get("sub")
-        if email is None:
+        user_id = payload.get("user_id")
+        # Fallback para o ID do usuário se for o dono
+        comp_id = payload.get("empresa_id") or user_id
+
+        if email is None or user_id is None:
             raise HTTPException(status_code=401, detail="Token inválido")
-        return email
+
+        # Aqui acontece a "mágica": setamos o ID para toda a duração desta requisição
+        tenant_id.set(comp_id)
+
+        return {"email": email, "id": user_id, "empresa_id": comp_id}
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 

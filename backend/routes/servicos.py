@@ -6,6 +6,7 @@ from backend.schemas import PedidoOut
 from backend.servico import ServicoUpdateStatus, ServicoResponse
 from backend.auth import get_usuario_atual
 from backend import models, schemas
+from backend.database import tenant_id
 from backend.services.servico_service import (
     criar_servico,
     listar_servicos,
@@ -24,29 +25,25 @@ async def criar_servico_route(
     descricao: str = Form(...),
     imagem: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
-    email: str = Depends(get_usuario_atual)
+    user: dict = Depends(get_usuario_atual)
 ):
-    usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == email).first()
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
-
-    # Simulação de criação do objeto de dados (ajuste conforme seu servico_service.py)
+    # Não precisamos mais buscar o usuário nem setar o empresa_id manualmente.
+    # O Hook no database.py fará isso automaticamente usando o ContextVar.
     from backend.schemas import Servico
     data_obj = Servico(
         nome=nome,
         categoria=categoria,
         valor=valor,
-        descricao=descricao,
-        empresa_id=usuario.id  # O ID do usuário admin representa a empresa no SaaS
+        descricao=descricao
     )
-    return criar_servico(db, data_obj, usuario.id)
+    return criar_servico(db, data_obj, user["id"])
 
 
 @router.get("/", response_model=List[ServicoResponse])
-def listar_servicos_route(db: Session = Depends(get_db)):
+def listar_servicos_route(db: Session = Depends(get_db), user=Depends(get_usuario_atual)):
     try:
-        servicos = listar_servicos(db)
+        # O Hook no database.py aplicará o filtro de empresa_id automaticamente aqui
+        servicos = db.query(models.Servico).all()
         return servicos
     except Exception as e:
         print("ERRO SERVICOS:", e)

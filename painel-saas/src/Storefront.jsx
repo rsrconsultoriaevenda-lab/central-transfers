@@ -24,9 +24,23 @@ export default function Storefront() {
     { id: 4, icon: '🍷', title: 'Vale dos Vinhedos', desc: 'Uma experiência gastronômica inesquecível.' }
   ];
 
+  const testimonials = [
+    { id: 1, name: "Mariana Silva", text: "Atendimento impecável! O transfer chegou antes do horário e o carro era extremamente confortável.", stars: 5 },
+    { id: 2, name: "Ricardo Oliveira", text: "Melhor experiência em Gramado. O tour Uva e Vinho foi sensacional e muito bem organizado.", stars: 5 }
+  ];
+
+  const features = [
+    { icon: '🛡️', title: 'Seguro Viagem', desc: 'Proteção total em todos os trajetos.' },
+    { icon: '🕒', title: 'Pontualidade', desc: 'Respeito rigoroso aos seus horários.' },
+    { icon: '💎', title: 'Frota Premium', desc: 'Veículos novos e higienizados.' }
+  ];
+
   useEffect(() => {
     // Busca serviços cadastrados no seu backend
-    axios.get(`${API_URL}/servicos`).then(res => setServices(res.data));
+    axios.get(`${API_URL}/servicos`).then(res => {
+      // Ordena ou filtra se necessário
+      setServices(res.data);
+    });
   }, []);
 
   const addToCart = (service) => {
@@ -92,15 +106,55 @@ export default function Storefront() {
             ) : (
               <div style={styles.imagePlaceholder}>📸</div>
             )}
-            <h3>{service.nome}</h3>
-            <p>{service.descricao}</p>
+            <div style={styles.cardContent}>
+              <div style={styles.categoryBadge}>{service.categoria || 'PREMIUM'}</div>
+              <h3 style={styles.cardTitle}>{service.nome}</h3>
+              <p style={styles.cardDesc}>{service.descricao}</p>
+              
+              {/* Atributos do Veículo/Serviço */}
+              <div style={styles.attributes}>
+                <span title="Passageiros">👤 4</span>
+                <span title="Malas Grandes">🧳 2</span>
+                <span title="Ar Condicionado">❄️ Sim</span>
+              </div>
+            </div>
             <div style={styles.priceRow}>
-              <span>A partir de <strong>R$ {parseFloat(service.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></span>
+              <div style={styles.priceContainer}>
+                <span style={styles.priceLabel}>Investimento</span>
+                <span style={styles.priceValue}>R$ {parseFloat(service.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+              </div>
               <button onClick={() => addToCart(service)} style={styles.addBtn}>Selecionar</button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Seção de Diferenciais */}
+      <section style={styles.featuresSection}>
+        <div style={styles.featuresGrid}>
+          {features.map((f, i) => (
+            <div key={i} style={styles.featureItem}>
+              <span style={styles.featureIcon}>{f.icon}</span>
+              <h5 style={styles.featureTitle}>{f.title}</h5>
+              <p style={styles.featureDesc}>{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Depoimentos */}
+      <section style={styles.testimonialSection}>
+        <h2 style={styles.sectionTitle}>O que dizem nossos clientes</h2>
+        <div style={styles.testimonialGrid}>
+          {testimonials.map(t => (
+            <div key={t.id} style={styles.testimonialCard}>
+              <div style={styles.stars}>{'⭐'.repeat(t.stars)}</div>
+              <p style={styles.testimonialText}>"{t.text}"</p>
+              <h6 style={styles.testimonialAuthor}>{t.name}</h6>
+            </div>
+          ))}
+        </div>
+      </section>
         </>
       ) : (
         <div style={styles.formCard}>
@@ -136,24 +190,24 @@ export default function Storefront() {
 const styles = {
   container: { fontFamily: '"Inter", sans-serif', padding: '0 0 40px 0', maxWidth: '900px', margin: '0 auto', background: '#f5f3ff', minHeight: '100vh' },
   hero: { 
-    height: '350px', 
+    height: '400px', 
     backgroundImage: 'url("https://images.unsplash.com/photo-1626014903708-3607062400f0?q=80&w=1200")', 
     backgroundSize: 'cover', 
     backgroundPosition: 'center',
-    borderRadius: '0 0 50px 50px',
+    borderRadius: '0 0 60px 60px',
     position: 'relative',
     overflow: 'hidden',
     marginBottom: '30px'
   },
   heroOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'linear-gradient(to bottom, rgba(76, 29, 149, 0.4), rgba(76, 29, 149, 0.9))',
+    background: 'linear-gradient(to bottom, rgba(30, 27, 75, 0.2), rgba(76, 29, 149, 0.85))',
     display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center'
   },
-  heroTitle: { color: '#fff', fontSize: '36px', fontWeight: '800', margin: 0, textShadow: '0 2px 10px rgba(0,0,0,0.3)' },
-  heroSubtitle: { color: 'rgba(255,255,255,0.9)', fontSize: '18px', marginTop: '10px', maxWidth: '600px' },
+  heroTitle: { color: '#fff', fontSize: '42px', fontWeight: '900', margin: 0, textShadow: '0 4px 15px rgba(0,0,0,0.4)', letterSpacing: '-1px' },
+  heroSubtitle: { color: 'rgba(255,255,255,0.95)', fontSize: '18px', marginTop: '15px', maxWidth: '600px', fontWeight: '400' },
   
-  sectionTitle: { fontSize: '22px', color: '#1e1b4b', fontWeight: '700', margin: '30px 20px 20px 20px' },
+  sectionTitle: { fontSize: '26px', color: '#1e1b4b', fontWeight: '800', margin: '40px 20px 25px 20px', letterSpacing: '-0.5px' },
   
   tipsSection: { padding: '0 20px' },
   tipsGrid: { display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' },
@@ -167,11 +221,33 @@ const styles = {
   navBtnActive: { padding: '12px 24px', borderRadius: '25px', border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: '700', boxShadow: '0 10px 20px rgba(124, 58, 237, 0.3)', whiteSpace: 'nowrap' },
   
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px', padding: '0 20px' },
-  card: { background: '#fff', padding: '0', borderRadius: '30px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', transition: 'transform 0.3s' },
+  card: { background: '#fff', padding: '0', borderRadius: '35px', overflow: 'hidden', boxShadow: '0 25px 40px -10px rgba(76, 29, 149, 0.12)', border: '1px solid rgba(255,255,255,0.7)', transition: 'transform 0.3s' },
   image: { width: '100%', height: '200px', objectFit: 'cover' },
   imagePlaceholder: { width: '100%', height: '200px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px', padding: '0 20px 20px 20px' },
-  addBtn: { background: '#7c3aed', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '15px', fontWeight: '700', cursor: 'pointer' },
+  cardContent: { padding: '20px 20px 10px 20px' },
+  categoryBadge: { fontSize: '10px', fontWeight: '800', color: '#7c3aed', background: '#f5f3ff', padding: '4px 10px', borderRadius: '8px', display: 'inline-block', marginBottom: '10px' },
+  cardTitle: { fontSize: '18px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 8px 0' },
+  cardDesc: { fontSize: '13px', color: '#64748b', margin: '0 0 15px 0', lineHeight: '1.5' },
+  attributes: { display: 'flex', gap: '15px', fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '10px' },
+  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 20px 20px 20px' },
+  priceContainer: { display: 'flex', flexDirection: 'column' },
+  priceLabel: { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' },
+  priceValue: { fontSize: '18px', fontWeight: '900', color: '#4c1d95' },
+  addBtn: { background: '#7c3aed', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '18px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 8px 15px rgba(124, 58, 237, 0.2)' },
+
+  featuresSection: { padding: '40px 20px' },
+  featuresGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' },
+  featureItem: { textAlign: 'center', padding: '20px', background: 'rgba(255,255,255,0.5)', borderRadius: '25px', border: '1px solid #ede9fe' },
+  featureIcon: { fontSize: '24px', display: 'block', marginBottom: '10px' },
+  featureTitle: { fontSize: '14px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 5px 0' },
+  featureDesc: { fontSize: '11px', color: '#64748b', margin: 0 },
+
+  testimonialSection: { padding: '20px 20px 40px 20px' },
+  testimonialGrid: { display: 'flex', gap: '20px', overflowX: 'auto', scrollbarWidth: 'none', padding: '10px 0' },
+  testimonialCard: { minWidth: '260px', background: '#fff', padding: '25px', borderRadius: '30px', boxShadow: '0 15px 30px rgba(0,0,0,0.03)' },
+  stars: { fontSize: '12px', marginBottom: '10px' },
+  testimonialText: { fontSize: '14px', color: '#475569', fontStyle: 'italic', lineHeight: '1.6', marginBottom: '15px' },
+  testimonialAuthor: { fontSize: '13px', fontWeight: '800', color: '#1e1b4b', margin: 0 },
   
   formCard: { background: '#fff', padding: '40px', borderRadius: '40px', margin: '0 20px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' },
   formTitle: { fontSize: '28px', color: '#1e1b4b', textAlign: 'center', margin: 0 },

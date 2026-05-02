@@ -34,11 +34,18 @@ export default function Login() {
 
       {/* Camada 2: Frota de Carros (Spin, Van, Cruze) ao Fundo */}
       <div style={loginStyles.fleetContainer} className="fleet-bg">
-        {/* Aqui simulamos os carros com ícones/texto em roxo escuro, 
-            mas você pode trocar as URLs abaixo pelas fotos da sua frota */}
-        <div style={loginStyles.carShadow}>🚗 CRUZE</div>
-        <div style={loginStyles.vanShadow}>🚐 VAN EXEC</div>
-        <div style={loginStyles.carShadow}>🚘 SPIN 7L</div>
+        <div style={loginStyles.vehicleEmbossed}>
+          <div style={loginStyles.vLabel}>CRUZE</div>
+          <span style={loginStyles.vIcon}>🚗</span>
+        </div>
+        <div style={{...loginStyles.vehicleEmbossed, transform: 'scale(1.3) translateY(-20px)'}}>
+          <div style={loginStyles.vLabel}>VAN EXEC</div>
+          <span style={loginStyles.vIcon}>🚐</span>
+        </div>
+        <div style={loginStyles.vehicleEmbossed}>
+          <div style={loginStyles.vLabel}>SPIN 7L</div>
+          <span style={loginStyles.vIcon}>🚘</span>
+        </div>
       </div>
 
       {/* Camada 3: Card de Login Glassmorphism */}
@@ -114,20 +121,34 @@ const loginStyles = {
   fleetContainer: {
     position: 'absolute',
     width: '100%',
+    top: '20%',
     display: 'flex',
     justifyContent: 'space-around',
     alignItems: 'center',
     padding: '0 5%',
-    opacity: 0.3,
-    color: '#1e1b4b', // Roxo bem escuro
-    fontSize: '60px',
-    fontWeight: '900',
-    letterSpacing: '-2px',
     zIndex: 1,
     userSelect: 'none'
   },
-  carShadow: { transform: 'rotate(-5deg)', filter: 'blur(1px)' },
-  vanShadow: { transform: 'scale(1.5)', filter: 'blur(2px)' },
+  vehicleEmbossed: {
+    textAlign: 'center',
+    filter: 'drop-shadow(0 10px 10px rgba(0,0,0,0.5))',
+    transition: 'transform 0.5s'
+  },
+  vIcon: {
+    fontSize: '120px',
+    display: 'block', // Garante que o ícone ocupe o espaço correto
+    background: 'linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    filter: 'drop-shadow(2px 2px 0px rgba(255,255,255,0.1))'
+  },
+  vLabel: {
+    fontSize: '24px',
+    fontWeight: '900',
+    color: 'rgba(76, 29, 149, 0.8)',
+    textShadow: '1px 1px 2px rgba(255,255,255,0.2), -1px -1px 2px rgba(0,0,0,0.5)',
+    marginBottom: '-20px'
+  },
   
   glassCard: {
     background: 'rgba(255, 255, 255, 0.05)',

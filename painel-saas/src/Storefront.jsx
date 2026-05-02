@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 export default function Storefront() {
   const [services, setServices] = useState([]);
   const [cart, setCart] = useState([]);
-  const [category, setCategory] = useState('TRANSFERS'); // TRANSFERS, INGRESSOS, PACOTES
+  const [category, setCategory] = useState('TRANSFERS'); 
 
   useEffect(() => {
     // Busca serviços cadastrados no seu backend
@@ -32,7 +32,7 @@ export default function Storefront() {
       </header>
 
       <nav style={styles.nav}>
-        {['TRANSFERS', 'INGRESSOS', 'PACOTES'].map(cat => (
+        {['TRANSFERS', 'INGRESSOS', 'PACOTES', 'EXPERIENCIAS'].map(cat => (
           <button 
             key={cat} 
             onClick={() => setCategory(cat)}
@@ -44,13 +44,17 @@ export default function Storefront() {
       </nav>
 
       <div style={styles.grid}>
-        {services.filter(s => s.tipo === category || !s.tipo).map(service => (
+        {services.filter(s => (s.categoria || s.tipo) === category).map(service => (
           <div key={service.id} style={styles.card}>
-            <div style={styles.imagePlaceholder}>📸</div>
+            {service.imagem_url ? (
+              <img src={service.imagem_url} alt={service.nome} style={styles.image} />
+            ) : (
+              <div style={styles.imagePlaceholder}>📸</div>
+            )}
             <h3>{service.nome}</h3>
             <p>{service.descricao}</p>
             <div style={styles.priceRow}>
-              <span>A partir de <strong>R$ {service.valor || '150,00'}</strong></span>
+              <span>A partir de <strong>R$ {parseFloat(service.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong></span>
               <button onClick={() => addToCart(service)} style={styles.addBtn}>Selecionar</button>
             </div>
           </div>
@@ -75,7 +79,8 @@ const styles = {
   navBtnActive: { padding: '10px 20px', borderRadius: '20px', border: 'none', background: '#4c1d95', color: '#fff', cursor: 'pointer' },
   grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' },
   card: { background: '#fff', padding: '15px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' },
-  imagePlaceholder: { width: '100%', height: '120px', background: '#e2e8f0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' },
+  image: { width: '100%', height: '150px', objectFit: 'cover', borderRadius: '10px', marginBottom: '10px' },
+  imagePlaceholder: { width: '100%', height: '150px', background: '#e2e8f0', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' },
   priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '15px' },
   addBtn: { background: '#10b981', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '8px', cursor: 'pointer' },
   checkoutBar: { position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)', background: '#4c1d95', color: '#fff', padding: '15px 30px', borderRadius: '40px', display: 'flex', gap: '20px', alignItems: 'center', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' },

@@ -19,6 +19,14 @@ import Login from './Login';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+};
+
 const Icons = {
   Home: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
   Stats: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 20V10M12 20V4M18 20V14"/></svg>,
@@ -66,34 +74,6 @@ function Dashboard() {
     setLoading(true);
     try {
       const [pedidosRes, motoristasRes] = await Promise.all([
-from fastapi.middleware.cors import CORSMiddleware
-
-# ... (restante do código)
-
-app = FastAPI(title="Central Transfers API")
-
-# Defina as origens permitidas em uma única lista
-origins = [
-    "http://localhost:5173",
-    "https://central-transfers.vercel.app",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Apenas uma vez aqui
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-// painel-saas/src/App.jsx (Verifique se está assim)
-const carregarDadosReais = async () => {
-  setLoading(true);
-  try {
-    const [pedidosRes, motoristasRes] = await Promise.all([
-      axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
-      axios.get(`/motoristas`, { headers: getAuthHeader() })
-    ]);
-    // ...
         axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
         axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() })
       ]);
@@ -168,43 +148,14 @@ const carregarDadosReais = async () => {
     finally { setLoading(false); }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   useEffect(() => {
     carregarDadosReais();
   }, []);
-
-  const ds = {
-    wrapper: { display: 'flex', height: '100vh', width: '100vw', background: '#f8fafc', overflow: 'hidden', fontFamily: '"Inter", sans-serif' },
-    sidebar: { width: '100px', background: '#fff', borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 0' },
-    sideIcon: { cursor: 'pointer', marginBottom: '30px', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%' },
-    sideIconActive: { cursor: 'pointer', marginBottom: '30px', color: '#4c1d95', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'all 0.2s', width: '100%', borderLeft: '4px solid #4c1d95' },
-    sideLabel: { fontSize: '10px', fontWeight: 'bold', marginTop: '5px' },
-    main: { flex: 1, padding: '40px', overflowY: 'auto', background: '#f8fafc' },
-    header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', paddingRight: '20px' },
-    welcomeText: { fontSize: '28px', margin: 0, color: '#1e293b', fontWeight: '800' },
-    subWelcome: { color: '#475569', margin: '5px 0 0 0', fontWeight: '500' },
-    adminProfile: { display: 'flex', alignItems: 'center', gap: '15px' },
-    adminName: { margin: 0, fontWeight: '700', color: '#1e293b' },
-    adminEmail: { margin: 0, fontSize: '12px', color: '#64748b', fontWeight: '400' },
-    avatar: { width: '45px', height: '45px', background: '#4c1d95', color: '#fff', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' },
-    grid: { display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '25px' },
-    cardMain: { background: 'linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(76, 29, 149, 0.25)', border: '1px solid rgba(255,255,255,0.1)' },
-    cardGreen: { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(5, 150, 105, 0.2)' },
-    cardYellow: { background: 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)', borderRadius: '30px', padding: '30px', color: '#fff', boxShadow: '0 15px 35px rgba(217, 119, 6, 0.2)' },
-    cardWhite: { background: '#fff', borderRadius: '30px', padding: '30px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' },
-    row: { display: 'flex', alignItems: 'center', gap: '15px', padding: '15px 0', borderBottom: '1px solid #f1f5f9' },
-    rowIcon: { width: '40px', height: '40px', background: '#f1f5f9', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' },
-    badge: { fontSize: '10px', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' },
-    status_PAGO: { background: '#dcfce7', color: '#166534' },
-    status_ACEITO: { background: '#dbeafe', color: '#1e40af' },
-    status_PENDENTE: { background: '#fef3c7', color: '#92400e' },
-    formOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(5px)' },
-    formCard: { background: '#fff', padding: '40px', borderRadius: '30px', width: '95%', maxWidth: '700px', boxShadow: '0 25px 50px rgba(0,0,0,0.1)' },
-    input: { width: '100%', padding: '14px', borderRadius: '12px', border: '1px solid #cbd5e1', marginBottom: '10px', color: '#1e293b', background: '#fff', fontWeight: '500', outline: 'none' },
-    label: { display: 'block', marginBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#1e293b', marginLeft: '5px' },
-    btnPrimary: { background: '#4c1d95', color: '#fff', border: 'none', padding: '12px 25px', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
-    btnOutline: { background: 'transparent', border: '1px solid #cbd5e1', padding: '8px 15px', borderRadius: '10px', fontSize: '12px', color: '#1e293b', cursor: 'pointer', fontWeight: '600' },
-    statBox: { flex: 1, padding: '20px', background: '#f8fafc', borderRadius: '20px', border: '1px solid #e2e8f0' }
-  };
 
   return (
     <div style={ds.wrapper}>
@@ -214,7 +165,7 @@ const carregarDadosReais = async () => {
         <div onClick={() => setTab('Stats')} style={tab === 'Stats' ? ds.sideIconActive : ds.sideIcon}><Icons.Stats /><span style={ds.sideLabel}>STAT</span></div>
         <div onClick={() => setTab('User')} style={tab === 'User' ? ds.sideIconActive : ds.sideIcon}><Icons.User /><span style={ds.sideLabel}>USER</span></div>
         <div onClick={() => setTab('Plans')} style={tab === 'Plans' ? ds.sideIconActive : ds.sideIcon} title="Configuração de Planos"><Icons.Plans /><span style={ds.sideLabel}>PLANS</span></div>
-        <div onClick={() => navigate('/login')} style={ds.sideIcon}><Icons.Settings /><span style={ds.sideLabel}>SAIR</span></div>
+        <div onClick={handleLogout} style={ds.sideIcon}><Icons.Settings /><span style={ds.sideLabel}>SAIR</span></div>
       </aside>
 
       <main style={ds.main}>
@@ -264,18 +215,42 @@ const carregarDadosReais = async () => {
             ))}
           </div>
         ) : (
-          <div style={ds.cardWhite}>
-            <h3 style={{color: '#1e293b'}}>Evolução de Faturamento</h3>
-            <div style={{height: '300px', marginTop: '20px'}}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.faturamentoHistorico}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/>
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}}/>
-                  <YAxis hide/>
-                  <Tooltip contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}}/>
-                  <Line type="monotone" dataKey="valor" stroke="#4c1d95" strokeWidth={4} dot={{r: 6, fill: '#4c1d95', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 8}}/>
-                </LineChart>
-              </ResponsiveContainer>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+            <div style={ds.cardWhite}>
+              <h3 style={{color: '#1e293b', marginBottom: '20px'}}>Evolução de Faturamento</h3>
+              <div style={{height: '300px'}}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats.faturamentoHistorico}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0"/>
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b'}}/>
+                    <YAxis hide/>
+                    <Tooltip contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}}/>
+                    <Line type="monotone" dataKey="valor" stroke="#4c1d95" strokeWidth={4} dot={{r: 6, fill: '#4c1d95', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 8}}/>
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div style={ds.cardWhite}>
+              <h3 style={{color: '#1e293b', marginBottom: '20px'}}>Distribuição de Status</h3>
+              <div style={{height: '300px'}}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={stats.statusChartData}
+                      cx="50%" cy="50%"
+                      innerRadius={60} outerRadius={80}
+                      paddingAngle={5} dataKey="value"
+                    >
+                      {stats.statusChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 10px 25px rgba(0,0,0,0.1)'}} />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
         )}
@@ -348,7 +323,14 @@ export default function App() {
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </Router>

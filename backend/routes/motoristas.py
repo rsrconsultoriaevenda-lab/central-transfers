@@ -22,6 +22,7 @@ def listar(db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual)):
+    senha_gerada = None
     try:
         # 1. Criar o registro do Motorista
         novo = models.Motorista(**motorista.model_dump())
@@ -40,20 +41,26 @@ def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user:
 
         if not usuario_existente:
             # Gerar uma senha temporária aleatória
-            senha_temp = secrets.token_urlsafe(8)
+            senha_gerada = secrets.token_urlsafe(8)
             novo_usuario = models.Usuario(
                 email=email_login,
-                senha=hash_senha(senha_temp),
+                senha=hash_senha(senha_gerada),
                 role="motorista",
                 empresa_id=tenant_id.get()  # Vincula o motorista ao mesmo ID da empresa do Admin
             )
             db.add(novo_usuario)
             # Em produção, aqui você dispararia um SMS ou E-mail com a senha temporária.
-            print(f"ACESSO GERADO: Login {email_login} | Senha {senha_temp}")
+            print(f"ACESSO GERADO: Login {email_login} | Senha {senha_gerada}")
 
         db.commit()
         db.refresh(novo)
-        return novo
+        return {
+            "motorista": novo,
+            "acesso": {
+                "login": email_login,
+                "senha": senha_gerada
+            }
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))

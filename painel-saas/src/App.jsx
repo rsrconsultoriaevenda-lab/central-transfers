@@ -154,7 +154,13 @@ function Dashboard() {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/motoristas`, newDriver, { headers: getAuthHeader() });
+      const res = await axios.post(`${API_URL}/motoristas`, newDriver, { headers: getAuthHeader() });
+      
+      const { acesso } = res.data;
+      if (acesso && acesso.senha) {
+        alert(`✅ Motorista Cadastrado!\n\nLOGIN: ${acesso.login}\nSENHA TEMPORÁRIA: ${acesso.senha}\n\nAnote estes dados para passar ao motorista.`);
+      }
+
       setShowAddDriver(false);
       setNewDriver({ nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL' });
       await carregarDadosReais();

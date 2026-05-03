@@ -17,6 +17,7 @@ def get_usuario_atual(token: str = Depends(oauth2_scheme)):
                              algorithms=[ALGORITHM])
         email = payload.get("sub")
         user_id = payload.get("user_id")
+        role = payload.get("role")
         # Fallback para o ID do usuário se for o dono
         comp_id = payload.get("empresa_id") or user_id
 
@@ -26,7 +27,7 @@ def get_usuario_atual(token: str = Depends(oauth2_scheme)):
         # Aqui acontece a "mágica": setamos o ID para toda a duração desta requisição
         tenant_id.set(comp_id)
 
-        return {"email": email, "id": user_id, "empresa_id": comp_id}
+        return {"email": email, "id": user_id, "empresa_id": comp_id, "role": role}
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 

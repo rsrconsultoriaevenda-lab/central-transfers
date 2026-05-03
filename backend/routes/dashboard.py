@@ -8,16 +8,9 @@ from backend.auth import get_usuario_atual
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
-@router.get("/stats")
-def get_dashboard_stats(usuario=Depends(get_usuario_atual)):
-    return {
-"clientes": 12,
-"motoristas": 5,
-"pedidos": 23
-}
 
 @router.get("/stats")
-def get_dashboard_stats(db: Session = Depends(get_db)):
+def get_dashboard_stats(db: Session = Depends(get_db), usuario: dict = Depends(get_usuario_atual)):
     # Filtramos apenas pedidos que entraram dinheiro no sistema
     pedidos_pagos = db.query(models.Pedido).filter(
         models.Pedido.status.in_(["PAGO", "CONCLUIDO"])

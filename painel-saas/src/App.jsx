@@ -33,15 +33,7 @@ const THEME = {
 };
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  const token = localStorage.getItem('token');
-  const role = localStorage.getItem('user_role');
-
-  if (!token) return <Navigate to="/login" replace />;
-  
-  if (allowedRoles && !allowedRoles.includes(role)) {
-    return <Navigate to="/login" replace />; 
-  }
-
+  // DESABILITADO TEMPORARIAMENTE: Ignora verificações de login e permissão
   return children;
 };
 

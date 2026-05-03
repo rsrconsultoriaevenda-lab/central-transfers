@@ -42,6 +42,8 @@ class Servico(BaseModel):
     tipo: Optional[str] = "TRANSFERS"
     categoria: Optional[str] = "TRANSFERS"
     descricao: str
+    capacidade_passageiros: Optional[int] = 4
+    capacidade_malas: Optional[int] = 2
     valor: Optional[Decimal] = 0.0
     valor_padrao: Optional[Decimal] = 0.0
     imagem_url: Optional[str] = None

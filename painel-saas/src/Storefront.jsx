@@ -8,6 +8,9 @@ export default function Storefront() {
   const [cart, setCart] = useState([]);
   const [category, setCategory] = useState('TRANSFERS'); 
   const [bookingData, setBookingData] = useState({
+    nome: '',
+    email: '',
+    telefone: '',
     origem: '',
     destino: '',
     data: '',
@@ -15,6 +18,9 @@ export default function Storefront() {
     passageiros: 1
   });
   const [step, setStep] = useState('catalog'); // catalog, details, success
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [blockedDates, setBlockedDates] = useState([]);
+  const [dateError, setDateError] = useState('');
 
   // Dicas dinâmicas para atrair o cliente
   const gramadoTips = [
@@ -41,6 +47,11 @@ export default function Storefront() {
       // Ordena ou filtra se necessário
       setServices(res.data);
     });
+
+    // Busca datas bloqueadas
+    axios.get(`${API_URL}/servicos/disponibilidade/datas-bloqueadas`).then(res => {
+      setBlockedDates(res.data.bloqueadas || []);
+    });
   }, []);
 
   const addToCart = (service) => {
@@ -48,15 +59,44 @@ export default function Storefront() {
     setStep('details');
   };
 
-  const handleCheckout = () => {
-    const resumo = `*Reserva Central Transfers*\n\n` +
-      `📋 Serviço: ${cart[0].nome}\n` +
-      `📍 De: ${bookingData.origem}\n` +
-      `🏁 Para: ${bookingData.destino}\n` +
-      `📅 Data: ${bookingData.data} às ${bookingData.hora}\n` +
-      `👥 Passageiros: ${bookingData.passageiros}`;
-    
-    window.location.href = `https://wa.me/5554999999999?text=${encodeURIComponent(resumo)}`;
+  const handleDateChange = (dateValue) => {
+    setDateError('');
+    if (blockedDates.includes(dateValue)) {
+      setDateError('⚠️ Desculpe, estamos com a frota completa para esta data.');
+    }
+    setBookingData({...bookingData, data: dateValue});
+  };
+
+  const handleCheckout = async () => {
+    if (!bookingData.nome || !bookingData.telefone) {
+      alert("Por favor, preencha seu nome e telefone.");
+      return;
+    }
+
+    if (!bookingData.data || dateError) {
+      alert("Por favor, selecione uma data disponível.");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Criamos o pedido no backend (endpoint público para clientes)
+      const response = await axios.post(`${API_URL}/pedidos/publico`, {
+        ...bookingData,
+        servico_id: cart[0].id,
+        valor: cart[0].valor
+      });
+
+      const { checkout_url } = response.data;
+      
+      // Redireciona o usuário para o Checkout do Mercado Pago
+      window.location.href = checkout_url;
+    } catch (err) {
+      console.error("Erro ao processar reserva:", err);
+      alert("Ocorreu um erro ao gerar o pagamento. Tente novamente.");
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -113,9 +153,9 @@ export default function Storefront() {
               
               {/* Atributos do Veículo/Serviço */}
               <div style={styles.attributes}>
-                <span title="Passageiros">👤 4</span>
-                <span title="Malas Grandes">🧳 2</span>
-                <span title="Ar Condicionado">❄️ Sim</span>
+                <span title="Passageiros">👤 {service.capacidade_passageiros || 4}</span>
+                <span title="Malas">🧳 {service.capacidade_malas || 2}</span>
+                <span title="Conforto">✨ Premium</span>
               </div>
             </div>
             <div style={styles.priceRow}>
@@ -161,24 +201,41 @@ export default function Storefront() {
           <h2 style={styles.formTitle}>Quase lá! 🚖</h2>
           <p style={styles.formSubtitle}>Confirme os detalhes para sua reserva premium</p>
           <div style={styles.inputGroup}>
-            <label>Local de Embarque (Origem)</label>
-            <input type="text" placeholder="Ex: Aeroporto Salgado Filho" onChange={e => setBookingData({...bookingData, origem: e.target.value})} style={styles.input}/>
-            
-            <label>Local de Desembarque (Destino)</label>
-            <input type="text" placeholder="Ex: Hotel em Gramado" onChange={e => setBookingData({...bookingData, destino: e.target.value})} style={styles.input}/>
+            <label style={styles.label}>Seu Nome Completo</label>
+            <input type="text" placeholder="Como podemos te chamar?" style={styles.input} onChange={e => setBookingData({...bookingData, nome: e.target.value})}/>
+
+            <label style={styles.label}>Seu Melhor E-mail</label>
+            <input type="email" placeholder="Para receber o comprovante e dados do motorista" style={styles.input} onChange={e => setBookingData({...bookingData, email: e.target.value})}/>
+
+            <label style={styles.label}>Seu WhatsApp</label>
+            <input type="tel" placeholder="Ex: 54999999999" style={styles.input} onChange={e => setBookingData({...bookingData, telefone: e.target.value})}/>
+
+            <label style={styles.label}>Ponto de Partida</label>
+            <input type="text" placeholder="Ex: Aeroporto Salgado Filho" style={styles.input} onChange={e => setBookingData({...bookingData, origem: e.target.value})}/>
+
+            <label style={styles.label}>Destino</label>
+            <input type="text" placeholder="Ex: Hotel em Gramado" style={styles.input} onChange={e => setBookingData({...bookingData, destino: e.target.value})}/>
             
             <div style={{display: 'flex', gap: '10px'}}>
               <div style={{flex: 1}}>
                 <label>Data</label>
-                <input type="date" onChange={e => setBookingData({...bookingData, data: e.target.value})} style={styles.input}/>
+                <input 
+                  type="date" 
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => handleDateChange(e.target.value)} 
+                  style={{...styles.input, borderColor: dateError ? '#ef4444' : '#f1f5f9'}}
+                />
               </div>
               <div style={{flex: 1}}>
                 <label>Hora</label>
                 <input type="time" onChange={e => setBookingData({...bookingData, hora: e.target.value})} style={styles.input}/>
               </div>
             </div>
+            {dateError && <p style={styles.errorText}>{dateError}</p>}
           </div>
-          <button onClick={handleCheckout} style={styles.finishBtnFull}>Finalizar via WhatsApp</button>
+          <button onClick={handleCheckout} style={styles.finishBtnFull} disabled={isProcessing}>
+            {isProcessing ? "Processando..." : "Pagar e Confirmar Agora"}
+          </button>
           <button onClick={() => setStep('catalog')} style={styles.backBtn}>Voltar ao catálogo</button>
         </div>
       )}
@@ -255,6 +312,8 @@ const styles = {
   label: { fontSize: '12px', fontWeight: '800', color: '#4c1d95', marginLeft: '5px', textTransform: 'uppercase' },
   inputGroup: { display: 'flex', flexDirection: 'column', gap: '15px', margin: '20px 0' },
   input: { padding: '15px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '16px', outline: 'none', transition: '0.3s' },
+  errorText: { color: '#ef4444', fontSize: '12px', fontWeight: 'bold', margin: '-5px 0 10px 5px' },
+  mapContainer: { height: '250px', borderRadius: '25px', overflow: 'hidden', border: '2px solid #f1f5f9', marginBottom: '10px' },
   finishBtnFull: { width: '100%', background: '#22c55e', color: '#fff', border: 'none', padding: '18px', borderRadius: '20px', fontWeight: '800', fontSize: '18px', cursor: 'pointer', boxShadow: '0 15px 30px rgba(34, 197, 94, 0.4)' },
   backBtn: { width: '100%', background: 'transparent', color: '#94a3b8', border: 'none', marginTop: '15px', cursor: 'pointer', fontWeight: '600' }
 };

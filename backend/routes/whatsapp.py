@@ -11,6 +11,7 @@ from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.database import get_db, SessionLocal
 from backend.services.pagamento_service import criar_checkout_pro
 from backend.auth import hash_senha
+from backend.services.email_service import notificar_cliente_motorista_atribuido
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 
 # Configuração de Log para monitorar automações
@@ -230,7 +231,8 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     """
     # Extração robusta do remetente e mensagem (suporte a Meta e formato simplificado)
     sender = data.get("from") or data.get("sender")
-    message = (data.get("text", {}).get("body") if data.get("text") else None) or data.get("message")
+    message = (data.get("text", {}).get("body") if data.get(
+        "text") else None) or data.get("message")
 
     if "entry" in data and not sender:
         try:
@@ -260,7 +262,8 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
 
     # 1. Tratamento de respostas interativas (botões/listas)
     try:
-        changes = data.get("entry", [])[0].get("changes", []) if "entry" in data else []
+        changes = data.get("entry", [])[0].get(
+            "changes", []) if "entry" in data else []
         value = changes[0].get("value", {}) if changes else {}
         messages = value.get("messages", [{}])
         interactive = messages[0].get("interactive") if messages else None
@@ -282,7 +285,8 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     except Exception as e:
         logger.error(f"Erro ao processar interativo: {e}")
 
-    logger.info(f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo Final: {lower}")
+    logger.info(
+        f"[WHATSAPP RECEBIDO] Remetente: {sender} | Conteúdo Final: {lower}")
 
     # 2. Fluxo normal baseado em texto
 
@@ -295,7 +299,8 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         ).all()
 
         if not pedidos_vagos:
-            enviar_whatsapp_meta(sender, "📭 No momento não há novos serviços disponíveis.")
+            enviar_whatsapp_meta(
+                sender, "📭 No momento não há novos serviços disponíveis.")
             return {"status": "sem_vagas"}
 
         texto_vagas = "📋 *Serviços Disponíveis:*\n\n"
@@ -306,7 +311,7 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
                 f"💰 Valor: R$ {p.valor}\n"
                 f"Para aceitar, responda: *aceito pedido {p.id}*\n\n"
             )
-        
+
         enviar_whatsapp_meta(sender, texto_vagas)
         return {"status": "vagas_listadas"}
 
@@ -404,6 +409,10 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         if pedido.cliente.telefone:
             text_cliente = f"Seu pedido {order_id} foi aceito pelo motorista {driver.nome}. Em breve ele estará a caminho."
             enviar_whatsapp_meta(pedido.cliente.telefone, text_cliente)
+
+        # Dispara e-mail de confirmação com dados do motorista
+        if pedido.cliente.email:
+            notificar_cliente_motorista_atribuido(pedido)
 
         return {"status": "pedido_aceito", "pedido_id": order_id}
 

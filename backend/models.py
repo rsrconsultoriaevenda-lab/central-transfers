@@ -16,7 +16,8 @@ class Motorista(Base):
     status = Column(String(50), default="ATIVO")
     plano = Column(String(50), default="MENSAL")  # MENSAL ou MASTER
     ativo = Column(Boolean, default=True)
-    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True) # ID do Admin/Dono
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"),
+                        index=True)  # ID do Admin/Dono
     pedidos = relationship("Pedido", back_populates="motorista")
 
 
@@ -37,8 +38,11 @@ class Servico(Base):
     tipo = Column(String(100))
     categoria = Column(String(100), default="TRANSFERS")
     descricao = Column(Text, nullable=True)
+    capacidade_passageiros = Column(Integer, default=4)
+    capacidade_malas = Column(Integer, default=2)
     valor = Column(Numeric(10, 2), default=0.0)
     valor_padrao = Column(Numeric(10, 2), default=0.0)
+    imagem_url = Column(String(500), nullable=True)
     ativo = Column(Boolean, default=True)
     empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True)
     pedidos = relationship("Pedido", back_populates="servico")
@@ -49,7 +53,8 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True)
     senha = Column(String(255))
-    empresa_id = Column(Integer, nullable=True) # Se for nulo, ele é o dono da empresa
+    # Se for nulo, ele é o dono da empresa
+    empresa_id = Column(Integer, nullable=True)
     role = Column(String(50), default="cliente")  # Adicionado campo role
     # No direct relationship to Pedido here, as Pedido is linked to Cliente
 

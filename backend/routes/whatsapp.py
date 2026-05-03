@@ -80,11 +80,11 @@ def _parse_price(message: str):
 def _parse_date(message: str):
     raw = _parse_field(message, "data:") or _parse_field(message, "em:")
 
-    # Melhoria: Suporte a palavras-chave simples
-    if raw and "hoje" in raw.lower():
+    if not raw:
         return datetime.now()
 
-    if not raw:
+    # Melhoria: Suporte a palavras-chave simples
+    if "hoje" in raw.lower():
         return datetime.now()
 
     raw = raw.replace(" às ", " ").replace(" as ", " ").replace("h", ":")

@@ -141,21 +141,21 @@ export default function Storefront() {
       <div style={styles.grid}>
         {services.filter(s => (s.categoria || s.tipo) === category).map(service => (
           <div key={service.id} style={styles.card}>
-            {service.imagem_url ? (
-              <img src={service.imagem_url} alt={service.nome} style={styles.image} />
-            ) : (
-              <div style={styles.imagePlaceholder}>📸</div>
-            )}
-            <div style={styles.cardContent}>
+            <div style={styles.imageWrapper}>
+              {service.imagem_url ? (
+                <img src={service.imagem_url} alt={service.nome} style={styles.image} />
+              ) : (
+                <div style={styles.imagePlaceholder}>✨</div>
+              )}
               <div style={styles.categoryBadge}>{service.categoria || 'PREMIUM'}</div>
+            </div>
+            <div style={styles.cardContent}>
               <h3 style={styles.cardTitle}>{service.nome}</h3>
               <p style={styles.cardDesc}>{service.descricao}</p>
               
-              {/* Atributos do Veículo/Serviço */}
               <div style={styles.attributes}>
-                <span title="Passageiros">👤 {service.capacidade_passageiros || 4}</span>
-                <span title="Malas">🧳 {service.capacidade_malas || 2}</span>
-                <span title="Conforto">✨ Premium</span>
+                <div style={styles.attrItem}>👤 {service.capacidade_passageiros || 4} passageiros</div>
+                <div style={styles.attrItem}>🧳 {service.capacidade_malas || 2} malas</div>
               </div>
             </div>
             <div style={styles.priceRow}>
@@ -247,28 +247,28 @@ export default function Storefront() {
 const styles = {
   container: { fontFamily: '"Inter", sans-serif', padding: '0 0 40px 0', maxWidth: '900px', margin: '0 auto', background: '#f5f3ff', minHeight: '100vh' },
   hero: { 
-    height: '400px', 
+    height: '450px', 
     backgroundImage: 'url("https://images.unsplash.com/photo-1626014903708-3607062400f0?q=80&w=1200")', 
     backgroundSize: 'cover', 
     backgroundPosition: 'center',
-    borderRadius: '0 0 60px 60px',
+    borderRadius: '0 0 80px 80px',
     position: 'relative',
     overflow: 'hidden',
     marginBottom: '30px'
   },
   heroOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'linear-gradient(to bottom, rgba(30, 27, 75, 0.2), rgba(76, 29, 149, 0.85))',
+    background: 'linear-gradient(180deg, rgba(30, 27, 75, 0.2) 0%, rgba(76, 29, 149, 0.9) 100%)',
     display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center'
   },
-  heroTitle: { color: '#fff', fontSize: '42px', fontWeight: '900', margin: 0, textShadow: '0 4px 15px rgba(0,0,0,0.4)', letterSpacing: '-1px' },
+  heroTitle: { color: '#fff', fontSize: '48px', fontWeight: '900', margin: 0, textShadow: '0 10px 20px rgba(0,0,0,0.3)', letterSpacing: '-2px' },
   heroSubtitle: { color: 'rgba(255,255,255,0.95)', fontSize: '18px', marginTop: '15px', maxWidth: '600px', fontWeight: '400' },
   
   sectionTitle: { fontSize: '26px', color: '#1e1b4b', fontWeight: '800', margin: '40px 20px 25px 20px', letterSpacing: '-0.5px' },
   
   tipsSection: { padding: '0 20px' },
   tipsGrid: { display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' },
-  tipCard: { minWidth: '180px', background: '#fff', padding: '20px', borderRadius: '25px', boxShadow: '0 10px 15px rgba(76, 29, 149, 0.05)', border: '1px solid #ede9fe' },
+  tipCard: { minWidth: '200px', background: '#fff', padding: '25px', borderRadius: '30px', boxShadow: '0 10px 30px rgba(76, 29, 149, 0.08)', border: '1px solid #f3f0ff' },
   tipIcon: { fontSize: '30px', display: 'block', marginBottom: '10px' },
   tipTitle: { fontSize: '14px', fontWeight: '700', color: '#4c1d95', margin: '0 0 5px 0' },
   tipDesc: { fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.4' },
@@ -278,15 +278,17 @@ const styles = {
   navBtnActive: { padding: '12px 24px', borderRadius: '25px', border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: '700', boxShadow: '0 10px 20px rgba(124, 58, 237, 0.3)', whiteSpace: 'nowrap' },
   
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px', padding: '0 20px' },
-  card: { background: '#fff', padding: '0', borderRadius: '35px', overflow: 'hidden', boxShadow: '0 25px 40px -10px rgba(76, 29, 149, 0.12)', border: '1px solid rgba(255,255,255,0.7)', transition: 'transform 0.3s' },
-  image: { width: '100%', height: '200px', objectFit: 'cover' },
-  imagePlaceholder: { width: '100%', height: '200px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  cardContent: { padding: '20px 20px 10px 20px' },
-  categoryBadge: { fontSize: '10px', fontWeight: '800', color: '#7c3aed', background: '#f5f3ff', padding: '4px 10px', borderRadius: '8px', display: 'inline-block', marginBottom: '10px' },
-  cardTitle: { fontSize: '18px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 8px 0' },
+  card: { background: '#fff', padding: '0', borderRadius: '40px', overflow: 'hidden', boxShadow: '0 30px 60px -12px rgba(76, 29, 149, 0.15)', border: '1px solid #f3f0ff', transition: 'all 0.3s ease' },
+  imageWrapper: { position: 'relative', width: '100%', height: '220px' },
+  image: { width: '100%', height: '100%', objectFit: 'cover' },
+  imagePlaceholder: { width: '100%', height: '100%', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' },
+  categoryBadge: { position: 'absolute', top: '20px', left: '20px', fontSize: '10px', fontWeight: '800', color: '#fff', background: 'rgba(76, 29, 149, 0.8)', backdropFilter: 'blur(10px)', padding: '6px 14px', borderRadius: '12px' },
+  cardContent: { padding: '25px 25px 15px 25px' },
+  cardTitle: { fontSize: '20px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 10px 0' },
   cardDesc: { fontSize: '13px', color: '#64748b', margin: '0 0 15px 0', lineHeight: '1.5' },
-  attributes: { display: 'flex', gap: '15px', fontSize: '12px', color: '#94a3b8', fontWeight: '600', marginBottom: '10px' },
-  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', padding: '0 20px 20px 20px' },
+  attributes: { display: 'flex', gap: '15px', marginBottom: '10px' },
+  attrItem: { fontSize: '12px', color: '#4c1d95', background: '#f5f3ff', padding: '4px 10px', borderRadius: '8px', fontWeight: '600' },
+  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 25px 25px 25px' },
   priceContainer: { display: 'flex', flexDirection: 'column' },
   priceLabel: { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' },
   priceValue: { fontSize: '18px', fontWeight: '900', color: '#4c1d95' },

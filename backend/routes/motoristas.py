@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from typing import List
@@ -20,7 +21,7 @@ def listar(db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual
     return db.query(models.Motorista).all()
 
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.MotoristaCreateResponse)
 def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual)):
     senha_gerada = None
     try:

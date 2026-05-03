@@ -21,6 +21,17 @@ import Storefront from './Storefront';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
+// Cores do Sistema - Facilita a troca de tema (Branding)
+const THEME = {
+  primary: '#4c1d95',
+  secondary: '#7c3aed',
+  success: '#10b981',
+  warning: '#f59e0b',
+  danger: '#ef4444',
+  textMain: '#1e293b',
+  textLight: '#64748b'
+};
+
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const token = localStorage.getItem('token');
   const role = localStorage.getItem('user_role');

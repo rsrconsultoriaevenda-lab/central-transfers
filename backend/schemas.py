@@ -36,6 +36,14 @@ class Motorista(MotoristaBase):
     class Config:
         from_attributes = True
 
+class MotoristaAcesso(BaseModel):
+    login: str
+    senha: Optional[str] = None
+
+class MotoristaCreateResponse(BaseModel):
+    motorista: Motorista
+    acesso: MotoristaAcesso
+
 
 class Servico(BaseModel):
     nome: str

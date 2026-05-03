@@ -13,6 +13,8 @@ def restaurar_acesso():
     if usuario:
         usuario.senha = nova_senha
         usuario.role = "admin"
+        # Admin principal não tem empresa_id (vê tudo ou é o tenant 0)
+        usuario.empresa_id = None
         print(f"✅ Senha do usuário {email_admin} atualizada com sucesso!")
     else:
         novo_admin = Usuario(email=email_admin, senha=nova_senha, role="admin")

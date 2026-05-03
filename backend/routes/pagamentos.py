@@ -7,6 +7,7 @@ from backend import models
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.routes.whatsapp import broadcast_to_drivers
 from backend.config import settings
+from backend.services.email_service import enviar_email_transacional
 
 router = APIRouter(prefix="/pagamentos", tags=["Pagamentos"])
 logger = logging.getLogger(__name__)
@@ -67,6 +68,15 @@ def _notificar_liberacao(db: Session, pedido: models.Pedido):
             f"Nossos motoristas já foram notificados e você receberá um aviso assim que o serviço for aceito."
         )
         enviar_whatsapp_meta(pedido.cliente.telefone, msg_cliente)
+
+    # Notifica via E-mail
+    if pedido.cliente and pedido.cliente.email:
+        assunto = f"✅ Pagamento Confirmado! Pedido #{pedido.id}"
+        html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o serviço <strong>{pedido.servico.nome}</strong>. Em breve enviaremos os dados do motorista.</p>"
+        try:
+            enviar_email_transacional(pedido.cliente.email, assunto, html)
+        except Exception as e:
+            logger.error(f"Falha ao enviar e-mail de pagamento: {e}")
 
     # 2. Notifica os Motoristas
     broadcast_to_drivers(db, pedido)

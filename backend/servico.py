@@ -6,7 +6,10 @@ from datetime import datetime
 class ServicoBase(BaseModel):
     nome: str
     tipo: str
+    categoria: Optional[str] = "TRANSFERS"
     descricao: Optional[str] = None
+    valor: Optional[float] = 0.0
+    imagem_url: Optional[str] = None
     ativo: Optional[bool] = True
 
 

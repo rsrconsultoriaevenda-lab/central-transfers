@@ -21,7 +21,7 @@ engine = create_engine(DATABASE_URL, connect_args=connect_args)
 # 4. SESSIONLOCAL (O que o erro diz que não encontra)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# 5. DEPENDENCY
+# 5. DEPENDENCY (Usada nas rotas FastAPI)
 
 
 def get_db():

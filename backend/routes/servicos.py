@@ -56,9 +56,10 @@ def obter_datas_bloqueadas(db: Session = Depends(get_db)):
     """
     try:
         # 1. Conta motoristas ativos (Capacidade Total)
-        capacidade_total = db.query(models.Motorista).filter(models.Motorista.status == 'ATIVO').count()
+        capacidade_total = db.query(models.Motorista).filter(
+            models.Motorista.status == 'ATIVO').count()
         if capacidade_total == 0:
-            capacidade_total = 10 # Fallback para sua frota inicial
+            capacidade_total = 10  # Fallback para sua frota inicial
 
         # 2. Agrupa pedidos por data e conta
         # Filtramos apenas pedidos confirmados (PAGO, ACEITO, CONCLUIDO)
@@ -70,8 +71,9 @@ def obter_datas_bloqueadas(db: Session = Depends(get_db)):
         ).group_by(func.date(models.Pedido.data_servico)).all()
 
         # 3. Identifica datas que atingiram a capacidade
-        bloqueadas = [p.data.isoformat() for p in pedidos_por_dia if p.total >= capacidade_total]
-        
+        bloqueadas = [p.data.isoformat()
+                      for p in pedidos_por_dia if p.total >= capacidade_total]
+
         return {"bloqueadas": bloqueadas}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -99,7 +101,7 @@ def atualizar_status_servico(
     servico_id: int,
     data: ServicoUpdateStatus,
     db: Session = Depends(get_db),
-    email: str = Depends(get_usuario_atual)
+    user: dict = Depends(get_usuario_atual)
 ):
     servico = atualizar_status(db, servico_id, data.status)
 

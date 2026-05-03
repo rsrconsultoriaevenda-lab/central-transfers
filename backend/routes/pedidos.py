@@ -15,7 +15,7 @@ def listar_pedidos(
     data_inicio: Optional[datetime] = Query(None),
     data_fim: Optional[datetime] = Query(None),
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_usuario_atual)
+    current_user: dict = Depends(get_usuario_atual)
 ):
     query = db.query(models.Pedido).options(
         joinedload(models.Pedido.cliente),
@@ -36,7 +36,7 @@ def obter_estatisticas(
     data_inicio: Optional[datetime] = Query(None),
     data_fim: Optional[datetime] = Query(None),
     db: Session = Depends(get_db),
-    current_user: str = Depends(get_usuario_atual)
+    current_user: dict = Depends(get_usuario_atual)
 ):
     # Filtro base para as estatísticas
     base_query = db.query(models.Pedido)
@@ -70,7 +70,7 @@ def obter_estatisticas(
 
 
 @router.get("/relatorio/comissoes")
-def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def relatorio_comissoes(db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
     # Busca pedidos concluídos agrupados por motorista
     resultados = db.query(
         models.Motorista.nome.label("motorista"),
@@ -82,7 +82,8 @@ def relatorio_comissoes(db: Session = Depends(get_db), current_user: str = Depen
      .group_by(models.Motorista.id).all()
 
     return [
-        {**r._asdict(), "repasse_motorista": float(r.faturamento_bruto or 0) - float(r.total_comissao_central or 0)}
+        {**r._asdict(), "repasse_motorista": float(r.faturamento_bruto or 0) -
+         float(r.total_comissao_central or 0)}
         for r in resultados
     ]
 
@@ -113,7 +114,7 @@ def criar_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{pedido_id}/aceitar")
-def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
 
@@ -139,7 +140,7 @@ def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depen
 
 
 @router.put("/{pedido_id}/status")
-def atualizar_status_pedido(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def atualizar_status_pedido(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:
@@ -152,7 +153,7 @@ def atualizar_status_pedido(pedido_id: int, status_data: schemas.PedidoStatusUpd
 
 
 @router.put("/{pedido_id}/cancelar")
-def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:
@@ -169,7 +170,7 @@ def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: str = 
 
 
 @router.delete("/{pedido_id}")  # type: ignore
-def excluir(pedido_id: int, db: Session = Depends(get_db), current_user: str = Depends(get_usuario_atual)):
+def excluir(pedido_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
     if not pedido:

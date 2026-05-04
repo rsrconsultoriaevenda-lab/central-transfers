@@ -41,8 +41,9 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 2. Adicione um serviço Python e conecte o repositório.
 3. Use o comando de start:
    - `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-4. Adicione as mesmas variáveis de ambiente.
-5. Use um banco MySQL gerenciado do Railway, se preferir.
+4. **Atenção à Região:** Evite `EU West (Amsterdam)` em caso de instabilidade de volumes. Prefira `US East`.
+5. Adicione as mesmas variáveis de ambiente.
+6. Use um banco MySQL gerenciado do Railway, se preferir.
 
 ### Fly (alternativa)
 

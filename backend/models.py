@@ -14,11 +14,24 @@ class Motorista(Base):
     modelo = Column(String(255))
     ano = Column(Integer)
     status = Column(String(50), default="ATIVO")
+    data_inicio_trial = Column(DateTime, nullable=True) # Novo campo para o período de teste
     plano = Column(String(50), default="MENSAL")  # MENSAL ou MASTER
     ativo = Column(Boolean, default=True)
     empresa_id = Column(Integer, ForeignKey("usuarios.id"),
                         index=True)  # ID do Admin/Dono
     pedidos = relationship("Pedido", back_populates="motorista")
+
+
+class Mensalidade(Base):
+    __tablename__ = "mensalidades"
+    id = Column(Integer, primary_key=True, index=True)
+    motorista_id = Column(Integer, ForeignKey("motoristas.id"))
+    mes_referencia = Column(String(7))  # Formato "YYYY-MM"
+    valor = Column(Numeric(10, 2))
+    data_vencimento = Column(DateTime)
+    data_pagamento = Column(DateTime, nullable=True)
+    status = Column(String(50), default="PENDENTE")  # PENDENTE, PAGO, ATRASADO
+    empresa_id = Column(Integer, ForeignKey("usuarios.id"), index=True)
 
 
 class Cliente(Base):
@@ -68,6 +81,14 @@ class Pedido(Base):
     criado_at = Column(DateTime, server_default=func.now())
     valor = Column(Numeric(10, 2))
     valor_comissao = Column(Numeric(10, 2), default=0.0)
+    # Valor que o motorista recebe
+    valor_liquido_motorista = Column(Numeric(10, 2), default=0.0)
+    # Ex: PERCENTUAL_CENTRAL, MENSALIDADE_FIXA
+    tipo_comissao_motorista = Column(String(50), default="PERCENTUAL_CENTRAL")
+    # ex: google, instagram, whatsapp
+    canal_venda = Column(String(100), default="direto")
+    # Percentual da comissão (ex: 20%)
+    comissao = Column(Numeric(10, 2), default=20.0)
     observacoes = Column(Text, nullable=True)
     status = Column(String(50), default="PENDENTE")
     cliente_id = Column(Integer, ForeignKey("clientes.id"))

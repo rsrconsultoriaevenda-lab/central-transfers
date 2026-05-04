@@ -1,5 +1,6 @@
 from datetime import datetime
 import re
+import urllib.parse
 import logging
 from fastapi import APIRouter, HTTPException, Query, Depends, Response, Request, BackgroundTasks
 from fastapi.responses import PlainTextResponse
@@ -27,6 +28,10 @@ SERVICE_MAP = {
     "disponibilidade": ("Carro a disposição", "Carro à disposição"),
     "transfer": ("Transfer", "Transfer"),
 }
+
+# Palavras-chave para identificar intenção de reserva
+BOOKING_KEYWORDS = ["pedido", "reserva",
+                    "transfer", "tour", "viagem", "origem"]
 
 PAYMENT_METHOD = "PIX ou transferência bancária"
 CENTRAL_BANK_DETAILS = (
@@ -113,6 +118,14 @@ def _parse_order_id(message: str):
     return None
 
 
+def _parse_referral(message: str):
+    """Busca por códigos de indicação na mensagem do WhatsApp"""
+    match = re.search(r"indicação\s*[:\-]?\s*(\w+)", message.lower())
+    if match:
+        return match.group(1).upper()
+    return None
+
+
 def _find_or_create_user_by_phone(db: Session, phone: str):
     # Como o novo modelo Usuario usa email, vamos simular um email pelo telefone para integração via Zap
     email_simulado = f"{phone}@whatsapp.com"
@@ -170,10 +183,25 @@ def _find_or_create_client(db: Session, phone: str):
 
 
 def broadcast_to_drivers(db: Session, pedido: models.Pedido):
-    motoristas = db.query(models.Motorista).filter(
+    # Identifica se o pedido é de luxo (Premium)
+    # Seguindo a regra do Storefront: valor > 500 ou categoria do serviço
+    is_luxury = pedido.valor > 500 or (
+        pedido.servico and pedido.servico.categoria == 'PREMIUM')
+
+    query = db.query(models.Motorista).filter(
         models.Motorista.telefone.isnot(None),
         models.Motorista.status == 'ATIVO'
-    ).all()
+    )
+
+    # Se for um pedido de luxo, filtramos apenas motoristas cadastrados na categoria 'PREMIUM'
+    if is_luxury:
+        query = query.filter(models.Motorista.categoria == 'PREMIUM')
+
+    motoristas = query.all()
+
+    # Gerar link do Google Maps para a rota
+    maps_url = f"https://www.google.com/maps/dir/?api=1&origin={urllib.parse.quote(pedido.origem)}&destination={urllib.parse.quote(pedido.destino)}&travelmode=driving"
+
     mensagens = []
     for motorista in motoristas:
         try:
@@ -185,6 +213,7 @@ def broadcast_to_drivers(db: Session, pedido: models.Pedido):
                         f"🚖 *Novo Pedido #{pedido.id}*\n"
                         f"📍 Origem: {pedido.origem}\n🏁 Destino: {pedido.destino}\n"
                         f"📅 Data: {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n\n"
+                        f"🗺️ *Ver Rota:* {maps_url}\n\n"
                         "Deseja aceitar este serviço?"
                     )
                 },
@@ -388,6 +417,19 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
 
         pedido.motorista_id = driver.id
         pedido.status = 'ACEITO'
+
+        # Lógica de cálculo do valor líquido para o motorista e tipo de comissão
+        valor_liquido_motorista = 0.0
+        if getattr(driver, 'plano', 'MENSAL') == 'MASTER':
+            valor_liquido_motorista = float(
+                pedido.valor) - float(pedido.valor_comissao)
+            pedido.tipo_comissao_motorista = "PERCENTUAL_CENTRAL"  # Central retém a comissão
+        else:  # Plano MENSAL
+            valor_liquido_motorista = float(pedido.valor)
+            # Central absorve a comissão da corrida, motorista paga mensalidade
+            pedido.tipo_comissao_motorista = "MENSALIDADE_FIXA"
+
+        pedido.valor_liquido_motorista = valor_liquido_motorista
         db.commit()
         db.refresh(pedido)
 
@@ -502,8 +544,13 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
     service_name, service_type = _guess_service(message)
     origem = _parse_field(message, "origem:")
     destino = _parse_field(message, "destino:")
+
+    # Se não encontrar via campos explícitos, tenta inferir se é uma intenção de reserva
+    is_booking_intent = any(kw in lower for kw in BOOKING_KEYWORDS)
+
     data_servico = _parse_date(message)
     valor = _parse_price(message)
+    parceiro_cod = _parse_referral(message)
 
     try:
         if not service_name or not origem or not destino:
@@ -527,8 +574,10 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
             destino=destino,
             data_servico=data_servico,
             valor=valor,
-            valor_comissao=comissao_calculada,
-            observacoes=message,
+            valor_comissao=comissao_calculada,  # Comissão em valor (R$)
+            comissao=20.0,  # Novo campo: percentual da comissão (ex: 20%)
+            canal_venda="whatsapp",  # Novo campo: origem da venda (marketing)
+            observacoes=f"{message} | Indicado por: {parceiro_cod}" if parceiro_cod else message,
             status="AGUARDANDO_PAGAMENTO"  # Padronizado para o Painel
         )
         db.add(novo_pedido)

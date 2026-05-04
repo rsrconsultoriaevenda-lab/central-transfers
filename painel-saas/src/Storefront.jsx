@@ -3,319 +3,556 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
+const THEME = {
+  primary: '#4c1d95',   // Roxo Profundo
+  secondary: '#7c3aed', // Roxo Vibrante
+  bg: '#F8FAFC',        // Branco Acinzentado (Clean)
+  surface: '#FFFFFF',   // Branco Puro
+  text: '#1e293b',      // Azul Escuro/Cinza para texto
+  muted: '#64748b'      // Texto secundário
+};
+
 export default function Storefront() {
   const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [category, setCategory] = useState('ALL');
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [cart, setCart] = useState([]);
-  const [category, setCategory] = useState('TRANSFERS'); 
-  const [bookingData, setBookingData] = useState({
-    nome: '',
-    email: '',
-    telefone: '',
+  const [bookingDetails, setBookingDetails] = useState({
     origem: '',
     destino: '',
     data: '',
-    hora: '',
-    passageiros: 1
+    observacoes: ''
   });
-  const [step, setStep] = useState('catalog'); // catalog, details, success
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [blockedDates, setBlockedDates] = useState([]);
-  const [dateError, setDateError] = useState('');
+  const currentTime = new Date(); // Declaração movida para o escopo correto
+  const [weather, setWeather] = useState({ temp: 25, condition: 'Ensolarado' }); // Adicionado estado mock para 'weather'
 
-  // Dicas dinâmicas para atrair o cliente
-  const gramadoTips = [
-    { id: 1, icon: '🌲', title: 'Lago Negro', desc: 'Perfeito para um passeio de pedalinho ao entardecer.' },
-    { id: 2, icon: '🍫', title: 'Rua Coberta', desc: 'O melhor lugar para um chocolate quente artesanal.' },
-    { id: 3, icon: '❄️', title: 'Snowland', desc: 'Diversão na neve o ano todo em Gramado.' },
-    { id: 4, icon: '🍷', title: 'Vale dos Vinhedos', desc: 'Uma experiência gastronômica inesquecível.' }
-  ];
-
-  const testimonials = [
-    { id: 1, name: "Mariana Silva", text: "Atendimento impecável! O transfer chegou antes do horário e o carro era extremamente confortável.", stars: 5 },
-    { id: 2, name: "Ricardo Oliveira", text: "Melhor experiência em Gramado. O tour Uva e Vinho foi sensacional e muito bem organizado.", stars: 5 }
-  ];
-
-  const features = [
-    { icon: '🛡️', title: 'Seguro Viagem', desc: 'Proteção total em todos os trajetos.' },
-    { icon: '🕒', title: 'Pontualidade', desc: 'Respeito rigoroso aos seus horários.' },
-    { icon: '💎', title: 'Frota Premium', desc: 'Veículos novos e higienizados.' }
-  ];
+  // Lógica de Indicação (Parceiros)
+  const [referralCode, setReferralCode] = useState(null);
 
   useEffect(() => {
-    // Busca serviços cadastrados no seu backend
-    axios.get(`${API_URL}/servicos`).then(res => {
-      // Ordena ou filtra se necessário
-      setServices(res.data);
-    });
-
-    // Busca datas bloqueadas
-    axios.get(`${API_URL}/servicos/disponibilidade/datas-bloqueadas`).then(res => {
-      setBlockedDates(res.data.bloqueadas || []);
-    });
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      setReferralCode(ref);
+      localStorage.setItem('referral_code', ref);
+    } else {
+      setReferralCode(localStorage.getItem('referral_code'));
+    }
   }, []);
+  
+  // Mock de Combos e Adicionais (Experiência)
+  const addOns = [
+    { id: 101, nome: 'Kit Vinho & Taças Personalizadas', preco: 180.00, img: '🍷' },
+    { id: 102, nome: 'Lembranças de Gramado (Cesta)', preco: 95.00, img: '🎁' },
+    { id: 103, nome: 'Ingresso Antecipado: Snowland', preco: 220.00, img: '❄️' }
+  ];
 
-  const addToCart = (service) => {
-    setCart([service]); // Para o MVP, focamos em um serviço por vez
-    setStep('details');
+  // Configurações da Empresa (SaaS White Label)
+  const [tenantConfig, setTenantConfig] = useState({
+    name: 'LUXE SERRA',
+    primaryColor: '#4c1d95',
+    secondaryColor: '#7c3aed',
+    heroImage: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&q=80&w=2000',
+    welcomeMessage: 'Sua Jornada de Luxo Começa Aqui'
+  });
+
+  const THEME = {
+    primary: tenantConfig.primaryColor,
+    secondary: tenantConfig.secondaryColor,
+    bg: '#F8FAFC',
+    surface: '#FFFFFF',
+    text: '#1e293b',
+    muted: '#64748b'
   };
 
-  const handleDateChange = (dateValue) => {
-    setDateError('');
-    if (blockedDates.includes(dateValue)) {
-      setDateError('⚠️ Desculpe, estamos com a frota completa para esta data.');
-    }
-    setBookingData({...bookingData, data: dateValue});
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/servicos`);
+        setServices(res.data);
+      } catch (err) {
+        console.error("Erro ao carregar catálogo", err);
+        // Mock de luxo caso a API falhe
+        setServices([
+          { id: 1, nome: 'Premium Transfer: Aero POA', categoria: 'TRANSFERS', valor: 350.00, descricao: 'Transporte privativo em Sedan de Luxo com concierge bilíngue.', imagem_url: 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&q=80&w=1000' },
+          { id: 2, nome: 'Tour Privativo: Vale dos Vinhedos', categoria: 'EXPERIENCIAS', valor: 1200.00, descricao: 'Experiência exclusiva pelas melhores vinícolas com degustação premium.', imagem_url: 'https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?auto=format&fit=crop&q=80&w=1000' },
+          { id: 3, nome: 'Chauffeur à Disposição (8h)', categoria: 'TRANSFERS', valor: 950.00, descricao: 'Motorista executivo trajado à sua total disposição para roteiros urbanos.', imagem_url: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&q=80&w=1000' }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchTenantSettings = async () => {
+      try {
+        // Em um SaaS real, identificaríamos o tenant pelo subdomínio
+        // const domain = window.location.hostname;
+        // const res = await axios.get(`${API_URL}/tenant/settings?domain=${domain}`);
+        // setTenantConfig(res.data);
+        console.log("Identificando configurações do cliente SaaS...");
+      } catch (err) {
+        console.log("Usando branding padrão");
+      }
+    };
+
+    fetchServices();
+    fetchTenantSettings();
+  }, []);
+
+  const filteredServices = category === 'ALL' ? services : services.filter(s => s.categoria === category);
+
+  const addToCart = (service) => {
+    setCart([...cart, service]);
+    setIsCartOpen(true);
   };
 
   const handleCheckout = async () => {
-    if (!bookingData.nome || !bookingData.telefone) {
-      alert("Por favor, preencha seu nome e telefone.");
-      return;
-    }
-
-    if (!bookingData.data || dateError) {
-      alert("Por favor, selecione uma data disponível.");
-      return;
-    }
-
-    setIsProcessing(true);
+    if (cart.length === 0) return;
+    
+    setIsCheckingOut(true);
     try {
-      // Criamos o pedido no backend (endpoint público para clientes)
-      const response = await axios.post(`${API_URL}/pedidos/publico`, {
-        ...bookingData,
-        servico_id: cart[0].id,
-        valor: cart[0].valor
+      // Exemplo de como enviar o carrinho completo para gerar uma preferência de pagamento única
+      const res = await axios.post(`${API_URL}/checkout`, {
+        itens: cart.map(item => ({
+          id: item.id,
+          titulo: item.nome,
+          preco: item.valor
+        })),
+        metadata: {
+          ...bookingDetails,
+          parceiro_cod: referralCode // Envia o código de quem indicou
+        }
       });
 
-      const { checkout_url } = response.data;
-      
-      // Redireciona o usuário para o Checkout do Mercado Pago
-      window.location.href = checkout_url;
+      if (res.data.init_point) {
+        // Redireciona para o checkout do Mercado Pago (SandBox ou Produção)
+        window.location.href = res.data.init_point;
+      } else {
+        alert("Erro ao gerar link de pagamento.");
+      }
     } catch (err) {
-      console.error("Erro ao processar reserva:", err);
-      alert("Ocorreu um erro ao gerar o pagamento. Tente novamente.");
+      console.error("Erro ao finalizar checkout:", err);
+      alert("Ocorreu um erro ao processar sua reserva. Verifique o console.");
     } finally {
-      setIsProcessing(false);
+      setIsCheckingOut(false);
     }
   };
 
   return (
     <div style={styles.container}>
-      {/* Hero Section Cromático */}
-      <div style={styles.hero}>
-        <div style={styles.heroOverlay}>
-          <h1 style={styles.heroTitle}>Viva a Magia da Serra</h1>
-          <p style={styles.heroSubtitle}>Transfers exclusivos e experiências inesquecíveis em Gramado e Canela</p>
-        </div>
-      </div>
+      {/* Injeção de Fonte Serifada para Luxo */}
+      <style>
+        {`
+          @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@300;400;600&display=swap');
+          .cart-icon:hover { color: ${THEME.secondary} !important; transform: scale(1.1); }
+          .card-luxury:hover { transform: translateY(-8px) !important; box-shadow: 0 18px 40px rgba(0,0,0,0.15) !important; }
+          @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+          @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+          .drawer-anim { animation: slideIn 0.3s ease-out; }
+          .overlay-anim { animation: fadeIn 0.2s ease-out; }
+        `}
+      </style>
 
-      {step === 'catalog' ? (
-        <>
-      {/* Dicas de Gramado (Diferencial) */}
-      <section style={styles.tipsSection}>
-        <h2 style={styles.sectionTitle}>Dicas da Serra 🏔️</h2>
-        <div style={styles.tipsGrid}>
-          {gramadoTips.map(tip => (
-            <div key={tip.id} style={styles.tipCard}>
-              <span style={styles.tipIcon}>{tip.icon}</span>
-              <h4 style={styles.tipTitle}>{tip.title}</h4>
-              <p style={styles.tipDesc}>{tip.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <h2 style={styles.sectionTitle}>Nossos Serviços</h2>
+      {/* Navbar Minimalista */}
       <nav style={styles.nav}>
-        {['TRANSFERS', 'INGRESSOS', 'PACOTES', 'EXPERIENCIAS'].map(cat => (
-          <button 
-            key={cat} 
-            onClick={() => setCategory(cat)}
-            style={category === cat ? styles.navBtnActive : styles.navBtn}
-          >
-            {cat}
-          </button>
-        ))}
+        <div style={styles.logoContainer}>
+          <div style={styles.logo}>{tenantConfig.name.split(' ')[0]} <span style={{color: THEME.primary}}>{tenantConfig.name.split(' ')[1] || ''}</span></div>
+          <div style={styles.weatherWidget}>
+            <span style={styles.weatherText}>
+              {currentTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {weather.temp}°C
+            </span>
+            <span style={styles.weatherCity}>{weather.condition}</span>
+          </div>
+        </div>
+        <div style={styles.navLinks}>
+          <span style={styles.navLink}>FROTAS</span>
+          <span style={styles.navLink}>DESTINOS</span>
+          <div style={styles.cartContainer} className="cart-icon" onClick={() => setIsCartOpen(true)}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            <span style={styles.cartBadge}>{cart.length}</span>
+          </div>
+          <button style={styles.contactBtn}>CONTATO EXCLUSIVO</button>
+        </div>
       </nav>
 
-      <div style={styles.grid}>
-        {services.filter(s => (s.categoria || s.tipo) === category).map(service => (
-          <div key={service.id} style={styles.card}>
-            <div style={styles.imageWrapper}>
-              {service.imagem_url ? (
-                <img src={service.imagem_url} alt={service.nome} style={styles.image} />
-              ) : (
-                <div style={styles.imagePlaceholder}>✨</div>
-              )}
-              <div style={styles.categoryBadge}>{service.categoria || 'PREMIUM'}</div>
-            </div>
-            <div style={styles.cardContent}>
-              <h3 style={styles.cardTitle}>{service.nome}</h3>
-              <p style={styles.cardDesc}>{service.descricao}</p>
-              
-              <div style={styles.attributes}>
-                <div style={styles.attrItem}>👤 {service.capacidade_passageiros || 4} passageiros</div>
-                <div style={styles.attrItem}>🧳 {service.capacidade_malas || 2} malas</div>
-              </div>
-            </div>
-            <div style={styles.priceRow}>
-              <div style={styles.priceContainer}>
-                <span style={styles.priceLabel}>Investimento</span>
-                <span style={styles.priceValue}>R$ {parseFloat(service.valor || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-              </div>
-              <button onClick={() => addToCart(service)} style={styles.addBtn}>Selecionar</button>
-            </div>
+      {/* Hero Section */}
+      <header style={{...styles.hero, backgroundImage: `url(${tenantConfig.heroImage})`}}>
+        <div style={styles.heroOverlay} />
+        <div style={styles.heroContent}>
+          <h1 style={styles.heroTitle}>{tenantConfig.welcomeMessage}</h1>
+          <p style={styles.heroSubtitle}>A sua experiência de férias começa no momento em que você desembarca. Elegância e pontualidade na Serra Gaúcha.</p>
+          <div style={styles.heroDivider} />
+          <div style={styles.categoryBar}>
+            {['ALL', 'TRANSFERS', 'EXPERIENCIAS', 'INGRESSOS'].map(cat => (
+              <button 
+                key={cat} 
+                onClick={() => setCategory(cat)}
+                style={category === cat ? styles.catBtnActive : styles.catBtn}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      </header>
 
-      {/* Seção de Diferenciais */}
-      <section style={styles.featuresSection}>
-        <div style={styles.featuresGrid}>
-          {features.map((f, i) => (
-            <div key={i} style={styles.featureItem}>
-              <span style={styles.featureIcon}>{f.icon}</span>
-              <h5 style={styles.featureTitle}>{f.title}</h5>
-              <p style={styles.featureDesc}>{f.desc}</p>
+      {/* Listagem de Serviços */}
+      <main style={styles.main}>
+        <div style={styles.grid}>
+          {filteredServices.map(service => (
+            <div key={service.id} style={{...styles.card, border: service.valor > 500 ? '2px solid #C5A059' : styles.card.border}} className="card-luxury">
+              <div style={styles.imageContainer}>
+                <img src={service.imagem_url || 'https://via.placeholder.com/400x300'} alt={service.nome} style={styles.cardImage} />
+                <div style={{...styles.priceBadge, background: service.valor > 500 ? 'linear-gradient(135deg, #000, #C5A059)' : THEME.secondary}}>
+                  R$ {service.valor.toFixed(2)}
+                </div>
+              </div>
+              <div style={styles.cardContent}>
+                <span style={{...styles.cardCategory, color: service.valor > 500 ? '#C5A059' : THEME.secondary}}>
+                  {service.valor > 500 ? '💎 PREMIUM BLACK' : service.categoria}
+                </span>
+                <h3 style={styles.cardTitle}>{service.nome}</h3>
+                <p style={styles.cardDesc}>{service.descricao}</p>
+                <button style={styles.bookBtn} onClick={() => addToCart(service)}>RESERVAR AGORA</button>
+              </div>
             </div>
           ))}
         </div>
-      </section>
+      </main>
 
-      {/* Depoimentos */}
-      <section style={styles.testimonialSection}>
-        <h2 style={styles.sectionTitle}>O que dizem nossos clientes</h2>
-        <div style={styles.testimonialGrid}>
-          {testimonials.map(t => (
-            <div key={t.id} style={styles.testimonialCard}>
-              <div style={styles.stars}>{'⭐'.repeat(t.stars)}</div>
-              <p style={styles.testimonialText}>"{t.text}"</p>
-              <h6 style={styles.testimonialAuthor}>{t.name}</h6>
+      {/* Drawer do Carrinho */}
+      {isCartOpen && (
+        <div style={styles.drawerOverlay} onClick={() => setIsCartOpen(false)} className="overlay-anim">
+          <div style={styles.drawer} onClick={e => e.stopPropagation()} className="drawer-anim">
+            <div style={styles.drawerHeader}>
+              <h2 style={styles.drawerTitle}>Sua Reserva</h2>
+              <button style={styles.closeBtn} onClick={() => setIsCartOpen(false)}>✕</button>
             </div>
-          ))}
-        </div>
-      </section>
-        </>
-      ) : (
-        <div style={styles.formCard}>
-          <h2 style={styles.formTitle}>Quase lá! 🚖</h2>
-          <p style={styles.formSubtitle}>Confirme os detalhes para sua reserva premium</p>
-          <div style={styles.inputGroup}>
-            <label style={styles.label}>Seu Nome Completo</label>
-            <input type="text" placeholder="Como podemos te chamar?" style={styles.input} onChange={e => setBookingData({...bookingData, nome: e.target.value})}/>
-
-            <label style={styles.label}>Seu Melhor E-mail</label>
-            <input type="email" placeholder="Para receber o comprovante e dados do motorista" style={styles.input} onChange={e => setBookingData({...bookingData, email: e.target.value})}/>
-
-            <label style={styles.label}>Seu WhatsApp</label>
-            <input type="tel" placeholder="Ex: 54999999999" style={styles.input} onChange={e => setBookingData({...bookingData, telefone: e.target.value})}/>
-
-            <label style={styles.label}>Ponto de Partida</label>
-            <input type="text" placeholder="Ex: Aeroporto Salgado Filho" style={styles.input} onChange={e => setBookingData({...bookingData, origem: e.target.value})}/>
-
-            <label style={styles.label}>Destino</label>
-            <input type="text" placeholder="Ex: Hotel em Gramado" style={styles.input} onChange={e => setBookingData({...bookingData, destino: e.target.value})}/>
             
-            <div style={{display: 'flex', gap: '10px'}}>
-              <div style={{flex: 1}}>
-                <label>Data</label>
-                <input 
-                  type="date" 
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => handleDateChange(e.target.value)} 
-                  style={{...styles.input, borderColor: dateError ? '#ef4444' : '#f1f5f9'}}
-                />
-              </div>
-              <div style={{flex: 1}}>
-                <label>Hora</label>
-                <input type="time" onChange={e => setBookingData({...bookingData, hora: e.target.value})} style={styles.input}/>
-              </div>
+            <div style={styles.drawerContent}>
+              {cart.length === 0 ? (
+                <p style={styles.emptyCart}>Seu carrinho está vazio.</p>
+              ) : (
+                <>
+                  <div style={styles.upsellSection}>
+                    <h4 style={styles.sectionTitle}>💎 Complete sua Experiência</h4>
+                    <div style={styles.upsellScroll}>
+                      {addOns.map(item => (
+                        <div key={item.id} style={styles.upsellCard} onClick={() => addToCart({ ...item, valor: item.preco })}>
+                          <span style={{fontSize: '24px'}}>{item.img}</span>
+                          <div style={{fontSize: '11px', fontWeight: 'bold', margin: '5px 0'}}>{item.nome}</div>
+                          <div style={{color: THEME.primary, fontSize: '11px'}}>+ R$ {item.preco}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={styles.formSection}>
+                    <h4 style={styles.sectionTitle}>Detalhes do Trajeto</h4>
+                    <input 
+                      style={styles.drawerInput} 
+                      placeholder="Local de Origem (Ex: Aeroporto)" 
+                      value={bookingDetails.origem}
+                      onChange={e => setBookingDetails({...bookingDetails, origem: e.target.value})}
+                    />
+                    <input 
+                      style={styles.drawerInput} 
+                      placeholder="Local de Destino (Ex: Hotel)" 
+                      value={bookingDetails.destino}
+                      onChange={e => setBookingDetails({...bookingDetails, destino: e.target.value})}
+                    />
+                    <input 
+                      type="datetime-local"
+                      style={styles.drawerInput} 
+                      value={bookingDetails.data}
+                      onChange={e => setBookingDetails({...bookingDetails, data: e.target.value})}
+                    />
+                    <textarea 
+                      style={{...styles.drawerInput, height: '80px', resize: 'none'}} 
+                      placeholder="Observações ou Mensagem de Boas-vindas (Ex: Placa de recepção com nome)" 
+                      value={bookingDetails.observacoes}
+                      onChange={e => setBookingDetails({...bookingDetails, observacoes: e.target.value})}
+                    />
+                  </div>
+                  <div style={{marginTop: '20px'}}>
+                    <h4 style={styles.sectionTitle}>Itens Selecionados</h4>
+                    {cart.map((item, index) => (
+                      <div key={index} style={styles.cartItem}>
+                        <div style={{flex: 1}}>
+                          <h4 style={{margin: 0, fontSize: '14px', color: THEME.text}}>{item.nome}</h4>
+                          <small style={{color: THEME.muted}}>{item.categoria}</small>
+                        </div>
+                        <div style={{fontWeight: '700', color: THEME.primary}}>R$ {item.valor.toFixed(2)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
-            {dateError && <p style={styles.errorText}>{dateError}</p>}
+
+            {cart.length > 0 && (
+              <div style={styles.drawerFooter}>
+                <div style={styles.totalRow}>
+                  <span>Total</span>
+                  <span>R$ {cart.reduce((acc, curr) => acc + curr.valor, 0).toFixed(2)}</span>
+                </div>
+                <button 
+                  style={{...styles.checkoutBtn, opacity: isCheckingOut ? 0.7 : 1}} 
+                  onClick={handleCheckout}
+                  disabled={isCheckingOut}
+                >
+                  {isCheckingOut ? "PROCESSANDO..." : "FINALIZAR CHECKOUT"}
+                </button>
+              </div>
+            )}
           </div>
-          <button onClick={handleCheckout} style={styles.finishBtnFull} disabled={isProcessing}>
-            {isProcessing ? "Processando..." : "Pagar e Confirmar Agora"}
-          </button>
-          <button onClick={() => setStep('catalog')} style={styles.backBtn}>Voltar ao catálogo</button>
         </div>
       )}
 
+      {/* Footer Elegante */}
+      <footer style={styles.footer}>
+        <p style={{color: THEME.text}}>© 2024 {tenantConfig.name}. Todos os direitos reservados.</p>
+        <p style={{fontSize: '12px', color: THEME.muted, marginTop: '10px', letterSpacing: '2px'}}>EXCLUSIVIDADE • SEGURANÇA • PONTUALIDADE</p>
+      </footer>
     </div>
   );
 }
 
 const styles = {
-  container: { fontFamily: '"Inter", sans-serif', padding: '0 0 40px 0', maxWidth: '900px', margin: '0 auto', background: '#f5f3ff', minHeight: '100vh' },
-  hero: { 
-    height: '450px', 
-    backgroundImage: 'url("https://images.unsplash.com/photo-1626014903708-3607062400f0?q=80&w=1200")', 
-    backgroundSize: 'cover', 
-    backgroundPosition: 'center',
-    borderRadius: '0 0 80px 80px',
+  container: {
+    backgroundColor: THEME.bg,
+    minHeight: '100vh',
+    color: THEME.text,
+    fontFamily: '"Inter", sans-serif',
+  },
+  nav: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px 8%',
+    position: 'fixed',
+    width: '100%',
+    zIndex: 10,
+    boxSizing: 'border-box',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
+    boxShadow: '0 2px 20px rgba(0,0,0,0.05)'
+  },
+  pointsBadge: { padding: '5px 12px', background: 'rgba(124,58,237,0.1)', color: '#4c1d95', borderRadius: '20px', border: '1px solid rgba(124,58,237,0.2)' },
+  logo: {
+    fontSize: '22px',
+    fontWeight: '700',
+    letterSpacing: '3px',
+    fontFamily: '"Playfair Display", serif'
+  },
+  navLinks: { display: 'flex', alignItems: 'center', gap: '40px' },
+  navLink: { fontSize: '12px', fontWeight: '600', letterSpacing: '1px', cursor: 'pointer', color: THEME.text },
+  cartContainer: { 
+    position: 'relative', 
+    cursor: 'pointer', 
+    display: 'flex', 
+    alignItems: 'center', 
+    color: THEME.text,
+    transition: '0.3s'
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: '-8px',
+    right: '-12px',
+    backgroundColor: THEME.secondary,
+    color: '#fff',
+    fontSize: '9px',
+    fontWeight: '800',
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+  },
+  contactBtn: {
+    backgroundColor: THEME.primary,
+    border: 'none',
+    color: '#fff',
+    padding: '10px 25px',
+    borderRadius: '50px',
+    fontSize: '11px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: '0.3s',
+    boxShadow: '0 4px 15px rgba(76, 29, 149, 0.3)'
+  },
+  hero: {
+    height: '80vh',
     position: 'relative',
-    overflow: 'hidden',
-    marginBottom: '30px'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    backgroundImage: 'url("https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&q=80&w=2000")',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center'
   },
   heroOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    background: 'linear-gradient(180deg, rgba(30, 27, 75, 0.2) 0%, rgba(76, 29, 149, 0.9) 100%)',
-    display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '20px', textAlign: 'center'
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    background: 'linear-gradient(135deg, rgba(76, 29, 149, 0.8) 0%, rgba(10, 10, 11, 0.6) 100%)'
   },
-  heroTitle: { color: '#fff', fontSize: '48px', fontWeight: '900', margin: 0, textShadow: '0 10px 20px rgba(0,0,0,0.3)', letterSpacing: '-2px' },
-  heroSubtitle: { color: 'rgba(255,255,255,0.95)', fontSize: '18px', marginTop: '15px', maxWidth: '600px', fontWeight: '400' },
-  
-  sectionTitle: { fontSize: '26px', color: '#1e1b4b', fontWeight: '800', margin: '40px 20px 25px 20px', letterSpacing: '-0.5px' },
-  
-  tipsSection: { padding: '0 20px' },
-  tipsGrid: { display: 'flex', gap: '15px', overflowX: 'auto', paddingBottom: '10px', scrollbarWidth: 'none' },
-  tipCard: { minWidth: '200px', background: '#fff', padding: '25px', borderRadius: '30px', boxShadow: '0 10px 30px rgba(76, 29, 149, 0.08)', border: '1px solid #f3f0ff' },
-  tipIcon: { fontSize: '30px', display: 'block', marginBottom: '10px' },
-  tipTitle: { fontSize: '14px', fontWeight: '700', color: '#4c1d95', margin: '0 0 5px 0' },
-  tipDesc: { fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.4' },
-
-  nav: { display: 'flex', gap: '10px', marginBottom: '25px', padding: '0 20px', overflowX: 'auto', scrollbarWidth: 'none' },
-  navBtn: { padding: '12px 24px', borderRadius: '25px', border: '1px solid #ddd', cursor: 'pointer', background: '#fff', color: '#64748b', fontWeight: '600', whiteSpace: 'nowrap', transition: '0.3s' },
-  navBtnActive: { padding: '12px 24px', borderRadius: '25px', border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', fontWeight: '700', boxShadow: '0 10px 20px rgba(124, 58, 237, 0.3)', whiteSpace: 'nowrap' },
-  
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '25px', padding: '0 20px' },
-  card: { background: '#fff', padding: '0', borderRadius: '40px', overflow: 'hidden', boxShadow: '0 30px 60px -12px rgba(76, 29, 149, 0.15)', border: '1px solid #f3f0ff', transition: 'all 0.3s ease' },
-  imageWrapper: { position: 'relative', width: '100%', height: '220px' },
-  image: { width: '100%', height: '100%', objectFit: 'cover' },
-  imagePlaceholder: { width: '100%', height: '100%', background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '40px' },
-  categoryBadge: { position: 'absolute', top: '20px', left: '20px', fontSize: '10px', fontWeight: '800', color: '#fff', background: 'rgba(76, 29, 149, 0.8)', backdropFilter: 'blur(10px)', padding: '6px 14px', borderRadius: '12px' },
-  cardContent: { padding: '25px 25px 15px 25px' },
-  cardTitle: { fontSize: '20px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 10px 0' },
-  cardDesc: { fontSize: '13px', color: '#64748b', margin: '0 0 15px 0', lineHeight: '1.5' },
-  attributes: { display: 'flex', gap: '15px', marginBottom: '10px' },
-  attrItem: { fontSize: '12px', color: '#4c1d95', background: '#f5f3ff', padding: '4px 10px', borderRadius: '8px', fontWeight: '600' },
-  priceRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 25px 25px 25px' },
-  priceContainer: { display: 'flex', flexDirection: 'column' },
-  priceLabel: { fontSize: '10px', fontWeight: '700', color: '#94a3b8', textTransform: 'uppercase' },
-  priceValue: { fontSize: '18px', fontWeight: '900', color: '#4c1d95' },
-  addBtn: { background: '#7c3aed', color: '#fff', border: 'none', padding: '12px 18px', borderRadius: '18px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 8px 15px rgba(124, 58, 237, 0.2)' },
-
-  featuresSection: { padding: '40px 20px' },
-  featuresGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' },
-  featureItem: { textAlign: 'center', padding: '20px', background: 'rgba(255,255,255,0.5)', borderRadius: '25px', border: '1px solid #ede9fe' },
-  featureIcon: { fontSize: '24px', display: 'block', marginBottom: '10px' },
-  featureTitle: { fontSize: '14px', fontWeight: '800', color: '#1e1b4b', margin: '0 0 5px 0' },
-  featureDesc: { fontSize: '11px', color: '#64748b', margin: 0 },
-
-  testimonialSection: { padding: '20px 20px 40px 20px' },
-  testimonialGrid: { display: 'flex', gap: '20px', overflowX: 'auto', scrollbarWidth: 'none', padding: '10px 0' },
-  testimonialCard: { minWidth: '260px', background: '#fff', padding: '25px', borderRadius: '30px', boxShadow: '0 15px 30px rgba(0,0,0,0.03)' },
-  stars: { fontSize: '12px', marginBottom: '10px' },
-  testimonialText: { fontSize: '14px', color: '#475569', fontStyle: 'italic', lineHeight: '1.6', marginBottom: '15px' },
-  testimonialAuthor: { fontSize: '13px', fontWeight: '800', color: '#1e1b4b', margin: 0 },
-  
-  formCard: { background: '#fff', padding: '40px', borderRadius: '40px', margin: '0 20px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' },
-  formTitle: { fontSize: '28px', color: '#1e1b4b', textAlign: 'center', margin: 0 },
-  formSubtitle: { textAlign: 'center', color: '#64748b', marginBottom: '30px' },
-  label: { fontSize: '12px', fontWeight: '800', color: '#4c1d95', marginLeft: '5px', textTransform: 'uppercase' },
-  inputGroup: { display: 'flex', flexDirection: 'column', gap: '15px', margin: '20px 0' },
-  input: { padding: '15px', borderRadius: '18px', border: '2px solid #f1f5f9', fontSize: '16px', outline: 'none', transition: '0.3s' },
-  errorText: { color: '#ef4444', fontSize: '12px', fontWeight: 'bold', margin: '-5px 0 10px 5px' },
-  mapContainer: { height: '250px', borderRadius: '25px', overflow: 'hidden', border: '2px solid #f1f5f9', marginBottom: '10px' },
-  finishBtnFull: { width: '100%', background: '#22c55e', color: '#fff', border: 'none', padding: '18px', borderRadius: '20px', fontWeight: '800', fontSize: '18px', cursor: 'pointer', boxShadow: '0 15px 30px rgba(34, 197, 94, 0.4)' },
-  backBtn: { width: '100%', background: 'transparent', color: '#94a3b8', border: 'none', marginTop: '15px', cursor: 'pointer', fontWeight: '600' }
+  heroContent: { position: 'relative', zIndex: 1, maxWidth: '800px', padding: '0 20px', color: '#fff' },
+  heroTitle: {
+    fontFamily: '"Playfair Display", serif',
+    fontSize: '56px',
+    marginBottom: '10px',
+    lineHeight: 1.1
+  },
+  heroDivider: { width: '60px', height: '3px', background: '#fff', margin: '0 auto 30px auto' },
+  heroSubtitle: {
+    fontSize: '18px',
+    opacity: 0.9,
+    marginBottom: '40px',
+    fontWeight: '300',
+    lineHeight: 1.6
+  },
+  categoryBar: { display: 'flex', justifyContent: 'center', gap: '15px' },
+  catBtn: {
+    background: 'rgba(255,255,255,0.1)',
+    border: '1px solid rgba(255,255,255,0.1)',
+    color: '#fff',
+    padding: '8px 20px',
+    fontSize: '11px',
+    fontWeight: '600',
+    borderRadius: '50px',
+    cursor: 'pointer'
+  },
+  catBtnActive: {
+    background: '#fff',
+    border: '1px solid #fff',
+    color: THEME.primary,
+    padding: '8px 20px',
+    fontSize: '11px',
+    fontWeight: '700',
+    borderRadius: '30px',
+    cursor: 'pointer'
+  },
+  main: { padding: '80px 8%' },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '40px'
+  },
+  card: {
+    backgroundColor: THEME.surface,
+    borderRadius: '20px',
+    overflow: 'hidden',
+    transition: 'transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out', // Transição suave
+    boxShadow: '0 10px 30px rgba(0,0,0,0.05)', // Sombra padrão
+    border: '1px solid #f1f5f9',
+  },
+  imageContainer: { position: 'relative', height: '240px' },
+  cardImage: { width: '100%', height: '100%', objectFit: 'cover' },
+  priceBadge: {
+    position: 'absolute',
+    bottom: '20px',
+    right: '20px',
+    backgroundColor: THEME.secondary,
+    color: '#fff',
+    padding: '5px 15px',
+    fontWeight: '700',
+    fontSize: '13px',
+    borderRadius: '50px',
+  },
+  cardContent: { padding: '30px' },
+  cardCategory: {
+    color: THEME.secondary,
+    fontSize: '10px',
+    fontWeight: '800',
+    letterSpacing: '2px',
+    marginBottom: '10px',
+    display: 'block'
+  },
+  cardTitle: {
+    fontFamily: '"Playfair Display", serif',
+    fontSize: '22px',
+    marginBottom: '15px'
+  },
+  cardDesc: {
+    fontSize: '14px',
+    color: THEME.muted,
+    lineHeight: 1.6,
+    marginBottom: '25px'
+  },
+  bookBtn: {
+    width: '100%',
+    padding: '15px',
+    background: THEME.primary,
+    border: 'none',
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: '12px',
+    letterSpacing: '2px',
+    cursor: 'pointer',
+    transition: '0.3s',
+    borderRadius: '12px'
+  },
+  footer: {
+    padding: '100px 8% 50px',
+    textAlign: 'center',
+    borderTop: '1px solid #e2e8f0',
+    backgroundColor: '#fff',
+    fontSize: '14px'
+  },
+  drawerOverlay: {
+    position: 'fixed',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 1000,
+    display: 'flex',
+    justifyContent: 'flex-end',
+    backdropFilter: 'blur(4px)'
+  },
+  drawer: {
+    width: '100%',
+    maxWidth: '400px',
+    height: '100%',
+    backgroundColor: '#fff',
+    boxShadow: '-10px 0 30px rgba(0,0,0,0.1)',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '40px',
+    boxSizing: 'border-box'
+  },
+  drawerHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' },
+  drawerTitle: { fontFamily: '"Playfair Display", serif', fontSize: '28px', margin: 0 },
+  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: THEME.muted },
+  drawerContent: { flex: 1, overflowY: 'auto' },
+  emptyCart: { textAlign: 'center', color: THEME.muted, marginTop: '100px' },
+  cartItem: { 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: '20px 0', 
+    borderBottom: '1px solid #f1f5f9' 
+  },
+  drawerFooter: { paddingTop: '30px', borderTop: '2px solid #f1f5f9' },
+  totalRow: { display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '700', marginBottom: '30px' },
+  checkoutBtn: {
+    width: '100%',
+    padding: '18px',
+    backgroundColor: THEME.secondary,
+    color: '#fff',
+    border: 'none',
+    borderRadius: '12px',
+    fontWeight: '700',
+    cursor: 'pointer',
+    fontSize: '14px',
+    letterSpacing: '1px'
+  },
+  formSection: { marginBottom: '30px' },
+  sectionTitle: { fontSize: '12px', fontWeight: '800', color: THEME.primary, textTransform: 'uppercase', marginBottom: '15px', letterSpacing: '1px' },
+  drawerInput: {
+    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px', fontSize: '14px', outline: 'none'
+  }
 };

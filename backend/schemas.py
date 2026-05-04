@@ -25,6 +25,9 @@ class MotoristaBase(BaseModel):
     placa: str
     modelo: str
     ano: int
+    # Adicionado para consistência com o frontend
+    categoria: Optional[str] = "STANDARD"
+    data_inicio_trial: Optional[datetime] = None # Novo campo
     status: str = "ATIVO"
     plano: str = "MENSAL"
     empresa_id: Optional[int] = None
@@ -36,13 +39,44 @@ class Motorista(MotoristaBase):
     class Config:
         from_attributes = True
 
+
 class MotoristaAcesso(BaseModel):
     login: str
     senha: Optional[str] = None
 
+
 class MotoristaCreateResponse(BaseModel):
     motorista: Motorista
     acesso: MotoristaAcesso
+
+
+class MotoristaRegister(BaseModel):
+    nome: str
+    telefone: str
+    carro: str
+    placa: str
+    modelo: str
+    ano: int
+    senha: str
+    categoria: Optional[str] = "STANDARD"
+    # Pode ser fornecido se o app for white-label ou selecionado
+    empresa_id: Optional[int] = None
+
+
+class MotoristaStatusUpdate(BaseModel):
+    status: str  # Ex: "ATIVO", "PENDENTE_APROVACAO", "REJEITADO"
+
+
+class MensalidadeBase(BaseModel):
+    motorista_id: int
+    mes_referencia: str
+    valor: Decimal
+    status: str = "PENDENTE"
+
+
+class MensalidadeOut(MensalidadeBase):
+    id: int
+    data_pagamento: Optional[datetime] = None
 
 
 class Servico(BaseModel):

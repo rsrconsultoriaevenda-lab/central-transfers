@@ -24,6 +24,15 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # 5. DEPENDENCY (Usada nas rotas FastAPI)
 
 
+def set_tenant(id: int):
+    """
+    Define o ID da empresa para a requisição atual.
+    Deve ser chamado em um Middleware ou Dependency de autenticação.
+    """
+    token = tenant_id.set(id)
+    return token
+
+
 def get_db():
     db = SessionLocal()
     try:

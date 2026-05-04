@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 import re
 import urllib.parse
@@ -237,6 +238,35 @@ def broadcast_to_drivers(db: Session, pedido: models.Pedido):
             continue
     return mensagens
 
+@router.get("/incoming")
+def whatsapp_verify(
+    mode: str = Query(None, alias="hub.mode"),
+    token: str = Query(None, alias="hub.verify_token"),
+    challenge: str = Query(None, alias="hub.challenge")
+):
+    """Endpoint de verificação exigido pela Meta para configurar o Webhook."""
+    verify_token = os.getenv("WHATSAPP_VERIFY_TOKEN", "central_secret_token")
+    if mode == "subscribe" and token == verify_token:
+        logger.info("✅ Webhook verificado com sucesso.")
+        return PlainTextResponse(content=challenge)
+    raise HTTPException(
+        status_code=403, detail="Token de verificação inválido")
+
+@router.post("/incoming")
+async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks):
+    """
+    Recebe notificações do WhatsApp e processa em segundo plano.
+    Utiliza processar_evento_whatsapp para gerenciar sessões de DB isoladas.
+    """
+    try:
+        payload = await request.json()
+        # Dispara o processamento pesado em background e libera o WhatsApp/Meta
+        background_tasks.add_task(processar_evento_whatsapp, payload)
+        return {"status": "accepted", "detail": "Processing initiated"}
+    except Exception as e:
+        logger.error(f"Erro ao receber payload do WhatsApp: {e}")
+        # Mesmo em erro de payload, respondemos 202 para evitar retentativas agressivas da Meta
+        return Response(status_code=202)
 
 def processar_evento_whatsapp(data: dict):
     """

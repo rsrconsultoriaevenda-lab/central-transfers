@@ -5,7 +5,6 @@ Este guia descreve como hospedar o backend FastAPI e os dois frontends React.
 ## Estrutura de deploy
 
 - `backend/` - API Python FastAPI
-- `frontend/` - site do cliente
 - `painel-saas/` - painel administrativo
 
 ## Backend
@@ -81,13 +80,6 @@ Defina no serviço de hosting:
 
 ### 1. Build local
 
-No diretório `frontend/`:
-
-```powershell
-npm install
-npm run build
-```
-
 No diretório `painel-saas/`:
 
 ```powershell
@@ -102,7 +94,7 @@ Use:
 - Netlify
 - Cloudflare Pages
 
-Cada repositório (`frontend` e `painel-saas`) pode ser deployado separadamente.
+O projeto `painel-saas` centraliza as 3 interfaces do sistema.
 
 > O projeto já inclui `_redirects` em `frontend/` e `painel-saas/` para suportar rotas de SPA em Netlify e Cloudflare Pages.
 

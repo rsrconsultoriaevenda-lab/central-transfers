@@ -18,8 +18,8 @@ import {
 import Login from './Login';
 import DriverApp from './DriverApp';
 import Storefront from './Storefront';
-import Success from '../../Success';
-import Failure from '../../Failure';
+import Success from '../../../Success';
+import Failure from '../../../Failure';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 

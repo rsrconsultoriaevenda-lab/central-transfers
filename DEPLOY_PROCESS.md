@@ -7,7 +7,6 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 1. Garanta que o backend esteja funcionando localmente:
    - `python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8001`
 2. Garanta que os frontends compilem:
-   - `npm --prefix frontend run build`
    - `npm --prefix painel-saas run build`
 3. Verifique se o backend compila:
    - `python -m py_compile backend/*.py backend/routes/*.py backend/services/*.py`
@@ -60,35 +59,19 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 3. O comando final do container é:
    - `uvicorn backend.main:app --host 0.0.0.0 --port 8000`
 
-## 3. Deploy do frontend
+## 3. Deploy das Interfaces (SaaS / Cliente / Motorista)
 
 ### Vercel
 
 1. Crie um novo projeto Vercel.
-2. Selecione o repositório e escolha o diretório `frontend/`.
-3. Build command: `npm run build`
-4. Output directory: `dist`
-5. Configure a variável `VITE_API_URL` para a URL pública do backend.
-
-### Netlify
-
-1. Crie um novo site em Netlify.
-2. Aponte para o diretório `frontend/`.
-3. Build command: `npm run build`
-4. Publish directory: `dist`
-5. Adicione a variável de ambiente `VITE_API_URL`.
-
-### Cloudflare Pages
-
-1. Crie um novo projeto Cloudflare Pages.
-2. Escolha o diretório `frontend/`.
-3. Build command: `npm run build`
-4. Output directory: `dist`
-5. Adicione `VITE_API_URL` nas Environment Variables.
-
-## 4. Deploy do painel administrativo
-
-Repita o mesmo processo do frontend para o diretório `painel-saas/`.
+2. Selecione o repositório e escolha o diretório `painel-saas/`.
+3. Este projeto contém as 3 interfaces:
+   - `/store` -> Cliente
+   - `/driver` -> Motorista
+   - `/dashboard` -> Administrador
+4. Build command: `npm run build`
+5. Output directory: `dist`
+6. Configure a variável `VITE_API_URL` para a URL pública do backend.
 
 ## 5. Configuração das variáveis de ambiente
 

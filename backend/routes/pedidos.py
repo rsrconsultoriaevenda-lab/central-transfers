@@ -100,8 +100,13 @@ def buscar_por_id(pedido_id: int, db: Session = Depends(get_db)):
     return pedido
 
 
-@router.post("/")
-def criar_pedido(pedido: schemas.PedidoCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=schemas.PedidoOut)
+def criar_pedido(
+    pedido: schemas.PedidoCreate,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_usuario_atual)
+):
+    """Criação de pedido com isolamento de Tenant automático via ContextVar."""
     try:
         novo = models.Pedido(**pedido.model_dump())
         db.add(novo)

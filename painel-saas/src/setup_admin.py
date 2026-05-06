@@ -1,44 +1,30 @@
-import os
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-
-# Importe suas rotas aqui
-from backend.routes import auth, motoristas, pedidos, clientes, servicos, dashboard, whatsapp, pagamentos
-
-app = FastAPI(title="Central Transfers API")
-
-# 1. Defina as origens permitidas via Variável de Ambiente (ALLOWED_ORIGINS) ou Lista Padrão
-allowed_origins_env = os.getenv("ALLOWED_ORIGINS")
-if allowed_origins_env:
-    origins = [o.strip() for o in allowed_origins_env.split(",")]
-else:
-    origins = [
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "https://central-transfers.vercel.app"
-    ]
-
-# 2. Adicione o Middleware de CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,           # Lista de domínios permitidos
-    allow_credentials=True,          # Permite envio de cookies/auth headers
-    # Permite todos os métodos (GET, POST, PUT, DELETE)
-    allow_methods=["*"],
-    allow_headers=["*"],             # Permite todos os cabeçalhos
-)
-
-# Incluir as rotas
-app.include_router(auth.router)
-app.include_router(motoristas.router)
-app.include_router(pedidos.router)
-app.include_router(clientes.router)
-app.include_router(servicos.router)
-app.include_router(dashboard.router)
-app.include_router(whatsapp.router)
-app.include_router(pagamentos.router)
+from backend.database import SessionLocal
+from backend.models import Usuario
+from backend.auth import hash_senha
 
 
-@app.get("/health")
-def health_check():
-    return {"status": "online"}
+def criar_admin_local():
+    """
+    Script simples para garantir que o admin de testes exista no banco local.
+    Não deve ser uma instância de FastAPI.
+    """
+    db = SessionLocal()
+    try:
+        email_admin = "rsrconsultoriaevenda@gmail.com"
+        existe = db.query(Usuario).filter(Usuario.email == email_admin).first()
+
+        if not existe:
+            admin = Usuario(
+                email=email_admin,
+                senha=hash_senha("Ren@220382"),
+                role="admin"
+            )
+            db.add(admin)
+            db.commit()
+            print(f"✅ Admin {email_admin} criado com sucesso.")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    criar_admin_local()

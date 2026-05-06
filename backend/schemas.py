@@ -4,15 +4,11 @@ from decimal import Decimal
 from typing import Optional
 
 
-class ClienteBase(BaseModel):
+class Cliente(BaseModel):
+    id: int | None = None
     nome: str
-    telefone: str
-    email: Optional[str] = None
-
-
-class Cliente(ClienteBase):
-    id: Optional[int] = None
-    empresa_id: Optional[int] = None
+    telefone: str | None = None
+    email: str | None = None
 
     class Config:
         from_attributes = True
@@ -25,12 +21,10 @@ class MotoristaBase(BaseModel):
     placa: str
     modelo: str
     ano: int
-    # Adicionado para consistência com o frontend
     categoria: Optional[str] = "STANDARD"
-    data_inicio_trial: Optional[datetime] = None # Novo campo
+    data_inicio_trial: Optional[datetime] = None
     status: str = "ATIVO"
     plano: str = "MENSAL"
-    empresa_id: Optional[int] = None
 
 
 class Motorista(MotoristaBase):
@@ -59,12 +53,10 @@ class MotoristaRegister(BaseModel):
     ano: int
     senha: str
     categoria: Optional[str] = "STANDARD"
-    # Pode ser fornecido se o app for white-label ou selecionado
-    empresa_id: Optional[int] = None
 
 
 class MotoristaStatusUpdate(BaseModel):
-    status: str  # Ex: "ATIVO", "PENDENTE_APROVACAO", "REJEITADO"
+    status: str
 
 
 class MensalidadeBase(BaseModel):
@@ -89,11 +81,18 @@ class Servico(BaseModel):
     valor: Optional[Decimal] = 0.0
     valor_padrao: Optional[Decimal] = 0.0
     imagem_url: Optional[str] = None
-    empresa_id: Optional[int] = None
     id: Optional[int] = None
 
     class Config:
         from_attributes = True
+
+
+class ServicoUpdateStatus(BaseModel):
+    status: str
+
+
+class ServicoResponse(Servico):
+    id: int
 
 
 class PedidoCreate(BaseModel):
@@ -104,6 +103,8 @@ class PedidoCreate(BaseModel):
     data_servico: datetime
     valor: Decimal
     valor_comissao: Optional[Decimal] = 0.0
+    comissao: Optional[Decimal] = 20.0
+    canal_venda: Optional[str] = "direto"
     observacoes: Optional[str] = None
 
 
@@ -115,17 +116,22 @@ class PedidoOut(PedidoCreate):
         from_attributes = True
 
 
-class AtribuirMotorista(BaseModel):
-    motorista_id: int
-
-
 class PedidoStatusUpdate(BaseModel):
     status: str
+
+
+class AtribuirMotorista(BaseModel):
+    motorista_id: int
 
 
 class WhatsAppIncoming(BaseModel):
     sender: str
     message: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    senha: str
 
 
 class Token(BaseModel):
@@ -135,11 +141,6 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
-
-
-class LoginRequest(BaseModel):
-    email: str
-    senha: str
 
 
 class UsuarioCreate(BaseModel):
@@ -164,22 +165,3 @@ class DashboardStats(BaseModel):
     aceitos: int
     concluidos: int
     faturamento_total: Decimal
-
-
-class CorridaCreate(BaseModel):
-    origem: str
-    destino: str
-    data: Optional[datetime] = None
-
-
-class CorridaOut(BaseModel):
-    id: int
-    origem: str
-    destino: str
-    data: datetime
-    status: str
-    usuario_id: int
-    motorista_id: Optional[int] = None
-
-    class Config:
-        from_attributes = True

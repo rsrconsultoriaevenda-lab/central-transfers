@@ -1,35 +1,42 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend import models, schemas
-from backend.auth import verificar_senha, criar_token
+from backend.auth import verificar_senha, criar_token, get_usuario_atual
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/auth", tags=["Autenticação"])
 
-@router.post("/login")
+
+@router.post("/login", response_model=schemas.Token)
 def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
-    # 1. Busca o usuário pelo e-mail
-    usuario = db.query(models.Usuario).filter(models.Usuario.email == request.email).first()
-    
-    if not usuario:
-        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
-    
-    # 2. Verifica a senha usando o hash seguro
-    if not verificar_senha(request.senha, usuario.senha):
-        raise HTTPException(status_code=401, detail="E-mail ou senha inválidos")
-    
-    # 3. Cria o payload do token com dados do SaaS
-    token_data = {
+    """
+    Endpoint de autenticação. Verifica as credenciais e retorna um token JWT.
+    """
+    # Busca o usuário pelo e-mail fornecido
+    usuario = db.query(models.Usuario).filter(
+        models.Usuario.email == request.email).first()
+
+    # Valida se o usuário existe e se a senha está correta
+    if not usuario or not verificar_senha(request.senha, usuario.senha):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="E-mail ou senha incorretos"
+        )
+
+    # Gera o token de acesso incluindo as claims de identidade e permissão
+    access_token = criar_token(dados={
         "sub": usuario.email,
         "user_id": usuario.id,
-        "empresa_id": usuario.empresa_id,
         "role": usuario.role
-    }
-    
-    access_token = criar_token(token_data)
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "role": usuario.role
-    }
+    })
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=schemas.UsuarioResponse)
+def get_me(current_user: dict = Depends(get_usuario_atual)):
+    """
+    Retorna os dados do usuário autenticado. 
+    Essencial para o frontend validar a sessão e identificar o papel (role) do usuário.
+    """
+    return current_user

@@ -21,7 +21,10 @@ import Storefront from './Storefront';
 import Success from './Success';
 import Failure from './Failure';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+// Detecta o host atual. Se acessar por IP, conecta o backend no mesmo IP na porta 8001.
+const currentHost = window.location.hostname;
+const API_URL = import.meta.env.VITE_API_URL || 
+  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001' : `http://${currentHost}:8001`);
 
 // Cores do Sistema - Facilita a troca de tema (Branding)
 const THEME = {
@@ -88,7 +91,7 @@ function Dashboard() {
   };
 
   const [newDriver, setNewDriver] = useState({
-    nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL'
+    nome: '', telefone: '', carro: '', placa: '', modelo: '', ano: new Date().getFullYear(), plano: 'MENSAL', categoria: 'STANDARD'
   });
 
   const [newService, setNewService] = useState({
@@ -209,6 +212,7 @@ function Dashboard() {
     const formData = new FormData();
     formData.append('nome', newService.nome);
     formData.append('categoria', newService.categoria);
+    formData.append('tipo', newService.categoria); // O backend espera 'tipo' para classificar o serviço
     formData.append('valor', parseFloat(newService.valor) || 0);
     formData.append('descricao', newService.descricao);
     if (newService.imagem) formData.append('imagem', newService.imagem);

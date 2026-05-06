@@ -15,27 +15,34 @@ def start_services():
     time.sleep(2)  # Aguarda o backend carregar
 
     # 2. Frontend Cliente (5173)
-    print("🌐 [2/3] Iniciando Frontend Cliente...")
-    frontend = subprocess.Popen(
-        ["npm", "run", "dev"], cwd="frontend", shell=True)
+    frontend = None
+    if os.path.exists("frontend"):
+        print("🌐 [2/3] Iniciando Frontend Cliente...")
+        frontend = subprocess.Popen(
+            ["npm", "run", "dev"], cwd="frontend", shell=True)
 
     # 3. Painel SaaS (5174)
-    print("📊 [3/3] Iniciando Painel Administrativo...")
-    painel = subprocess.Popen(["npm", "run", "dev"],
-                              cwd="painel-saas", shell=True)
+    painel = None
+    if os.path.exists("painel-saas"):
+        print("📊 [3/3] Iniciando Painel Administrativo...")
+        painel = subprocess.Popen(["npm", "run", "dev"],
+                                  cwd="painel-saas", shell=True)
+    else:
+        print("❌ [3/3] Pasta 'painel-saas' não encontrada!")
 
     print("\n✅ Todos os serviços estão rodando!")
-    print("🔗 API: http://127.0.0.1:8001/docs")
-    print("🔗 Cliente: http://127.0.0.1:5173")
-    print("🔗 Painel: http://127.0.0.1:5174")
+    print("🔗 API Docs: http://localhost:8001/docs")
+    print("🔗 Frontend Unificado: http://localhost:5173")
 
     try:
         backend.wait()
     except KeyboardInterrupt:
         print("\n🛑 Encerrando todos os processos...")
         backend.terminate()
-        frontend.terminate()
-        painel.terminate()
+        if frontend:
+            frontend.terminate()
+        if painel:
+            painel.terminate()
         print("👋 Até logo!")
 
 

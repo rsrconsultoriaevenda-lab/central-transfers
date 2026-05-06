@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
+# Importe as configurações, se estiver usando
 from datetime import datetime, timedelta
-from backend.database import get_db, tenant_id
+from backend.database import get_db
 from backend import models, schemas
 from backend.auth import get_usuario_atual, hash_senha
 from backend.services.whatsapp_service import enviar_whatsapp_meta
@@ -14,17 +15,7 @@ router = APIRouter(prefix="/motoristas", tags=["Motoristas"])
 
 @router.get("/", response_model=List[schemas.Motorista])  # type: ignore
 def listar(db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual)):
-    # O Hook de multitenancy no database.py já filtra as queries automaticamente.
-    # Apenas verificamos se o usuário logado tem permissão administrativa.
-    if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=403, detail="Acesso negado. Apenas administradores podem ver a lista de motoristas.")
-
-    # Reforço explícito de segurança para garantir isolamento por empresa_id
-    current_tenant = tenant_id.get()
-    return db.query(models.Motorista).filter(
-        models.Motorista.empresa_id == current_tenant
-    ).all()
+    return db.query(models.Motorista).all()
 
 
 @router.post("/localizacao")
@@ -32,20 +23,26 @@ async def atualizar_localizacao(request: Request, db: Session = Depends(get_db),
     """Recebe latitude e longitude do DriverApp e atualiza no banco."""
     data = await request.json()
 
+    motorista = None
     # No modo 'Acesso Livre', o user['email'] é fixo.
     # Em produção, usaríamos o ID do usuário vinculado ao motorista.
     email = user.get("email")
+    role = user.get("role")
 
-    # Busca o motorista (Lógica temporária para o admin simulado ou motorista real)
-    if email == "admin@centraltransfers.com":
-        motorista = db.query(models.Motorista).first()
-    else:
+    # Se não for admin, busca pelo telefone atrelado ao e-mail de login
+    if role != "admin":
         telefone = email.split("@")[0]
         motorista = db.query(models.Motorista).filter(
             models.Motorista.telefone == telefone).first()
 
     if not motorista:
-        raise HTTPException(status_code=404, detail="Motorista não encontrado")
+        # Caso seja admin testando, pegamos o primeiro motorista para não travar o fluxo
+        if role == "admin":
+            motorista = db.query(models.Motorista).first()
+
+        if not motorista:
+            raise HTTPException(
+                status_code=404, detail="Motorista não encontrado")
 
     motorista.latitude = data.get("latitude")
     motorista.longitude = data.get("longitude")
@@ -76,9 +73,7 @@ def register_motorista(motorista_data: schemas.MotoristaRegister, db: Session = 
     novo_usuario = models.Usuario(
         email=email_login,
         senha=hash_senha(motorista_data.senha),
-        role="motorista",
-        # Para auto-registro, empresa_id pode ser None inicialmente ou vir do formulário
-        empresa_id=motorista_data.empresa_id
+        role="motorista"
     )
     db.add(novo_usuario)
     db.flush()  # Garante que o ID do usuário seja gerado antes de criar o motorista
@@ -93,8 +88,7 @@ def register_motorista(motorista_data: schemas.MotoristaRegister, db: Session = 
         ano=motorista_data.ano,
         categoria=motorista_data.categoria,
         status="PENDENTE_APROVACAO",  # Status inicial para auto-registro
-        plano="MENSAL",  # Plano padrão para novos registros
-        empresa_id=motorista_data.empresa_id
+        plano="MENSAL"  # Plano padrão para novos registros
     )
     db.add(novo_motorista)
     db.commit()
@@ -111,16 +105,17 @@ def register_motorista(motorista_data: schemas.MotoristaRegister, db: Session = 
 
 @router.post("/", status_code=status.HTTP_201_CREATED, response_model=schemas.MotoristaCreateResponse)
 def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user: dict = Depends(get_usuario_atual)):
-    senha_gerada = None
+    """Criação de motorista via Painel Administrativo."""
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403, detail="Acesso negado. Apenas administradores podem cadastrar motoristas.")
+
     try:
-        # 1. Criar o registro do Motorista
         novo = models.Motorista(**motorista.model_dump())
         db.add(novo)
-
-        # Flush garante que o objeto seja processado pelos hooks (como o de empresa_id)
-        # antes de prosseguirmos para a criação do usuário.
         db.flush()
 
+        senha_gerada = "JA_CADASTRADA"
         # 2. Automação: Criar um Usuário de acesso para este motorista
         # Usamos o telefone como base para o login (ex: 54999999999@motorista.com)
         email_login = f"{motorista.telefone}@motorista.com"
@@ -134,8 +129,7 @@ def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user:
             novo_usuario = models.Usuario(
                 email=email_login,
                 senha=hash_senha(senha_gerada),
-                role="motorista",
-                empresa_id=tenant_id.get()  # Vincula o motorista ao mesmo ID da empresa do Admin
+                role="motorista"
             )
             db.add(novo_usuario)
             # Em produção, aqui você dispararia um SMS ou E-mail com a senha temporária.
@@ -152,7 +146,14 @@ def criar(motorista: schemas.MotoristaBase, db: Session = Depends(get_db), user:
         }
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+        error_msg = str(e).lower()
+        if "duplicate" in error_msg or "already exists" in error_msg:
+            raise HTTPException(
+                status_code=400, detail="Este telefone ou e-mail já está em uso por outro motorista.")
+        # Log no terminal para investigação
+        print(f"ERRO CRÍTICO NO CADASTRO: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erro no banco de dados: {str(e)}")
 
 
 @router.patch("/{motorista_id}/status", response_model=schemas.Motorista)
@@ -203,8 +204,8 @@ def update_motorista_status(
 
 @router.post("/verificar-expiracao-trials")
 def verificar_expiracao_trials(
-    background_tasks: BackgroundTasks, 
-    db: Session = Depends(get_db), 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
 ):
     """Varre motoristas cujo período de 14 dias expirou e atualiza status."""
@@ -233,9 +234,13 @@ def atualizar_plano_motorista(
     motorista_id: int,
     update_data: schemas.MotoristaBase,
     db: Session = Depends(get_db),
-    email: str = Depends(get_usuario_atual)
+    current_user: dict = Depends(get_usuario_atual)
 ):
     """Atualiza o modelo de cobrança (MENSAL ou MASTER) de um motorista."""
+    if current_user.get("role") != "admin":
+        raise HTTPException(
+            status_code=403, detail="Acesso negado. Apenas administradores podem alterar planos.")
+
     db_motorista = db.query(models.Motorista).filter(
         models.Motorista.id == motorista_id).first()
     if not db_motorista:

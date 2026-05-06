@@ -1,42 +1,33 @@
 from backend.database import SessionLocal
-from backend.models import Servico
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+from backend.models import Servico, Usuario
+from backend.auth import hash_senha
 
 def seed():
-    print("=== Populando Banco de Dados com Serviços Iniciais ===")
     db = SessionLocal()
+    print("=== Populando Banco de Dados ===")
 
-    servicos_iniciais = [
-        {"nome": "Tour Gramado", "tipo": "Tour",
-            "descricao": "Passeio pelos principais pontos turísticos de Gramado e Canela."},
-        {"nome": "Tour Uva e Vinho", "tipo": "Tour",
-            "descricao": "Visita a vinícolas na região de Bento Gonçalves com almoço típico."},
-        {"nome": "Transfer Aeroporto", "tipo": "Transfer",
-            "descricao": "Transporte privativo do Aeroporto de POA para Gramado/Canela."},
-        {"nome": "Carro a disposição", "tipo": "Carro à disposição",
-            "descricao": "Motorista privativo por período de 8 horas."},
-    ]
+    admin_email = "rsrconsultoriaevenda@gmail.com"
 
-    try:
-        for s in servicos_iniciais:
-            existe = db.query(Servico).filter(
-                Servico.nome == s["nome"]).first()
-            if not existe:
-                novo_servico = Servico(**s)
-                db.add(novo_servico)
-                print(f"Adicionando: {s['nome']}")
+    if not db.query(Usuario).filter(Usuario.email == admin_email).first():
+        admin = Usuario(
+            email=admin_email,
+            senha=hash_senha("Ren@220382"),
+            role="admin"
+        )
+        db.add(admin)
+        print("Admin criado")
 
-        db.commit()
-        print("\nSincronização concluída com sucesso!")
-    except Exception as e:
-        db.rollback()
-        print(f"Erro ao popular banco: {e}")
-    finally:
-        db.close()
+    if db.query(Servico).count() == 0:
+        servicos = [
+            Servico(nome="Transfer Aeroporto", tipo="TRANSFER", valor=150),
+            Servico(nome="City Tour", tipo="PASSEIO", valor=300),
+        ]
+        db.add_all(servicos)
+        print("Serviços criados")
+
+    db.commit()
+    db.close()
+    print("Seed finalizado")
 
 
 if __name__ == "__main__":

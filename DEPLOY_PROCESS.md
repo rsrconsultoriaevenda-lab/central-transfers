@@ -5,7 +5,7 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 ## 1. Preparação local
 
 1. Garanta que o backend esteja funcionando localmente:
-   - `python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8001`
+   - `python -m uvicorn backend.main:app --reload --host 0.0.0.0 --port 8001`
 2. Garanta que os frontends compilem:
    - `npm --prefix painel-saas run build`
 3. Verifique se o backend compila:
@@ -29,6 +29,7 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
    - `DB_USER`
    - `DB_PASSWORD`
    - `DB_NAME`
+   - `WHATSAPP_VERIFY_TOKEN`
    - `WHATSAPP_TOKEN`
    - `WHATSAPP_PHONE_NUMBER_ID`
    - `WHATSAPP_API_VERSION`
@@ -86,6 +87,7 @@ Defina no backend:
 - `DB_USER`
 - `DB_PASSWORD`
 - `DB_NAME`
+- `WHATSAPP_VERIFY_TOKEN`
 - `WHATSAPP_TOKEN`
 - `WHATSAPP_PHONE_NUMBER_ID`
 - `WHATSAPP_API_VERSION`
@@ -95,4 +97,4 @@ Defina no backend:
 - Acesse o backend com `GET /`.
 - Acesse o frontend e submeta um pedido.
 - Acesse o painel e cadastre cliente/motorista/serviço.
-- Atribua um motorista a um pedido e valide a API.
+- Atribua um motorista a um pedido e valide a API

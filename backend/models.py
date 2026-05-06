@@ -13,6 +13,7 @@ class Motorista(Base):
     placa = Column(String(50))
     modelo = Column(String(255))
     ano = Column(Integer)
+    categoria = Column(String(50), default="STANDARD")
     status = Column(String(50), default="ATIVO")
 
     # Novo campo para o período de teste
@@ -37,6 +38,7 @@ class Mensalidade(Base):
     # PENDENTE, PAGO, ATRASADO
     data_pagamento = Column(DateTime, nullable=True)
     status = Column(String(50), default="PENDENTE")
+    checkout_url = Column(String(500), nullable=True)
 
 
 class Cliente(Base):
@@ -111,3 +113,25 @@ class Pedido(Base):
     cliente = relationship("Cliente", back_populates="pedidos")
     servico = relationship("Servico", back_populates="pedidos")
     motorista = relationship("Motorista", back_populates="pedidos")
+
+    def calcular_financeiro(self):
+        """
+        Calcula automaticamente a comissão da central e o valor líquido do motorista.
+        Baseia-se no plano do motorista (MASTER ou MENSAL).
+        """
+        valor_total = float(self.valor) if self.valor else 0.0
+        percentual_comissao = float(self.comissao) if self.comissao else 20.0
+
+        # Valor absoluto que a central retém (calculado sempre para fins de auditoria)
+        self.valor_comissao = valor_total * (percentual_comissao / 100)
+
+        if self.motorista:
+            if getattr(self.motorista, 'plano', 'MENSAL') == 'MASTER':
+                self.valor_liquido_motorista = valor_total - float(self.valor_comissao)
+                self.tipo_comissao_motorista = "PERCENTUAL_CENTRAL"
+            else:
+                # No plano MENSAL, o motorista recebe o valor integral (paga fixo por fora)
+                self.valor_liquido_motorista = valor_total
+                self.tipo_comissao_motorista = "MENSALIDADE_FIXA"
+        else:
+            self.valor_liquido_motorista = 0.0

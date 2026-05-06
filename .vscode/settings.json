@@ -1,3 +1,6 @@
 {
-    "python.analysis.extraPaths": ["./app"]
+    "python.analysis.extraPaths": [
+        "./app"
+    ],
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

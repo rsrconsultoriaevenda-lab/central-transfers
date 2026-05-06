@@ -1,189 +1,110 @@
-from fastapi import APIRouter, HTTPException, Depends, Query
-from sqlalchemy.orm import Session, joinedload
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List, Optional
-from datetime import datetime
-from backend.database import get_db
+from typing import List
 from backend import models, schemas
+from backend.database import get_db
 from backend.auth import get_usuario_atual
+from decimal import Decimal
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
 
-@router.get("/", response_model=List[schemas.PedidoOut])  # type: ignore
-def listar_pedidos(
-    data_inicio: Optional[datetime] = Query(None),
-    data_fim: Optional[datetime] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_usuario_atual)
-):
-    query = db.query(models.Pedido).options(
-        joinedload(models.Pedido.cliente),
-        joinedload(models.Pedido.servico),
-        joinedload(models.Pedido.motorista)
-    )
-
-    if data_inicio:
-        query = query.filter(models.Pedido.data_servico >= data_inicio)
-    if data_fim:
-        query = query.filter(models.Pedido.data_servico <= data_fim)
-
-    return query.order_by(models.Pedido.data_servico.desc()).all()
+@router.get("/", response_model=List[schemas.PedidoOut])
+def listar_pedidos(db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    return db.query(models.Pedido).order_by(models.Pedido.criado_at.desc()).all()
 
 
-@router.get("/stats", response_model=schemas.DashboardStats)
-def obter_estatisticas(
-    data_inicio: Optional[datetime] = Query(None),
-    data_fim: Optional[datetime] = Query(None),
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_usuario_atual)
-):
-    # Filtro base para as estatísticas
-    base_query = db.query(models.Pedido)
-    if data_inicio:
-        base_query = base_query.filter(
-            models.Pedido.data_servico >= data_inicio)
-    if data_fim:
-        base_query = base_query.filter(models.Pedido.data_servico <= data_fim)
+@router.post("/", response_model=schemas.PedidoOut, status_code=status.HTTP_201_CREATED)
+def criar_pedido(pedido_in: schemas.PedidoCreate, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    novo_pedido = models.Pedido(**pedido_in.model_dump())
 
-    stats = base_query.with_entities(
-        models.Pedido.status,
-        func.count(models.Pedido.id)
-    ).group_by(models.Pedido.status).all()
+    # O cálculo financeiro inicial acontece antes de salvar no banco
+    novo_pedido.calcular_financeiro()
 
-    stats_dict = {status: count for status, count in stats}
-
-    # Soma do faturamento (apenas pedidos pagos, aceitos ou concluídos)
-    faturamento = base_query.with_entities(func.sum(models.Pedido.valor)).filter(
-        models.Pedido.status.in_(["PAGO", "ACEITO", "CONCLUIDO"])
-    ).scalar() or 0.0
-
-    return {
-        "total_pedidos": sum(stats_dict.values()),
-        "pendentes": stats_dict.get("PENDENTE", 0),
-        "aguardando_pagamento": stats_dict.get("AGUARDANDO_PAGAMENTO", 0),
-        "pagos": stats_dict.get("PAGO", 0),
-        "aceitos": stats_dict.get("ACEITO", 0),
-        "concluidos": stats_dict.get("CONCLUIDO", 0),
-        "faturamento_total": faturamento
-    }
-
-
-@router.get("/relatorio/comissoes")
-def relatorio_comissoes(db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
-    # Busca pedidos concluídos agrupados por motorista
-    resultados = db.query(
-        models.Motorista.nome.label("motorista"),
-        func.count(models.Pedido.id).label("total_viagens"),
-        func.sum(models.Pedido.valor).label("faturamento_bruto"),
-        func.sum(models.Pedido.valor_comissao).label("total_comissao_central")
-    ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
-     .filter(models.Pedido.status == "CONCLUIDO")\
-     .group_by(models.Motorista.id).all()
-
-    return [
-        {**r._asdict(), "repasse_motorista": float(r.faturamento_bruto or 0) -
-         float(r.total_comissao_central or 0)}
-        for r in resultados
-    ]
+    db.add(novo_pedido)
+    db.commit()
+    db.refresh(novo_pedido)
+    return novo_pedido
 
 
 @router.get("/{pedido_id}", response_model=schemas.PedidoOut)
-def buscar_por_id(pedido_id: int, db: Session = Depends(get_db)):
-    pedido = db.query(models.Pedido).options(
-        joinedload(models.Pedido.cliente),
-        joinedload(models.Pedido.servico),
-        joinedload(models.Pedido.motorista)
-    ).filter(models.Pedido.id == pedido_id).first()
+def obter_pedido(pedido_id: int, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == pedido_id).first()
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
     return pedido
 
 
-@router.post("/", response_model=schemas.PedidoOut)
-def criar_pedido(
-    pedido: schemas.PedidoCreate,
-    db: Session = Depends(get_db),
-    current_user: dict = Depends(get_usuario_atual)
-):
-    """Criação de pedido com isolamento de Tenant automático via ContextVar."""
-    try:
-        novo = models.Pedido(**pedido.model_dump())
-        db.add(novo)
-        db.commit()
-        db.refresh(novo)
-        return novo
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.put("/{pedido_id}/aceitar")
-def aceitar(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
+@router.put("/{pedido_id}/status", response_model=schemas.PedidoOut)
+def atualizar_status(pedido_id: int, status_update: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id).first()
-
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
-    if pedido.motorista_id:
-        raise HTTPException(status_code=409, detail="Já aceito")
+    # Garante que ao mudar para CONCLUIDO ou PAGO, o financeiro esteja atualizado
+    pedido.calcular_financeiro()
+    
+    pedido.status = status_update.status
+    db.commit()
+    db.refresh(pedido)
+    return pedido
+
+
+@router.put("/{pedido_id}/aceitar", response_model=schemas.PedidoOut)
+def atribuir_motorista(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    # Usa with_for_update() para bloquear a linha do banco e evitar que outro motorista aceite simultaneamente
+    pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).with_for_update().first()
+    
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    if pedido.motorista_id is not None:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Este pedido já foi aceito por outro motorista.")
 
     motorista = db.query(models.Motorista).filter(
         models.Motorista.id == data.motorista_id).first()
-
     if not motorista:
         raise HTTPException(status_code=404, detail="Motorista não encontrado")
 
-    pedido.motorista_id = data.motorista_id
+    # Associa o motorista e muda status
+    pedido.motorista = motorista
     pedido.status = "ACEITO"
 
-    db.commit()
-    db.refresh(pedido)
+    # Recalcula automaticamente o financeiro (Líquido do Motorista) baseado no plano dele
+    pedido.calcular_financeiro()
 
-    return pedido
-
-
-@router.put("/{pedido_id}/status")
-def atualizar_status_pedido(pedido_id: int, status_data: schemas.PedidoStatusUpdate, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
-    pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == pedido_id).first()
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
-
-    pedido.status = status_data.status.upper()
     db.commit()
     db.refresh(pedido)
     return pedido
 
 
-@router.put("/{pedido_id}/cancelar")
-def cancelar(pedido_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
-    pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == pedido_id).first()
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+@router.get("/stats", response_model=schemas.DashboardStats)
+def obter_estatisticas(db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+    # Agregando estatísticas para o Dashboard Administrativo
+    query = db.query(models.Pedido)
 
-    if pedido.status == "CONCLUIDO":
-        raise HTTPException(
-            status_code=400, detail="Não é possível cancelar um pedido concluído")
+    total = query.count()
+    pendentes = query.filter(models.Pedido.status == "PENDENTE").count()
+    aguardando = query.filter(models.Pedido.status ==
+                              "AGUARDANDO_PAGAMENTO").count()
+    pagos = query.filter(models.Pedido.status == "PAGO").count()
+    aceitos = query.filter(models.Pedido.status == "ACEITO").count()
+    concluidos = query.filter(models.Pedido.status == "CONCLUIDO").count()
 
-    pedido.status = "CANCELADO"
-    db.commit()
-    db.refresh(pedido)
-    return {"detail": f"Pedido {pedido_id} cancelado com sucesso", "status": pedido.status}
+    faturamento = db.query(func.sum(models.Pedido.valor)).filter(
+        models.Pedido.status == "CONCLUIDO"
+    ).scalar() or 0.0
 
-
-@router.delete("/{pedido_id}")  # type: ignore
-def excluir(pedido_id: int, db: Session = Depends(get_db), current_user: dict = Depends(get_usuario_atual)):
-    pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == pedido_id).first()
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
-    try:
-        db.delete(pedido)
-        db.commit()
-        return {"detail": "Pedido excluído com sucesso"}
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
+    return schemas.DashboardStats(
+        total_pedidos=total,
+        pendentes=pendentes,
+        aguardando_pagamento=aguardando,
+        pagos=pagos,
+        aceitos=aceitos,
+        concluidos=concluidos,
+        faturamento_total=Decimal(str(faturamento))
+    )

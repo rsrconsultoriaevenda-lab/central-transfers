@@ -1,9 +1,5 @@
 import mercadopago
 from backend.config import settings
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 def criar_checkout_pro(item_id: int, valor: float, descricao: str, item_type: str = "PEDIDO"):
     """
@@ -11,7 +7,7 @@ def criar_checkout_pro(item_id: int, valor: float, descricao: str, item_type: st
     item_type pode ser 'PEDIDO' ou 'MENSAL'.
     """
     sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
-
+    
     # Utilizamos um prefixo no external_reference para o webhook saber o que processar
     external_ref = f"{item_type}_{item_id}"
 
@@ -31,25 +27,6 @@ def criar_checkout_pro(item_id: int, valor: float, descricao: str, item_type: st
         },
         "auto_return": "approved",
     }
-
-    try:
-        response = sdk.preference().create(preference_data)
-        init_point = response.get("response", {}).get("init_point")
-        if not init_point:
-            raise Exception("Campo init_point ausente na resposta")
-        return init_point
-    except Exception as e:
-        logger.error(f"Erro ao gerar checkout Mercado Pago: {e}")
-        raise Exception(
-            "Serviço de pagamento indisponível ou erro na criação da preferência")
-
-
-def consultar_status_pagamento(payment_id: str):
-    """Consulta o status real de um pagamento no Mercado Pago."""
-    sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
-    try:
-        payment_info = sdk.payment().get(payment_id)
-        return payment_info["response"]
-    except Exception as e:
-        logger.error(f"Erro ao consultar pagamento {payment_id}: {e}")
-        return None
+    
+    preference_response = sdk.preference().create(preference_data)
+    return preference_response["response"]["init_point"]

@@ -1,5 +1,6 @@
 import os
-from sqlalchemy import create_engine, event
+import logging
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -8,7 +9,7 @@ Base = declarative_base()
 
 # 2. URL do Banco (Busca direta do ENV ou Fallback)
 # Isso evita importar o 'settings' e causar ciclos de importação
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./backend/test.db")
 
 # Correção para URLs do SQLAlchemy que começam com postgres:// (comum no Railway)
 # O SQLAlchemy 1.4+ exige que seja postgresql://
@@ -19,7 +20,7 @@ if DATABASE_URL.startswith("postgres://"):
 # Se estivermos em produção, a URL do banco DEVE vir de uma variável de ambiente
 if os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RENDER"):
     if DATABASE_URL.startswith("sqlite"):
-        print("⚠️ AVISO: Usando SQLite em produção. Os dados podem ser perdidos!")
+        logging.warning("⚠️ CRÍTICO: Usando SQLite em produção. Os dados serão perdidos no reinício do container!")
 
 # 3. ENGINE
 connect_args = {}

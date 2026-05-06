@@ -1,11 +1,13 @@
+import os
 from backend.models import Motorista
 
 
 def get_welcome_email_html(motorista: Motorista):
     """Retorna o template HTML de boas-vindas para o motorista."""
     primary_color = "#4c1d95"
-    # Ajuste para sua URL de produção
-    login_url = "https://centraltransfers.com/driver"
+    # Busca a URL base do ambiente para evitar links quebrados
+    base_url = os.getenv("FRONTEND_URL", "https://centraltransfers.com")
+    login_url = f"{base_url}/driver"
 
     return f"""
     <!DOCTYPE html>

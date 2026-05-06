@@ -238,6 +238,7 @@ def broadcast_to_drivers(db: Session, pedido: models.Pedido):
             continue
     return mensagens
 
+
 @router.get("/incoming")
 def whatsapp_verify(
     mode: str = Query(None, alias="hub.mode"),
@@ -251,6 +252,7 @@ def whatsapp_verify(
         return PlainTextResponse(content=challenge)
     raise HTTPException(
         status_code=403, detail="Token de verificação inválido")
+
 
 @router.post("/incoming")
 async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks):
@@ -267,6 +269,7 @@ async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks)
         logger.error(f"Erro ao receber payload do WhatsApp: {e}")
         # Mesmo em erro de payload, respondemos 202 para evitar retentativas agressivas da Meta
         return Response(status_code=202)
+
 
 def processar_evento_whatsapp(data: dict):
     """
@@ -445,21 +448,12 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
             enviar_whatsapp_meta(sender, text)
             return {"status": "aguardando_pagamento", "mensagem": text}
 
-        pedido.motorista_id = driver.id
+        pedido.motorista = driver
         pedido.status = 'ACEITO'
 
-        # Lógica de cálculo do valor líquido para o motorista e tipo de comissão
-        valor_liquido_motorista = 0.0
-        if getattr(driver, 'plano', 'MENSAL') == 'MASTER':
-            valor_liquido_motorista = float(
-                pedido.valor) - float(pedido.valor_comissao)
-            pedido.tipo_comissao_motorista = "PERCENTUAL_CENTRAL"  # Central retém a comissão
-        else:  # Plano MENSAL
-            valor_liquido_motorista = float(pedido.valor)
-            # Central absorve a comissão da corrida, motorista paga mensalidade
-            pedido.tipo_comissao_motorista = "MENSALIDADE_FIXA"
+        # Aciona o cálculo automático centralizado no modelo
+        pedido.calcular_financeiro()
 
-        pedido.valor_liquido_motorista = valor_liquido_motorista
         db.commit()
         db.refresh(pedido)
 
@@ -594,22 +588,20 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         cliente = _find_or_create_client(db, sender)
         servico = _find_or_create_service(db, service_name, service_type)
 
-        # Define 20% como taxa da central
-        comissao_calculada = float(valor) * 0.20
-
-        novo_pedido = models.Pedido(  # Agora usando models.Pedido
+        novo_pedido = models.Pedido(
             cliente_id=cliente.id,
             servico_id=servico.id,
             origem=origem,
             destino=destino,
             data_servico=data_servico,
             valor=valor,
-            valor_comissao=comissao_calculada,  # Comissão em valor (R$)
-            comissao=20.0,  # Novo campo: percentual da comissão (ex: 20%)
+            comissao=20.0,
             canal_venda="whatsapp",  # Novo campo: origem da venda (marketing)
             observacoes=f"{message} | Indicado por: {parceiro_cod}" if parceiro_cod else message,
             status="AGUARDANDO_PAGAMENTO"  # Padronizado para o Painel
         )
+        novo_pedido.calcular_financeiro()
+
         db.add(novo_pedido)
         db.commit()
         db.refresh(novo_pedido)
@@ -617,7 +609,7 @@ def _executar_logica_negocio_whatsapp(data: dict, db: Session):
         # Fluxo de Checkout Pro (PROD)
         try:
             checkout_url = criar_checkout_pro(
-                novo_pedido.id, novo_pedido.valor)
+                novo_pedido.id, novo_pedido.valor, f"Transporte #{novo_pedido.id}", item_type="PEDIDO")
             instrucao_pagamento = (
                 f"Para finalizar sua reserva, realize o pagamento no link abaixo:\n\n"
                 f"{checkout_url}\n\n"

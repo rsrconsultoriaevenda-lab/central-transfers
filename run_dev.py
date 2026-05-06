@@ -10,7 +10,16 @@ def start_services():
     # 1. Backend (8001)
     print("📦 [1/3] Iniciando Backend FastAPI...")
     backend = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.main:app", "--reload", "--port", "8001"])
+        [
+            sys.executable, "-m", "uvicorn", "backend.main:app",
+            "--reload",
+            "--reload-dir", os.path.abspath("backend"),
+            "--reload-exclude", "*.db*",
+            "--reload-exclude", "*.log",
+            "--port", "8001"
+        ],
+        env={**os.environ, "PYTHONPATH": os.getcwd()}
+    )
 
     time.sleep(2)  # Aguarda o backend carregar
 
@@ -39,6 +48,7 @@ def start_services():
     except KeyboardInterrupt:
         print("\n🛑 Encerrando todos os processos...")
         backend.terminate()
+        backend.wait()  # Garante que o processo uvicorn encerrou
         if frontend:
             frontend.terminate()
         if painel:

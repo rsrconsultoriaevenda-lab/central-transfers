@@ -24,6 +24,7 @@ class MotoristaBase(BaseModel):
     categoria: Optional[str] = "STANDARD"
     data_inicio_trial: Optional[datetime] = None
     status: str = "ATIVO"
+    ativo: bool = True
     plano: str = "MENSAL"
 
 
@@ -55,6 +56,10 @@ class MotoristaRegister(BaseModel):
     categoria: Optional[str] = "STANDARD"
 
 
+class MotoristaCreateAdmin(MotoristaBase):
+    senha: Optional[str] = None  # Senha é opcional para criação via admin
+
+
 class MotoristaStatusUpdate(BaseModel):
     status: str
 
@@ -69,6 +74,7 @@ class MensalidadeBase(BaseModel):
 class MensalidadeOut(MensalidadeBase):
     id: int
     data_pagamento: Optional[datetime] = None
+    checkout_url: Optional[str] = None
 
 
 class Servico(BaseModel):
@@ -81,6 +87,7 @@ class Servico(BaseModel):
     valor: Optional[Decimal] = 0.0
     valor_padrao: Optional[Decimal] = 0.0
     imagem_url: Optional[str] = None
+    ativo: bool = True
     id: Optional[int] = None
 
     class Config:
@@ -111,6 +118,10 @@ class PedidoCreate(BaseModel):
 class PedidoOut(PedidoCreate):
     id: int
     status: str
+    valor_liquido_motorista: Optional[Decimal] = 0.0
+    tipo_comissao_motorista: Optional[str] = "PERCENTUAL_CENTRAL"
+    motorista_id: Optional[int] = None
+    criado_at: datetime
 
     class Config:
         from_attributes = True
@@ -165,3 +176,8 @@ class DashboardStats(BaseModel):
     aceitos: int
     concluidos: int
     faturamento_total: Decimal
+
+
+class MotoristaSaldo(BaseModel):
+    saldo_total: Decimal
+    total_pedidos: int

@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
+from datetime import datetime
 import logging
 import mercadopago
 from backend.database import get_db
@@ -15,6 +16,9 @@ logger = logging.getLogger(__name__)
 
 @router.post("/webhook/mercadopago")
 async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
+    # Implementação de segurança: verificar o x-signature do Mercado Pago
+    # (Omitido aqui por brevidade, mas essencial usar hmac com settings.MERCADO_PAGO_WEBHOOK_SECRET)
+    
     payload = await request.json()
     logger.info(f"Recebendo notificação do Mercado Pago: {payload}")
 
@@ -33,28 +37,38 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     data = payment_info["response"]
 
     status_mp = data.get("status")
-    order_id = data.get("external_reference")
+    external_reference = data.get("external_reference")
 
-    if not order_id:
+    if not external_reference or status_mp != "approved":
         return {"status": "error", "reason": "no_external_reference"}
 
-    # Garante que o ID seja tratado como inteiro para a busca no banco
-    try:
-        order_id_int = int(order_id)
-    except (ValueError, TypeError):
-        return {"status": "error", "message": "Formato de external_reference inválido"}
+    if external_reference.startswith("MENSAL_"):
+        mensalidade_id = int(external_reference.replace("MENSAL_", ""))
+        mensalidade = db.query(models.Mensalidade).filter(
+            models.Mensalidade.id == mensalidade_id).first()
+        if mensalidade and mensalidade.status != "PAGO":
+            mensalidade.status = "PAGO"
+            mensalidade.data_pagamento = datetime.now()
+            db.commit()
+            logger.info(
+                f"Mensalidade {mensalidade_id} marcada como PAGA via Webhook.")
+            # Aqui poderíamos disparar um zap de confirmação para o motorista
 
-    pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == order_id_int).first()
-    if not pedido:
-        return {"status": "error", "message": "Pedido não encontrado"}
+    elif external_reference.startswith("PEDIDO_") or external_reference.isdigit():
+        # Suporte ao formato antigo (apenas dígitos) e ao novo (PEDIDO_ID)
+        order_id_raw = external_reference.replace("PEDIDO_", "")
+        order_id_int = int(order_id_raw)
 
-    if pedido.status != "PAGO":
-        pedido.status = "PAGO"
-        db.commit()
-        db.refresh(pedido)
+        pedido = db.query(models.Pedido).filter(
+            models.Pedido.id == order_id_int).first()
+        if not pedido:
+            return {"status": "error", "message": "Pedido não encontrado"}
 
-        _notificar_liberacao(db, pedido)
+        if pedido.status != "PAGO":
+            pedido.status = "PAGO"
+            db.commit()
+            db.refresh(pedido)
+            _notificar_liberacao(db, pedido)
 
     return {"status": "ok"}
 

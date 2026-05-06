@@ -15,15 +15,9 @@ from backend.routes import (
     clientes
 )
 
-# ==============================
-# LOGGING
-# ==============================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("central-transfers")
 
-# ==============================
-# APP
-# ==============================
 app = FastAPI(title="Central Transfers API")
 
 # ==============================
@@ -31,29 +25,14 @@ app = FastAPI(title="Central Transfers API")
 # ==============================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-    ],
+    allow_origins=["*"],  # depois restringe
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # ==============================
-# ROUTERS (FORA DO STARTUP ✔)
-# ==============================
-app.include_router(auth.router)
-app.include_router(motoristas.router)
-app.include_router(pagamentos.router)
-app.include_router(dashboard.router)
-app.include_router(whatsapp.router)
-app.include_router(pedidos.router)
-app.include_router(servicos.router)
-app.include_router(clientes.router)
-
-# ==============================
-# STARTUP (SOMENTE BANCO)
+# DATABASE INIT
 # ==============================
 @app.on_event("startup")
 def startup():
@@ -62,15 +41,24 @@ def startup():
     logger.info("Database ready")
 
     # ==============================
+    # ROUTERS (FORA DO STARTUP ✅)
+    # ==============================
+    app.include_router(auth.router)
+    app.include_router(motoristas.router)
+    app.include_router(pagamentos.router)
+    app.include_router(dashboard.router)
+    app.include_router(whatsapp.router)
+    app.include_router(pedidos.router)
+    app.include_router(servicos.router)
+    app.include_router(clientes.router)
+
+    # ==============================
     # ROOT
     # ==============================
 @app.get("/")
 def root():
     return {"status": "ok"}
 
-# ==============================
-# HEALTH CHECK
-# ==============================
 @app.get("/health")
 def health():
     return {"status": "ok"}

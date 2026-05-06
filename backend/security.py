@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 # =========================
 # CONFIGURAÇÃO JWT
 # =========================
-SECRET_KEY = "CHANGE_THIS_TO_A_STRONG_SECRET_KEY"
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 dia
 

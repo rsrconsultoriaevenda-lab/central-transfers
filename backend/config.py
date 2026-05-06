@@ -10,10 +10,10 @@ class Settings(BaseSettings):
 
     ENV: str = "production"
 
-    SECRET_KEY: str = "CHANGE_ME"
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
 
-    DATABASE_URL: str = "postgresql://..."
+    DATABASE_URL: str
 
     ALLOWED_ORIGINS: str = "*"
 

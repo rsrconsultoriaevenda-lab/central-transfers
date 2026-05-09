@@ -48,6 +48,22 @@ def run_audit():
         sec_ok = settings.SECRET_KEY != "SEU_SEGREDO_SUPER_FORTE"
         check_step("Segurança de Chaves", sec_ok,
                    "SECRET_KEY padrão detectada! Mude no .env.")
+
+        # Verificação de segredos de Webhooks
+        has_mp_secret = hasattr(
+            settings, 'MERCADO_PAGO_WEBHOOK_SECRET') and settings.MERCADO_PAGO_WEBHOOK_SECRET
+        check_step("Configuração HMAC Mercado Pago", has_mp_secret,
+                   "MERCADO_PAGO_WEBHOOK_SECRET não configurado. Pagamentos vulneráveis!")
+
+        has_wa_secret = hasattr(
+            settings, 'WHATSAPP_APP_SECRET') and settings.WHATSAPP_APP_SECRET
+        check_step("Configuração Segurança WhatsApp",
+                   has_wa_secret, "WHATSAPP_APP_SECRET ausente.")
+
+        # Verificação de Monitoramento
+        has_sentry = hasattr(settings, 'SENTRY_DSN') and settings.SENTRY_DSN
+        check_step("Monitoramento (Sentry)", has_sentry,
+                   "SENTRY_DSN não configurado. Erros em produção podem passar despercebidos.")
     except Exception as e:
         print(f"💥 Erro ao carregar configurações: {e}")
 

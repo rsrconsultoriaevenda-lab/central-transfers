@@ -1,20 +1,28 @@
 import requests
-import json
 from backend.config import settings
 
 
-def enviar_whatsapp_meta(numero: str, mensagem: str, payload_interativo: dict = None):
+def enviar_whatsapp_meta(
+    numero: str,
+    mensagem: str = None,
+    payload_interativo: dict = None
+):
     token = settings.WHATSAPP_TOKEN
     phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
     api_version = settings.WHATSAPP_API_VERSION
 
     if not token or not phone_number_id:
-        return None, "WhatsApp não configurado"
+        return False, "WhatsApp não configurado"
 
-    base_url = f"https://graph.facebook.com/{api_version}/{phone_number_id}/messages"
+    url = (
+        f"https://graph.facebook.com/"
+        f"{api_version}/"
+        f"{phone_number_id}/messages"
+    )
+
     headers = {
         "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
 
     if payload_interativo:
@@ -22,8 +30,9 @@ def enviar_whatsapp_meta(numero: str, mensagem: str, payload_interativo: dict = 
             "messaging_product": "whatsapp",
             "to": numero,
             "type": "interactive",
-            "interactive": payload_interativo
+            "interactive": payload_interativo,
         }
+
     else:
         payload = {
             "messaging_product": "whatsapp",
@@ -31,13 +40,26 @@ def enviar_whatsapp_meta(numero: str, mensagem: str, payload_interativo: dict = 
             "type": "text",
             "text": {
                 "body": mensagem
-            }
+            },
         }
 
-    response = requests.post(
-        base_url,
-        headers=headers,
-        data=json.dumps(payload)
-    )
+        try:
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=15
+            )
 
-    return response.status_code, response.text
+            response.raise_for_status()
+
+            return True, response.json()
+
+        except requests.exceptions.HTTPError:
+            return False, {
+        "status_code": response.status_code,
+        "erro": response.text
+    }
+
+        except requests.exceptions.RequestException as e:
+            return False, str(e)

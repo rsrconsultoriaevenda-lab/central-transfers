@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: str = "*"
 
+    # WebSocket / realtime config (adicionado no último commit)
+    WEBSOCKET_ENABLED: bool = True
+
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
         env_file_encoding="utf-8",

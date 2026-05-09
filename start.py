@@ -1,7 +1,7 @@
 import os
 import uvicorn
 
-port = int(os.environ.get("PORT", 8000))
+port = int(os.environ.get("PORT", 8001))
 
 uvicorn.run(
     "backend.main:app",

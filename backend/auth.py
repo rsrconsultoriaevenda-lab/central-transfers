@@ -8,12 +8,12 @@ import os
 from passlib.context import CryptContext
 
 # Importe as configurações, se estiver usando
-from backend.config import settings
-
+from .config import settings
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -48,6 +48,15 @@ def get_usuario_atual(token: str = Depends(oauth2_scheme)):
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido")
 
+
+def get_usuario_opcional(token: Optional[str] = Depends(oauth2_scheme_optional)):
+    """Retorna o usuário se o token for enviado e válido, caso contrário retorna None."""
+    if not token:
+        return None
+    try:
+        return get_usuario_atual(token)
+    except HTTPException:
+        return None
 
 def criar_token(dados: dict):
     dados_copia = dados.copy()

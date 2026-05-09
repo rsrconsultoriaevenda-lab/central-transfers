@@ -1,7 +1,8 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+from backend.config import settings
 
 
 class Cliente(BaseModel):
@@ -10,8 +11,7 @@ class Cliente(BaseModel):
     telefone: str | None = None
     email: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MotoristaBase(BaseModel):
@@ -31,8 +31,7 @@ class MotoristaBase(BaseModel):
 class Motorista(MotoristaBase):
     id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MotoristaAcesso(BaseModel):
@@ -90,8 +89,7 @@ class Servico(BaseModel):
     ativo: bool = True
     id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ServicoUpdateStatus(BaseModel):
@@ -123,8 +121,7 @@ class PedidoOut(PedidoCreate):
     motorista_id: Optional[int] = None
     criado_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PedidoStatusUpdate(BaseModel):
@@ -164,8 +161,7 @@ class UsuarioResponse(BaseModel):
     email: str
     role: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DashboardStats(BaseModel):

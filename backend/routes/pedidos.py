@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+import asyncio
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
@@ -46,7 +48,7 @@ def atualizar_status(pedido_id: int, status_update: schemas.PedidoStatusUpdate, 
 
     # Garante que ao mudar para CONCLUIDO ou PAGO, o financeiro esteja atualizado
     pedido.calcular_financeiro()
-    
+
     pedido.status = status_update.status
     db.commit()
     db.refresh(pedido)
@@ -54,21 +56,40 @@ def atualizar_status(pedido_id: int, status_update: schemas.PedidoStatusUpdate, 
 
 
 @router.put("/{pedido_id}/aceitar", response_model=schemas.PedidoOut)
-def atribuir_motorista(pedido_id: int, data: schemas.AtribuirMotorista, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
+async def atribuir_motorista(pedido_id: int, data: schemas.AtribuirMotorista, request: Request, db: Session = Depends(get_db), usuario=Depends(get_usuario_atual)):
     # Usa with_for_update() para bloquear a linha do banco e evitar que outro motorista aceite simultaneamente
-    pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).with_for_update().first()
-    
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == pedido_id).with_for_update().first()
+
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido não encontrado")
 
     if pedido.motorista_id is not None:
         db.rollback()
-        raise HTTPException(status_code=400, detail="Este pedido já foi aceito por outro motorista.")
+        raise HTTPException(
+            status_code=400, detail="Este pedido já foi aceito por outro motorista.")
 
     motorista = db.query(models.Motorista).filter(
         models.Motorista.id == data.motorista_id).first()
     if not motorista:
         raise HTTPException(status_code=404, detail="Motorista não encontrado")
+
+    # Validação de Limite para Plano Standard (MENSAL)
+    if motorista.plano == "MENSAL":
+        inicio_mes = datetime.now().replace(
+            day=1, hour=0, minute=0, second=0, microsecond=0)
+        contagem_mes = db.query(models.Pedido).filter(
+            models.Pedido.motorista_id == motorista.id,
+            models.Pedido.status.in_(["ACEITO", "CONCLUIDO"]),
+            models.Pedido.data_servico >= inicio_mes
+        ).count()
+
+        if contagem_mes >= 5:
+            db.rollback()
+            raise HTTPException(
+                status_code=400,
+                detail="Limite de 5 serviços mensais atingido no plano Standard. Migre para o plano Master para serviços ilimitados."
+            )
 
     # Associa o motorista e muda status
     pedido.motorista = motorista
@@ -78,6 +99,14 @@ def atribuir_motorista(pedido_id: int, data: schemas.AtribuirMotorista, db: Sess
     pedido.calcular_financeiro()
 
     db.commit()
+
+    # Notifica via WebSocket que o pedido foi aceito
+    notifier = request.app.state.notifier
+    asyncio.create_task(notifier.notify_drivers({
+        "type": "ORDER_ACCEPTED",
+        "pedido_id": pedido.id
+    }))
+
     db.refresh(pedido)
     return pedido
 

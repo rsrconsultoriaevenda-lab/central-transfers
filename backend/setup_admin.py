@@ -1,30 +1,39 @@
+import logging
 from backend.database import SessionLocal
 from backend.models import Usuario
 from backend.auth import hash_senha
+from backend.config import settings
 
+logger = logging.getLogger(__name__)
 
 def criar_admin_mestre():
+    """
+    Garante a existência de um administrador mestre no banco de dados.
+    Lógica executada no startup da aplicação (lifespan).
+    """
     db = SessionLocal()
+    try:
+        # Busca credenciais das configurações (carregadas via .env ou defaults)
+        email_admin = settings.ADMIN_EMAIL
+        senha_admin = settings.ADMIN_PASS
 
-    email = "rsrconsultoriaevenda@gmail.com"
-    senha_plana = "Ren@220382"  # Altere após o primeiro acesso
+        # Verifica se já existe um administrador
+        existe = db.query(Usuario).filter(Usuario.role == "admin").first()
 
-    # Verifica se já existe
-    usuario = db.query(Usuario).filter(Usuario.email == email).first()
-
-    if usuario:
-        usuario.senha = hash_senha(senha_plana)
-        usuario.role = "admin"
-        print(f"✅ Usuário {email} atualizado! Senha: {senha_plana}")
-    else:
-        novo_admin = Usuario(
-            email=email, senha=hash_senha(senha_plana), role="admin")
-        db.add(novo_admin)
-        print(f"🚀 Admin Mestre criado! Login: {email} | Senha: {senha_plana}")
-
-    db.commit()
-    db.close()
-
-
-if __name__ == "__main__":
-    criar_admin_mestre()
+        if not existe:
+            logger.info(f"🚀 Primeiro deploy detectado. Criando Admin: {email_admin}")
+            admin = Usuario(
+                email=email_admin,
+                senha=hash_senha(senha_admin),
+                role="admin"
+            )
+            db.add(admin)
+            db.commit()
+            logger.info("✅ Administrador mestre criado com sucesso.")
+        else:
+            logger.info("ℹ️ Administrador mestre já configurado.")
+    except Exception as e:
+        logger.error(f"❌ Erro ao inicializar Admin Mestre: {e}")
+        db.rollback()
+    finally:
+        db.close()

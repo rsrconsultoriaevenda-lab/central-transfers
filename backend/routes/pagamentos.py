@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
 import mercadopago
+import hashlib
+import hmac
 from backend.database import get_db
 from backend import models
 from backend.services.whatsapp_service import enviar_whatsapp_meta
@@ -16,11 +18,36 @@ logger = logging.getLogger(__name__)
 
 @router.post("/webhook/mercadopago")
 async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
-    # Implementação de segurança: verificar o x-signature do Mercado Pago
-    # (Omitido aqui por brevidade, mas essencial usar hmac com settings.MERCADO_PAGO_WEBHOOK_SECRET)
-    
+    """Recebe e valida notificações do Mercado Pago com segurança HMAC."""
+    # Validação de Assinatura para Produção
+    signature_header = request.headers.get("x-signature")
+    if not signature_header:
+        logger.warning("Tentativa de acesso ao Webhook sem x-signature.")
+        return {"status": "ignored"}
+
+    # Extração de parâmetros da assinatura (v1=...,ts=...)
+    parts = {item.split('=')[0]: item.split('=')[1]
+             for item in signature_header.split(',')}
+    timestamp = parts.get('ts')
+    v1 = parts.get('v1')
+
+    if not timestamp or not v1:
+        raise HTTPException(status_code=400, detail="Invalid signature format")
+
     payload = await request.json()
-    logger.info(f"Recebendo notificação do Mercado Pago: {payload}")
+
+    # Verificação de segurança: Validar se o hash bate com o secret do seu .env
+    # Isso impede que usuários externos manipulem o status de pagamento
+    manifest = f"id:{payload.get('data', {}).get('id')};request-id:{request.headers.get('x-request-id')};ts:{timestamp};"
+    hmac_obj = hmac.new(settings.MERCADO_PAGO_WEBHOOK_SECRET.encode(
+    ), manifest.encode(), hashlib.sha256)
+    if not hmac.compare_digest(hmac_obj.hexdigest(), v1):
+        logger.error("🚫 Assinatura do Mercado Pago INVÁLIDA!")
+        raise HTTPException(status_code=403, detail="Invalid HMAC signature")
+
+    # Processamento...
+    if payload.get("action") != "payment.created" and payload.get("type") != "payment":
+        return {"status": "ignored"}
 
     # O Mercado Pago envia notificações de diferentes tópicos.
     # Filtramos para processar apenas atualizações de pagamentos.
@@ -45,14 +72,24 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     if external_reference.startswith("MENSAL_"):
         mensalidade_id = int(external_reference.replace("MENSAL_", ""))
         mensalidade = db.query(models.Mensalidade).filter(
-            models.Mensalidade.id == mensalidade_id).first()
+            models.Mensalidade.id == mensalidade_id).with_for_update().first()
+
         if mensalidade and mensalidade.status != "PAGO":
             mensalidade.status = "PAGO"
             mensalidade.data_pagamento = datetime.now()
+
+            # REGRA DE NEGÓCIO: Reativar motorista se estiver bloqueado por falta de pagamento
+            motorista = mensalidade.motorista
+            if motorista and motorista.status == "TRIAL_EXPIRADO":
+                motorista.status = "ATIVO"
+                logger.info(
+                    f"Motorista {motorista.id} reativado após pagamento da mensalidade.")
+                enviar_whatsapp_meta(
+                    motorista.telefone, f"✅ Pagamento confirmado! Sua conta foi reativada. Bom trabalho!")
+
             db.commit()
-            logger.info(
-                f"Mensalidade {mensalidade_id} marcada como PAGA via Webhook.")
-            # Aqui poderíamos disparar um zap de confirmação para o motorista
+            logger.info(f"Mensalidade {mensalidade_id} marcada como PAGA.")
+        return {"status": "ok"}
 
     elif external_reference.startswith("PEDIDO_") or external_reference.isdigit():
         # Suporte ao formato antigo (apenas dígitos) e ao novo (PEDIDO_ID)
@@ -68,12 +105,12 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
             pedido.status = "PAGO"
             db.commit()
             db.refresh(pedido)
-            _notificar_liberacao(db, pedido)
+            await _notificar_liberacao(db, pedido, request)
 
-    return {"status": "ok"}
+    return {"status": "ok", "message": "Webhook processed successfully"}
 
 
-def _notificar_liberacao(db: Session, pedido: models.Pedido):
+async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Request):
     """Helper para disparar notificações após confirmação de pagamento."""
     # 1. Notifica o Cliente
     if pedido.cliente and pedido.cliente.telefone:
@@ -93,4 +130,19 @@ def _notificar_liberacao(db: Session, pedido: models.Pedido):
             logger.error(f"Falha ao enviar e-mail de pagamento: {e}")
 
     # 2. Notifica os Motoristas
-    broadcast_to_drivers(db, pedido)
+    # Tenta WhatsApp (se configurado)
+    try:
+        broadcast_to_drivers(db, pedido)
+    except:
+        pass
+
+    # Notificação In-App (Estilo Uber)
+    # Acessamos o manager do app para disparar o WebSocket
+    import asyncio
+    notifier = request.app.state.notifier # Accessing app.state.notifier
+    asyncio.create_task(notifier.notify_drivers({
+        "type": "NEW_ORDER",
+        "pedido_id": pedido.id,
+        "mensagem": f"Novo pedido disponível: {pedido.origem} para {pedido.destino}",
+        "valor": str(pedido.valor)
+    }))

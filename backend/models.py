@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Text, Boolean, func
+from decimal import Decimal
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -22,6 +23,7 @@ class Motorista(Base):
     # MENSAL ou MASTER
     ativo = Column(Boolean, default=True)
     plano = Column(String(50), default="MENSAL")
+    comissao_master = Column(Numeric(10, 2), default=10.0) # 5% a 15%
 
     pedidos = relationship("Pedido", back_populates="motorista")
 
@@ -117,21 +119,30 @@ class Pedido(Base):
     def calcular_financeiro(self):
         """
         Calcula automaticamente a comissão da central e o valor líquido do motorista.
-        Baseia-se no plano do motorista (MASTER ou MENSAL).
+        Motorista só recebe por serviços de transporte (categoria TRANSFERS).
         """
-        valor_total = float(self.valor) if self.valor else 0.0
-        percentual_comissao = float(self.comissao) if self.comissao else 20.0
-
-        # Valor absoluto que a central retém (calculado sempre para fins de auditoria)
-        self.valor_comissao = valor_total * (percentual_comissao / 100)
+        valor_total = self.valor if self.valor else Decimal("0.0")
+        
+        # Regra: Plataforma retém 100% de serviços que não sejam transporte
+        is_transporte = self.servico and self.servico.categoria == "TRANSFERS"
+        
+        if not is_transporte:
+            self.valor_comissao = valor_total
+            self.valor_liquido_motorista = Decimal("0.0")
+            self.tipo_comissao_motorista = "PLATAFORMA_FULL"
+            return
 
         if self.motorista:
-            if getattr(self.motorista, 'plano', 'MENSAL') == 'MASTER':
-                self.valor_liquido_motorista = valor_total - float(self.valor_comissao)
+            if self.motorista.plano == 'MASTER':
+                # Plano Master: Comissão variável (5-15%)
+                percentual = self.motorista.comissao_master if self.motorista.comissao_master else Decimal("10.0")
+                self.valor_comissao = valor_total * (percentual / Decimal("100.0"))
+                self.valor_liquido_motorista = valor_total - self.valor_comissao
                 self.tipo_comissao_motorista = "PERCENTUAL_CENTRAL"
             else:
-                # No plano MENSAL, o motorista recebe o valor integral (paga fixo por fora)
-                self.valor_liquido_motorista = valor_total
-                self.tipo_comissao_motorista = "MENSALIDADE_FIXA"
+                # No plano MENSAL (Standard), o motorista recebe o valor integral do transporte
+                self.valor_comissao = Decimal("0.0")
+                self.valor_liquido_motorista = valor_total 
+                self.tipo_comissao_motorista = "STANDARD_ASSINATURA"
         else:
-            self.valor_liquido_motorista = 0.0
+            self.valor_liquido_motorista = Decimal("0.0")

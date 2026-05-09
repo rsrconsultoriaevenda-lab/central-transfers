@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: central-transfers-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: gunicorn -w 1 -k uvicorn.workers.UvicornWorker backend.main:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: central-db
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: VALIDATION_MODE
+        value: "false"
+
+databases:
+  - name: central-db
+    databaseName: central_transfers
+    user: admin
+    plan: free # Ou starter para produção real

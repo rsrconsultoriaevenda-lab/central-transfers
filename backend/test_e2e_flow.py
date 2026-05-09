@@ -1,108 +1,92 @@
 import pytest
 import requests
-from datetime import datetime
+import os
+from typing import Dict
 
-# Configurações - Ajuste para sua URL local ou de produção
-BASE_URL = "http://127.0.0.1:8001"
-ADMIN_EMAIL = "rsrconsultoriaevenda@gmail.com"
-ADMIN_PASS = "Ren@220382"
+# Configurações via variáveis de ambiente com fallback para desenvolvimento
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8001")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "rsrconsultoriaevenda@gmail.com")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "Ren@220382")
 
 
-def test_full_system_flow():
+def test_full_system_flow(api_session, motorista_teste):
     print("\n--- Iniciando Teste de Fluxo Ponta a Ponta ---")
 
-    # 1. Login do Administrador
-    login_res = requests.post(f"{BASE_URL}/auth/login", json={
-        "email": ADMIN_EMAIL,
-        "senha": ADMIN_PASS
-    })
-    assert login_res.status_code == 200, "Falha no login do admin"
-    token = login_res.json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    print("✅ Login Admin: OK")
-
-    # 2. Verificar Multitenancy (Listar serviços da empresa)
-    servicos_res = requests.get(f"{BASE_URL}/servicos/", headers=headers)
-    assert servicos_res.status_code == 200
+    # 1. Verificar Multitenancy (Listar serviços da empresa)
+    servicos_res = api_session.get(f"{BASE_URL}/servicos/")
+    servicos_res.raise_for_status()
+    servicos = servicos_res.json()
+    assert isinstance(servicos, list)
     print(
-        f"✅ Multitenancy (Filtro Automático): OK - {len(servicos_res.json())} serviços encontrados")
+        f"✅ Multitenancy (Filtro Automático): OK - {len(servicos)} serviços encontrados")
 
-    # 3. Simular Pedido via WhatsApp (Criação de Pedido)
-    # Simulando o recebimento de uma mensagem do cliente
-    whatsapp_payload = {
-        "sender": "5554999999999",
-        "message": "Pedido transfer origem: Aeroporto Salgado Filho destino: Hotel Gramado data: 20/05/2026 14:00 valor: 250"
-    }
-    # A rota no código é /whatsapp/webhook ou similar. Baseado no seu routes/whatsapp.py:
-    # Nota: No seu código o prefixo é /whatsapp, mas a lógica de recebimento parece estar no processar_evento_whatsapp
-    # Vamos testar o endpoint de criação direta de pedido para validar o banco primeiro
+    # 2. Criação de Pedido
+    # Tenta obter um cliente e serviço reais para o teste não quebrar em bancos limpos
+    clientes_res = api_session.get(f"{BASE_URL}/clientes/")
+    clientes = clientes_res.json()
+
+    if not clientes or not servicos:
+        pytest.fail(
+            "❌ Erro: O banco de dados precisa de ao menos um cliente e um serviço. Rode 'python seed_db.py' primeiro.")
+
+    target_cliente_id = clientes[0]["id"]
+    target_servico_id = servicos[0]["id"]
 
     pedido_data = {
-        "cliente_id": 1,  # Assumindo que o cliente 1 existe
-        "servico_id": 1,
-        "origem": "Teste Origem",
-        "destino": "Teste Destino",
+        "cliente_id": target_cliente_id,
+        "servico_id": target_servico_id,
+        "origem": "Aeroporto Salgado Filho",
+        "destino": "Hotel Gramado",
         "data_servico": "2026-05-20T14:00:00",
         "valor": 250.00
     }
 
-    novo_pedido_res = requests.post(
-        f"{BASE_URL}/pedidos/", json=pedido_data, headers=headers)
+    novo_pedido_res = api_session.post(
+        f"{BASE_URL}/pedidos/", json=pedido_data)
     assert novo_pedido_res.status_code in [200, 201]
-    pedido_id = novo_pedido_res.json()["id"]
+    pedido = novo_pedido_res.json()
+    pedido_id = pedido["id"]
     print(f"✅ Criação de Pedido: OK (ID: {pedido_id})")
 
-    # 4. Simular Webhook de Pagamento (Mercado Pago)
-    # Simulando a notificação que o Mercado Pago enviaria
-    # Precisamos de um mock ou testar a rota diretamente
-    webhook_payload = {
-        "type": "payment",
-        "data": {"id": "123456789"},
-        "id": "123456789"
-    }
-    # Nota: A rota webhook_mercadopago busca o external_reference na API do MP.
-    # Para teste manual, vamos atualizar o status via rota de pedidos.
-
-    update_status_res = requests.put(
+    # 3. Simular Webhook de Pagamento (Transição de Status)
+    update_status_res = api_session.put(
         f"{BASE_URL}/pedidos/{pedido_id}/status",
-        json={"status": "PAGO"},
-        headers=headers
+        json={"status": "PAGO"}
     )
-    assert update_status_res.status_code == 200
+    update_status_res.raise_for_status()
     assert update_status_res.json()["status"] == "PAGO"
     print("✅ Processamento de Pagamento (Simulação): OK")
 
-    # 5. Atribuição de Motorista (Aceite)
-    # Primeiro pegamos um motorista
-    motoristas_res = requests.get(f"{BASE_URL}/motoristas/", headers=headers)
-    if motoristas_res.json():
-        motorista_id = motoristas_res.json()[0]["id"]
+    # 4. Atribuição de Motorista (Aceite)
+    motoristas_res = api_session.get(f"{BASE_URL}/motoristas/")
+    motoristas_res.raise_for_status()
+    motoristas = motoristas_res.json()
 
-        aceite_res = requests.put(
+    if motoristas:
+        motorista_id = motorista_teste["motorista"]["id"]
+        aceite_res = api_session.put(
             f"{BASE_URL}/pedidos/{pedido_id}/aceitar",
-            json={"motorista_id": motorista_id},
-            headers=headers
+            json={"motorista_id": motorista_id}
         )
-        assert aceite_res.status_code == 200
+        aceite_res.raise_for_status()
         assert aceite_res.json()["status"] == "ACEITO"
         print(f"✅ Atribuição de Motorista: OK (Motorista ID: {motorista_id})")
     else:
-        print("⚠️ Pulando teste de motorista: Nenhum motorista cadastrado.")
+        print("⚠️ Atenção: Nenhum motorista disponível para teste de aceite.")
 
-    # 6. Finalização do Serviço
-    finalizar_res = requests.put(
+    # 5. Finalização do Serviço
+    finalizar_res = api_session.put(
         f"{BASE_URL}/pedidos/{pedido_id}/status",
-        json={"status": "CONCLUIDO"},
-        headers=headers
+        json={"status": "CONCLUIDO"}
     )
-    assert finalizar_res.status_code == 200
+    finalizar_res.raise_for_status()
+    assert finalizar_res.json()["status"] == "CONCLUIDO"
     print("✅ Finalização de Serviço: OK")
 
     print("\n--- Auditoria Concluída com Sucesso! ---")
 
 
 if __name__ == "__main__":
-    try:
-        test_full_system_flow()
-    except Exception as e:
-        print(f"❌ Falha no Teste: {e}")
+    # Permite rodar o arquivo diretamente via 'python backend/test_e2e_flow.py'
+    import sys
+    sys.exit(pytest.main([__file__, "-s"]))

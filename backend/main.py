@@ -1,54 +1,124 @@
-import logging
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from backend.config import settings  # Caminho absoluto para evitar erro de import
-from backend.database import engine
-from backend import models
-from backend.routes import (
-    auth, pagamentos, dashboard, whatsapp,
-    motoristas, pedidos, servicos, clientes
-)
+import logging
 
-# Configuração de Log
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("central-transfers")
+# 1. Imports de configuração e serviços
+from backend.config import settings
+from backend.services.notifier_service import ConnectionManager
+from backend.routes import pagamentos, whatsapp, auth, health
+from backend.setup_admin import criar_admin_mestre
 
-app = FastAPI(title="Central Transfers API")
+logger = logging.getLogger(__name__)
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 2. Definição do Ciclo de Vida (Lifespan)
 
-# ROUTERS (Mantenha fora do startup)
-app.include_router(auth.router)
-app.include_router(motoristas.router)
-app.include_router(pagamentos.router)
-app.include_router(dashboard.router)
-app.include_router(whatsapp.router)
-app.include_router(pedidos.router)
-app.include_router(servicos.router)
-app.include_router(clientes.router)
 
-# DATABASE INIT
-@app.on_event("startup")
-def startup():
-    logger.info("Initializing database...")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Iniciando aplicação Central Transfers...")
     try:
-        models.Base.metadata.create_all(bind=engine)
-        logger.info("Database ready")
+        criar_admin_mestre()
     except Exception as e:
-        logger.error(f"Database error: {e}")
+        logger.error(f"Erro ao inicializar Admin Mestre: {e}")
 
-        # ROTAS GLOBAIS (CORRIGIDAS: Identação para a esquerda!)
+        app.state.notifier = ConnectionManager()
+        logger.info("Aplicação iniciada e serviços essenciais carregados.")
+        yield
+        logger.info("Encerrando aplicação Central Transfers...")
+
+        # --- CHECKPOINT CRÍTICO: O 'app' DEVE ser definido aqui ---
+        app = FastAPI(lifespan=lifespan)
+
+        # 3. Middlewares
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.get_allowed_origins(),
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
+        # 4. Inclusão de Rotas
+        app.include_router(health.router)
+        app.include_router(pagamentos.router)
+        app.include_router(whatsapp.router)
+        app.include_router(auth.router)
+
+        # 5. Endpoints (Websocket e Raiz)
+
+
+@app.websocket("/ws/{motorista_id}")
+async def websocket_endpoint(websocket: WebSocket, motorista_id: int):
+    manager: ConnectionManager = app.state.notifier
+    await manager.connect(websocket, motorista_id)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(motorista_id)
+    except Exception as e:
+        logger.error(
+            f"Erro na conexão WebSocket para motorista {motorista_id}: {e}")
+        manager.disconnect(motorista_id)
+
+
+@app.get("/test-broadcast")
+async def test_broadcast():
+    manager: ConnectionManager = app.state.notifier
+    await manager.notify_drivers({
+        "type": "TEST_NOTIFICATION",
+        "mensagem": "🚨 TESTE: Novo pedido disponível!",
+        "valor": "250.00"
+    })
+    return {"status": "Notificação enviada com sucesso"}
+
+
 @app.get("/")
-def root():
-    return {"status": "ok", "message": "Central Transfers API is running"}
+async def root():
+    return {
+        "status": "online",
+        "app": settings.APP_NAME,
+        "environment": settings.ENV,
+        "database": "connected",
+        "docs": "/docs"
+    }
+from fastapi import WebSocket, WebSocketException, status, Query, Depends
+from typing import Annotated
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+# Supondo que você tenha uma função de validação no seu módulo backend/auth/
+# from backend.auth.service import decode_access_token 
+
+async def get_token_auth(
+    websocket: WebSocket,
+    token: Annotated[str | None, Query()] = None,
+):
+    """
+    Dependência para validar o token JWT via Query Parameter.
+    Se o token for inválido ou ausente, fecha a conexão.
+    """
+    if token is None:
+        # WS_1008_POLICY_VIOLATION é o código padrão para falha de política/auth
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+    
+    # Exemplo de lógica de validação:
+    # user = decode_access_token(token)
+    # if not user:
+    #     raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+    
+    return token # Ou retorne o objeto do usuário/motorista decodificado
+
+@app.websocket("/ws/{motorista_id}")
+async def websocket_endpoint(
+    websocket: WebSocket,
+    motorista_id: int,
+    token: Annotated[str, Depends(get_token_auth)] # A autenticação acontece aqui
+):
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            # Lógica de processamento...
+    except Exception:
+        # Tratar desconexões
+        pass

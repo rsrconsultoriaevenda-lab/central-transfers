@@ -2,41 +2,63 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.database import get_db
 from backend import models, schemas
-from backend.auth import verificar_senha, criar_token, get_usuario_atual
+from backend.auth import verificar_senha, criar_token
 
-router = APIRouter(prefix="/auth", tags=["Autenticação"])
+router = APIRouter(
+    prefix="/auth",
+    tags=["Auth"]
+)
 
 
-@router.post("/login", response_model=schemas.Token)
-def login(request: schemas.LoginRequest, db: Session = Depends(get_db)):
+@router.post("/login")
+def login(
+    request: schemas.LoginRequest,
+    db: Session = Depends(get_db)
+):
     """
-    Endpoint de autenticação. Verifica as credenciais e retorna um token JWT.
+    Realiza login e retorna JWT.
     """
-    # Busca o usuário pelo e-mail fornecido
-    usuario = db.query(models.Usuario).filter(
-        models.Usuario.email == request.email).first()
 
-    # Valida se o usuário existe e se a senha está correta
-    if not usuario or not verificar_senha(request.senha, usuario.senha):
+    # 1. Busca o usuário pelo e-mail
+    user = db.query(models.Usuario).filter(
+        models.Usuario.email == request.email
+    ).first()
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha incorretos"
+            detail="Usuário não encontrado"
         )
 
-    # Gera o token de acesso incluindo as claims de identidade e permissão
-    access_token = criar_token(dados={
-        "sub": usuario.email,
-        "user_id": usuario.id,
-        "role": usuario.role
-    })
+    # 2. Verifica a senha (certifique-se que o schema LoginRequest usa o campo 'senha')
+    senha_valida = verificar_senha(
+        request.senha,
+        user.senha_hash
+    )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    if not senha_valida:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Senha inválida"
+        )
 
+    # 3. Verifica se o usuário está ativo
+    if not user.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Usuário desativado"
+        )
 
-@router.get("/me", response_model=schemas.UsuarioResponse)
-def get_me(current_user: dict = Depends(get_usuario_atual)):
-    """
-    Retorna os dados do usuário autenticado. 
-    Essencial para o frontend validar a sessão e identificar o papel (role) do usuário.
-    """
-    return current_user
+    # 4. Gera os dados para o token e cria o JWT
+    token_data = {
+        "sub": user.email,
+        "user_id": user.id,
+        "role": user.role
+    }
+
+    access_token = criar_token(dados=token_data)
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }

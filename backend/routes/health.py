@@ -1,3 +1,4 @@
+import os
 import requests
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -17,7 +18,9 @@ def health_check(db: Session = Depends(get_db)):
     db_status = "OK"
     meta_api_status = "OK"
     overall_status = "OK"
+    cors_status = "OK"
     errors = []
+    frontend_url = os.getenv("FRONTEND_URL", "Não configurada")
 
     # 1. Check Database Connection
     try:
@@ -66,6 +69,13 @@ def health_check(db: Session = Depends(get_db)):
         errors.append(f"Unexpected error checking Meta API: {e}")
         logger.error(f"Health check Meta API unexpected error: {e}")
 
+    # 3. Check CORS Security
+    if settings.ALLOWED_ORIGINS == "*":
+        cors_status = "WARNING (Too Open)"
+        if settings.ENV == "production":
+            errors.append(
+                "CORS está configurado como '*' em produção. Isso é um risco de segurança.")
+
     # 3. Check Mercado Pago Connection (Opcional, mas recomendado)
     mp_status = "OK"
     try:
@@ -86,6 +96,8 @@ def health_check(db: Session = Depends(get_db)):
         "database": db_status,
         "meta_api": meta_api_status,
         "mercado_pago": mp_status,
+        "cors_policy": cors_status,
+        "configured_frontend": frontend_url,
         "timestamp": datetime.now().isoformat(),
     }
     if errors:

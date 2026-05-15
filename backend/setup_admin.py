@@ -6,6 +6,7 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 def criar_admin_mestre():
     """
     Garante a existência de um administrador mestre no banco de dados.
@@ -21,15 +22,17 @@ def criar_admin_mestre():
         existe = db.query(Usuario).filter(Usuario.role == "admin").first()
 
         if not existe:
-            logger.info(f"🚀 Primeiro deploy detectado. Criando Admin: {email_admin}")
+            logger.info(
+                f"🚀 Primeiro deploy detectado. Criando Admin: {email_admin}")
             admin = Usuario(
                 email=email_admin,
-                senha=hash_senha(senha_admin),
+                senha_hash=hash_senha(senha_admin),
                 role="admin"
             )
             db.add(admin)
             db.commit()
-            logger.info("✅ Administrador mestre criado com sucesso.")
+            logger.info(f"✅ Administrador mestre criado com sucesso. Email: {email_admin}. "
+                        "Por favor, altere a senha padrão após o primeiro login.")
         else:
             logger.info("ℹ️ Administrador mestre já configurado.")
     except Exception as e:
@@ -37,3 +40,8 @@ def criar_admin_mestre():
         db.rollback()
     finally:
         db.close()
+
+if __name__ == "__main__":
+    # Configuração básica de logging para quando rodar via CLI
+    logging.basicConfig(level=logging.INFO)
+    criar_admin_mestre()

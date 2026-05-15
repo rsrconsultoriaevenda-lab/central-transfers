@@ -139,10 +139,11 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Requ
     # Notificação In-App (Estilo Uber)
     # Acessamos o manager do app para disparar o WebSocket
     import asyncio
-    notifier = request.app.state.notifier # Accessing app.state.notifier
-    asyncio.create_task(notifier.notify_drivers({
-        "type": "NEW_ORDER",
-        "pedido_id": pedido.id,
-        "mensagem": f"Novo pedido disponível: {pedido.origem} para {pedido.destino}",
-        "valor": str(pedido.valor)
-    }))
+    notifier = getattr(request.app.state, "notifier", None)
+    if notifier:
+        asyncio.create_task(notifier.notify_drivers({
+            "type": "NEW_ORDER",
+            "pedido_id": pedido.id,
+            "mensagem": f"Novo pedido disponível: {pedido.origem} para {pedido.destino}",
+            "valor": str(pedido.valor)
+        }))

@@ -2,30 +2,27 @@ import os
 import json
 from datetime import datetime
 import re
-import urllib.parse
 import logging
 import hmac
 import hashlib
+from decimal import Decimal
 
 from fastapi import APIRouter, HTTPException, Query, Response, Request, BackgroundTasks
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 
-from typing import Optional
-
 from backend import models
 from backend.config import settings
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.database import SessionLocal
-from backend.services.pagamento_service import criar_checkout_pro
 from backend.auth import hash_senha
-from backend.services.email_service import notificar_cliente_motorista_atribuido
 
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Mapeamento de serviços para facilitar o parsing
 SERVICE_MAP = {
     "gramado": ("Tour Gramado", "Tour"),
     "uva": ("Tour Uva e Vinho", "Tour"),
@@ -35,25 +32,10 @@ SERVICE_MAP = {
     "transfer": ("Transfer", "Transfer"),
 }
 
-BOOKING_KEYWORDS = ["pedido", "reserva",
-                    "transfer", "tour", "viagem", "origem"]
-
-PAYMENT_METHOD = "PIX ou transferência bancária"
-
-CENTRAL_BANK_DETAILS = (
-    "R.DE S.ROCHA LTDA\n"
-    "Banco: 336 - C6 S.A.\n"
-    "Agência: 0001\n"
-    "Conta: 35224666-9\n"
-    "PIX: 58.011.293/0001-92\n"
-)
-
-COMMISSION_NOTE = "A central recebe o valor e repassa a comissão após a viagem."
-
-
 # =========================
-# UTILITÁRIOS
+# UTILITÁRIOS DE PARSING
 # =========================
+
 
 def _clean_text(value: str):
     if not value:
@@ -69,13 +51,11 @@ def _parse_field(text: str, label: str):
     start = idx + len(label)
     remainder = text[start:]
     end = len(remainder)
-
     for sep in ["\n", ";", ".", ","]:
         pos = remainder.find(sep)
         if pos != -1:
             end = min(end, pos)
-
-            return _clean_text(remainder[:end])
+    return _clean_text(remainder[:end])
 
 
 def _guess_service(message: str):
@@ -83,7 +63,7 @@ def _guess_service(message: str):
     for key, (name, tipo) in SERVICE_MAP.items():
         if key in lower:
             return name, tipo
-        return None, None
+    return "Transfer", "Transfer"
 
 
 def _parse_price(message: str):
@@ -96,30 +76,21 @@ def _parse_price(message: str):
 
 def _parse_date(message: str):
     raw = _parse_field(message, "data:") or _parse_field(message, "em:")
-
-    if not raw:
-        return datetime.now()
-
-    if "hoje" in raw.lower():
+    if not raw or "hoje" in raw.lower():
         return datetime.now()
 
     raw = raw.replace(" às ", " ").replace(" as ", " ").replace("h", ":")
-
-    formatos = [
-        "%Y-%m-%dT%H:%M",
-        "%d/%m/%Y %H:%M",
-        "%d/%m/%y %H:%M",
-        "%d/%m %H:%M",
-        "%d/%m/%Y",
-        "%Y-%m-%d %H:%M",
-    ]
+    formatos = ["%d/%m/%Y %H:%M", "%d/%m/%y %H:%M",
+                "%d/%m %H:%M", "%Y-%m-%d %H:%M"]
 
     for fmt in formatos:
         try:
-            return datetime.strptime(raw, fmt)
+            dt = datetime.strptime(raw, fmt)
+            if dt.year == 1900:
+                dt = dt.replace(year=datetime.now().year)
+            return dt
         except ValueError:
             continue
-
         return datetime.now()
 
 
@@ -128,42 +99,40 @@ def _parse_order_id(message: str):
     return int(match.group(1)) if match else None
 
     # =========================
-    # WEBHOOK VERIFICATION
+    # WEBHOOK VERIFICATION (GET)
     # =========================
 
 
-@router.get("/incoming")
-def whatsapp_verify(
+@router.get("/webhook")
+async def whatsapp_verify(
     mode: str = Query(None, alias="hub.mode"),
     token: str = Query(None, alias="hub.verify_token"),
     challenge: str = Query(None, alias="hub.challenge")
 ):
+    """Handshake de verificação da Meta API."""
+    verify_token = getattr(settings, "WHATSAPP_VERIFY_TOKEN", None)
 
-    print("MODE:", mode)
-    print("TOKEN RECEBIDO:", repr(token))
-    print("TOKEN ESPERADO:", repr(settings.WHATSAPP_VERIFY_TOKEN))
+    logger.info(f"🔍 Tentativa de Handshake - Mode: {mode}")
 
-    # Verificação oficial para o handshake da Meta (corrigido)
-    if mode == "subscribe" and token == settings.WHATSAPP_VERIFY_TOKEN:  # Removed syntax error
-        logger.info("✅ Webhook verificado com sucesso pelo Meta.")
-        return Response(content=challenge, media_type="text/plain")
+    if mode == "subscribe" and token == verify_token and verify_token is not None:
+        logger.info("✅ Webhook verificado com sucesso!")
+        return PlainTextResponse(content=challenge)
 
-    logger.warning(
-        f"❌ Falha na verificação do Webhook. Token esperado: {settings.WHATSAPP_VERIFY_TOKEN}")
-    return Response(content="forbidden", status_code=403)
+    logger.warning(f"❌ Falha no Handshake. Token recebido: {token}")
+    return Response(content="Forbidden", status_code=403)
 
-# =========================
-# WEBHOOK PRINCIPAL
-# =========================
+    # =========================
+    # WEBHOOK PRINCIPAL (POST)
+    # =========================
 
 
-@router.post("/incoming")
+@router.post("/webhook")
 async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks):
     signature = request.headers.get("X-Hub-Signature-256")
+    body = await request.body()
 
-    # Validação de Assinatura HMAC (Só ativa se o SECRET estiver configurado no .env)
-    if settings.WHATSAPP_APP_SECRET and signature and settings.ENV != "development":
-        body = await request.body()
+    # Validação HMAC (Segurança)
+    if settings.WHATSAPP_APP_SECRET and signature and settings.ENV == "production":
         expected = hmac.new(
             settings.WHATSAPP_APP_SECRET.encode(),
             body,
@@ -171,111 +140,151 @@ async def whatsapp_incoming(request: Request, background_tasks: BackgroundTasks)
         ).hexdigest()
 
         if not hmac.compare_digest(signature.replace("sha256=", ""), expected):
+            logger.warning("🚫 Assinatura do WhatsApp inválida.")
             return Response(status_code=403)
 
-    # Processamento do Payload
     try:
-        data = await request.json()
-        sender = None
-        message = None
+        data = json.loads(body)
 
-        # Extração inteligente: Funciona para Meta Oficial e para seu Script de Simulação
+        # Extração Meta Oficial
         if "entry" in data:
             try:
-                msg_obj = data["entry"][0]["changes"][0]["value"]["messages"][0]
-                sender = msg_obj.get("from")
-                message = msg_obj.get("text", {}).get("body")
+                changes = data["entry"][0]["changes"][0]["value"]
+                if "messages" in changes:
+                    msg_obj = changes["messages"][0]
+                    sender = msg_obj.get("from")
+                    message = msg_obj.get("text", {}).get("body")
+
+                    if sender and message:
+                        logger.info(f"📩 Mensagem de {sender}: {message}")
+                        # Passamos o notifier do estado da aplicação para a tarefa de fundo
+                        notifier = getattr(request.app.state, "notifier", None)
+                        background_tasks.add_task(
+                            processar_evento_whatsapp,
+                            {"sender": sender, "message": message},
+                            notifier
+                        )
             except (KeyError, IndexError):
-                return {"status": "ignored", "reason": "non_message_event"}
-        else:
-            sender = data.get("sender") or data.get("from")
-            message = data.get("message") or data.get("text", {}).get("body")
+                pass
 
-        if not sender:
-            return {"status": "error", "message": "sender_not_found"}
-
-        logger.info(f"📩 Mensagem de {sender}: {message}")
-        background_tasks.add_task(processar_evento_whatsapp, {"sender": sender, "message": message})
         return {"status": "accepted"}
 
     except Exception as e:
-        logger.error(f"Erro ao processar webhook WhatsApp: {e}", exc_info=True)
-        # Retornamos 202 para a Meta não tentar reenviar infinitamente um erro de código
-        return Response(status_code=202)
+        logger.error(f"Erro no processamento do webhook: {e}")
+        # Meta exige 200 para não reenviar o erro
+        return Response(status_code=200)
 
         # =========================
-        # BACKGROUND PROCESSING
+        # LÓGICA DE NEGÓCIO
         # =========================
 
 
-def processar_evento_whatsapp(data: dict):
+def processar_evento_whatsapp(data: dict, notifier=None):
     db = SessionLocal()
     try:
-        _executar_logica_negocio_whatsapp(data, db)
+        sender = data.get("sender")
+        message = data.get("message", "")
+        lower = message.lower()
+
+        # 1. ACEITE DO MOTORISTA (Prioridade)
+        if "aceitar pedido" in lower or "aceito pedido" in lower:
+            pedido_id = _parse_order_id(message)
+            if not pedido_id:
+                return
+
+            motorista = db.query(models.Motorista).filter(
+                models.Motorista.telefone == sender).first()
+            if not motorista:
+                enviar_whatsapp_meta(
+                    sender, "❌ Telefone não cadastrado como motorista.")
+                return
+
+            # LOCK: Evita corrida de dados (Race Condition)
+            pedido = db.query(models.Pedido).filter(
+                models.Pedido.id == pedido_id,
+                models.Pedido.status == "PENDENTE"
+            ).with_for_update().first()
+
+            if pedido:
+                pedido.motorista_id = motorista.id
+                pedido.status = "ACEITO"
+                enviar_whatsapp_meta(
+                    sender, f"✅ Pedido #{pedido_id} é seu! Bom trabalho.")
+                if pedido.cliente:
+                    enviar_whatsapp_meta(
+                        pedido.cliente.telefone, f"🚖 O motorista {motorista.nome} aceitou seu pedido!")
+                db.commit()
+            else:
+                enviar_whatsapp_meta(
+                    sender, "❌ Este pedido já foi aceito ou não está mais disponível.")
+
+        # 2. CRIAÇÃO DE PEDIDO (Cliente)
+        elif any(k in lower for k in ["pedido", "reserva", "transfer"]):
+            origem = _parse_field(message, "origem:")
+            destino = _parse_field(message, "destino:")
+
+            if not origem or not destino:
+                enviar_whatsapp_meta(
+                    sender, "⚠️ Use o formato: Pedido origem: [Local] destino: [Local]")
+                return
+
+            cliente = db.query(models.Cliente).filter(
+                models.Cliente.telefone == sender).first()
+            if not cliente:
+                cliente = models.Cliente(
+                    nome="Cliente WhatsApp", telefone=sender)
+                db.add(cliente)
+                db.flush()
+
+            serv_nome, _ = _guess_service(message)
+            servico = db.query(models.Servico).filter(
+                models.Servico.nome == serv_nome).first() or db.query(models.Servico).first()
+
+            novo_pedido = models.Pedido(
+                cliente=cliente,
+                servico=servico,
+                origem=origem,
+                destino=destino,
+                data_servico=_parse_date(message),
+                valor=Decimal(str(_parse_price(message))),
+                status="PENDENTE",
+                canal_venda="whatsapp"
+            )
+            db.add(novo_pedido)
+            db.commit()
+            db.refresh(novo_pedido)
+
+            enviar_whatsapp_meta(
+                sender, f"✅ Pedido #{novo_pedido.id} recebido! Aguarde um motorista.")
+
+            # 3. Notificação WebSocket (In-App)
+            if notifier:
+                import asyncio
+                asyncio.create_task(notifier.notify_drivers({
+                    "type": "NEW_ORDER",
+                    "pedido_id": novo_pedido.id,
+                    "mensagem": f"Novo pedido via WhatsApp: {origem} -> {destino}",
+                    "valor": str(novo_pedido.valor)
+                }))
+
+            broadcast_to_drivers(db, novo_pedido)
+
+    except Exception as e:
+        logger.error(f"Erro na execução: {e}")
     finally:
         db.close()
 
 
-def _executar_logica_negocio_whatsapp(data: dict, db: Session):
-    # Tenta extrair do formato aninhado da Meta ou do formato simples
-    sender = data.get("from") or data.get("sender")
-    message = data.get("message")
-
-    if "entry" in data:
-        try:
-            val = data["entry"][0]["changes"][0]["value"]["messages"][0]
-            sender = val.get("from")
-            message = val.get("text", {}).get("body")
-        except (KeyError, IndexError):
-            pass
-
-    if not sender:
-        return
-
-    lower = str(message).lower() if message else ""
-
-    # exemplo mínimo (mantive sua lógica original fora para evitar quebra)
-    if "pago" in lower:
-        enviar_whatsapp_meta(sender, "Pagamento recebido.")
-        return
-
-    if "aceito" in lower:
-        enviar_whatsapp_meta(sender, "Pedido aceito.")
-        return
-
-    enviar_whatsapp_meta(sender, "Mensagem recebida.")
-
-
 def broadcast_to_drivers(db: Session, pedido: models.Pedido):
     motoristas = db.query(models.Motorista).filter(
-        models.Motorista.telefone.isnot(None),
-        models.Motorista.status == "ATIVO"
-    ).all()
-
-    mensagens = []
-
-    for motorista in motoristas:
-        try:
-            texto = (
-                f"🚖 Novo pedido #{pedido.id}\n"
-                f"📍 {pedido.origem} → {pedido.destino}\n"
-                f"📅 {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n"
-                f"💰 R$ {pedido.valor}\n\n"
-                f"Responda: aceitar pedido {pedido.id}"
-            )
-
-            status, resp = enviar_whatsapp_meta(
-                motorista.telefone,
-                texto
-            )
-
-            mensagens.append({
-                "motorista": motorista.id,
-                "status": status,
-                "response": resp
-            })
-
-        except Exception as e:
-            logger.error(f"Erro motorista {motorista.id}: {e}")
-
-            return mensagens
+        models.Motorista.status == "ATIVO").all()
+    texto = (
+        f"🚖 *NOVO PEDIDO #{pedido.id}*\n"
+        f"📍 {pedido.origem} → {pedido.destino}\n"
+        f"📅 {pedido.data_servico.strftime('%d/%m/%Y %H:%M')}\n"
+        f"💰 R$ {pedido.valor}\n\n"
+        f"Responda: *aceitar pedido {pedido.id}*"
+    )
+    for m in motoristas:
+        if m.telefone:
+            enviar_whatsapp_meta(m.telefone, texto)

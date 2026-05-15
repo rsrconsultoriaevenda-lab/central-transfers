@@ -14,8 +14,7 @@ def start_services():
             sys.executable, "-m", "uvicorn", "backend.main:app",
             "--reload",
             "--reload-dir", os.path.abspath("backend"),
-            "--reload-exclude", "*.db*",
-            "--reload-exclude", "*.log",
+            "--host", "127.0.0.1",
             "--port", "8001"
         ],
         env={**os.environ, "PYTHONPATH": os.getcwd()}

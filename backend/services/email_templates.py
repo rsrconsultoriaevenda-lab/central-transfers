@@ -1,5 +1,7 @@
 import os
+import asyncio
 from backend.models import Motorista
+from backend.services.email_service import enviar_email_transacional
 
 
 def get_welcome_email_html(motorista: Motorista):
@@ -66,15 +68,16 @@ def get_welcome_email_html(motorista: Motorista):
 
 async def enviar_email_boas_vindas(motorista: Motorista):
     """
-    Lógica simulada para envio de e-mail. 
-    Aqui você integraria com SendGrid, AWS SES ou SMTP.
+    Envia o e-mail de boas-vindas real usando o serviço SMTP configurado.
     """
     html = get_welcome_email_html(motorista)
-    destinatario = f"{motorista.telefone}@motorista.com"
+    assunto = "🎉 Cadastro Aprovado! Bem-vindo à Central Transfers"
+    # Tenta usar o e-mail real do motorista, senão o fallback
+    destinatario = motorista.email or f"{motorista.telefone}@motorista.com"
 
-    # Exemplo de Log para debug
-    print(f"📧 Enviando e-mail de boas-vindas para: {destinatario}")
-
-    # Se você tiver um serviço de SMTP configurado:
-    # await send_email(subject="Cadastro Aprovado! Bem-vindo à Central Transfers", html=html, to=destinatario)
-    return True
+    try:
+        # Como enviar_email_transacional é síncrono (smtplib), rodamos em thread
+        await asyncio.to_thread(enviar_email_transacional, destinatario, assunto, html)
+        return True
+    except Exception:
+        return False

@@ -5,9 +5,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
 export default function DriverApp() {
   const [isOnline, setIsOnline] = useState(false);
+  const [isBrowserOnline, setIsBrowserOnline] = useState(navigator.onLine);
   const [activeTab, setActiveTab] = useState('agenda'); // agenda, ganhos, perfil
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [mockOrder, setMockOrder] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,11 +113,69 @@ export default function DriverApp() {
     }
   }, [isOnline, notificationAudio]);
 
+  // Monitorar a conexão real do dispositivo
+  useEffect(() => {
+    const handleOnline = () => setIsBrowserOnline(true);
+    const handleOffline = () => setIsBrowserOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Função para assinar o Web Push
+  const subscribeToPush = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
+      });
+
+      await axios.post(`${API_URL}/notifications/subscribe`, subscription, {
+        headers: getAuthHeader()
+      });
+      console.log("Motorista inscrito para notificações Push!");
+    } catch (err) {
+      console.error("Falha ao assinar Push:", err);
+    }
+  };
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(perm => {
+        if (perm === "granted") subscribeToPush();
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    });
+  }, []);
+
+  const handleInstallApp = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') setDeferredPrompt(null);
+    }
+  };
+
   useEffect(() => { loadMyOrders(); }, []);
 
   return (
     <div style={styles.container}>
-      <header style={{...styles.header, backgroundColor: isOnline ? '#10b981' : '#64748b'}}>
+      {!isBrowserOnline && (
+        <div style={{ background: '#ef4444', color: '#fff', textAlign: 'center', fontSize: '12px', padding: '8px', fontWeight: 'bold' }}>
+          ⚠️ VOCÊ ESTÁ SEM INTERNET. EXIBINDO DADOS SALVOS.
+        </div>
+      )}
+      <header style={{...styles.header, backgroundColor: isOnline ? (isBrowserOnline ? '#10b981' : '#f59e0b') : '#64748b'}}>
         <div style={styles.userInfo}>
           <div style={styles.miniAvatar}>JD</div>
           <span style={{color: '#fff', fontWeight: 'bold'}}>Olá, João</span>
@@ -134,6 +194,14 @@ export default function DriverApp() {
           <p style={{fontSize: '12px', color: '#fff', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)'}}>Aguardando Chamadas...</p>
         </div>
       </div>
+
+      {deferredPrompt && (
+        <div style={{ padding: '10px 20px', background: '#4c1d95', textAlign: 'center' }}>
+          <button onClick={handleInstallApp} style={{ background: '#fff', color: '#4c1d95', padding: '5px 15px', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>
+            📥 INSTALAR APLICATIVO CENTRAL
+          </button>
+        </div>
+      )}
 
       <div style={styles.earningsCard}>
         <span style={styles.earningsLabel}>Ganhos de hoje</span>

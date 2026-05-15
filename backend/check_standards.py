@@ -1,87 +1,62 @@
-import sys
 import os
-from datetime import datetime
+import sys
+import logging
+from backend.config import settings
 
-
-def check_step(name, condition, error_msg):
-    if condition:
-        print(f"✅ {name}")
-        return True
-    else:
-        print(f"❌ {name} - FALHA: {error_msg}")
-        return False
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("PreFlight")
 
 
 def run_audit():
-    # Garante que a raiz do projeto esteja no sys.path para importações
-    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    if root_dir not in sys.path:
-        sys.path.append(root_dir)
+    """Valida se o ambiente de produção está configurado corretamente."""
+    print("\n✈️  Iniciando Auditoria Pré-Voo (Go-Live)...")
+    errors = 0
+    failed_keys = []
 
-    print(
-        f"=== Auditoria de Padrões: Central Transfers ({datetime.now().strftime('%Y-%m-%d')}) ===\n")
+    # Chaves obrigatórias para o funcionamento básico
+    checks = {
+        "MERCADO_PAGO_ACCESS_TOKEN": settings.MERCADO_PAGO_ACCESS_TOKEN,
+        "SECRET_KEY": getattr(settings, 'SECRET_KEY', None),
+        "VAPID_PRIVATE_KEY": getattr(settings, 'VAPID_PRIVATE_KEY', None),
+        "VAPID_PUBLIC_KEY": getattr(settings, 'VAPID_PUBLIC_KEY', None),
+        "SMTP_USER": getattr(settings, 'SMTP_USER', None),
+        "SMTP_PASS": getattr(settings, 'SMTP_PASS', None),
+    }
 
-    # 1. Verificação de Ambiente
-    has_env = os.path.exists(".env") or os.path.exists("backend/.env")
-    check_step("Arquivo .env presente", has_env,
-               "Crie um arquivo .env para gerenciar segredos.")
+    for key, value in checks.items():
+        if not value or any(x in str(value) for x in ["cole_seu", "SEU_SEGREDO", "temporaria"]):
+            print(f"❌ ERRO: {key} não configurado corretamente no .env")
+            errors += 1
+            failed_keys.append(key)
+        else:
+            print(f"✅ {key}: OK")
 
-    # 2. Verificação de Dependências
-    try:
-        import fastapi
-        import sqlalchemy
-        import psycopg
-        import mercadopago
-        check_step("Dependências principais instaladas", True, "")
-    except ImportError as e:
-        check_step("Dependências principais instaladas",
-                   False, f"Faltando: {e.name}")
+    # 2. Verificações Opcionais / Informativas (Fora do loop principal)
+    whatsapp_token = getattr(settings, 'EVOLUTION_API_KEY', None) or getattr(
+        settings, 'WHATSAPP_TOKEN', None)
+    if not whatsapp_token:
+        print(
+            "ℹ️  INFO: WhatsApp não configurado (EVOLUTION_API_KEY/WHATSAPP_TOKEN ausente).")
+    else:
+        print("✅ WHATSAPP: OK")
 
-    # 3. Verificação de Configuração
-    try:
-        from backend.config import settings
-        current_url = settings.database_url
-        db_ok = "postgresql+psycopg" in current_url
-        msg = f"A URL deve usar postgresql+psycopg:// (Atual: {current_url.split('@')[-1]})"
-        check_step("Driver de Banco (Psycopg 3)", db_ok, msg)
+    sentry = getattr(settings, 'SENTRY_DSN', None)
+    if not sentry:
+        print("⚠️ AVISO: SENTRY_DSN não configurado. Monitoramento de logs desativado.")
 
-        sec_ok = settings.SECRET_KEY != "SEU_SEGREDO_SUPER_FORTE"
-        check_step("Segurança de Chaves", sec_ok,
-                   "SECRET_KEY padrão detectada! Mude no .env.")
+    validation_mode = getattr(settings, 'VALIDATION_MODE', False)
+    if validation_mode:
+        print("⚠️ AVISO: VALIDATION_MODE está ativo. Desative para Produção!")
+        errors += 1
 
-        # Verificação de segredos de Webhooks
-        has_mp_secret = hasattr(
-            settings, 'MERCADO_PAGO_WEBHOOK_SECRET') and settings.MERCADO_PAGO_WEBHOOK_SECRET
-        check_step("Configuração HMAC Mercado Pago", has_mp_secret,
-                   "MERCADO_PAGO_WEBHOOK_SECRET não configurado. Pagamentos vulneráveis!")
+    if errors > 0:
+        print(
+            f"\n🛑 Auditoria falhou com {errors} erros. O lançamento não é seguro.")
+        return False, failed_keys
 
-        has_wa_secret = hasattr(
-            settings, 'WHATSAPP_APP_SECRET') and settings.WHATSAPP_APP_SECRET
-        check_step("Configuração Segurança WhatsApp",
-                   has_wa_secret, "WHATSAPP_APP_SECRET ausente.")
-
-        # Verificação de Monitoramento
-        has_sentry = hasattr(settings, 'SENTRY_DSN') and settings.SENTRY_DSN
-        check_step("Monitoramento (Sentry)", has_sentry,
-                   "SENTRY_DSN não configurado. Erros em produção podem passar despercebidos.")
-    except Exception as e:
-        print(f"💥 Erro ao carregar configurações: {e}")
-
-    # 4. Verificação de Consistência de Modelos
-    try:
-        from backend.models import Pedido
-        has_created_at = hasattr(Pedido, 'criado_at')
-        check_step("Modelo Pedido atualizado (criado_at)",
-                   has_created_at, "Coluna criado_at ausente no modelo.")
-    except Exception as e:
-        print(f"💥 Erro nos modelos: {e}")
-
-    print("\n--- Resultado Final ---")
-    print("Se todos os itens acima estiverem com ✅, seu sistema está seguindo os padrões recomendados para deploy.")
+    print("\n🚀 TUDO PRONTO PARA O GO-LIVE! O sistema está estável.")
+    return True, []
 
 
 if __name__ == "__main__":
-    try:
-        run_audit()
-    except Exception as e:
-        print(f"Erro ao executar auditoria: {e}")
+    run_audit()

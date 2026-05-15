@@ -23,11 +23,11 @@ def listar_clientes(
     return db.query(models.Cliente).all()
 
 
-    # ==============================
-    # CRIAR CLIENTE
-    # ==============================
+# ==============================
+# CRIAR CLIENTE
+# ==============================
 @router.post("/", response_model=schemas.Cliente)
-def criar_cliente(
+def criar_cliente(  # Indentação corrigida
     cliente: schemas.Cliente,
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)

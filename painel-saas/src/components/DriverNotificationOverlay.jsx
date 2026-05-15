@@ -1,38 +1,22 @@
 import React from 'react';
 import { useWebSocketNotifications } from '../hooks/useWebSocketNotifications';
-# Lógica sugerida para o endpoint PUT /pedidos/{id}/aceitar
-@router.put("/{pedido_id}/aceitar")
-async def aceitar_pedido(pedido_id: int, data: dict, db: Session = Depends(get_db)):
-    motorista_id = data.get("motorista_id")
-    
-    # .with_for_update() é a chave aqui. Ele bloqueia a linha no PostgreSQL/MySQL
-    # até que o db.commit() seja executado.
-    pedido = db.query(models.Pedido).filter(
-        models.Pedido.id == pedido_id
-    ).with_for_update().first()
-
-    if not pedido:
-        raise HTTPException(status_code=404, detail="Pedido não encontrado")
-
-    # Verificação atômica: se o status não for mais 'PAGO', alguém já aceitou
-    if pedido.status != "PAGO" or pedido.motorista_id is not None:
-        raise HTTPException(
-            status_code=400, 
-            detail="Este pedido já foi aceito por outro motorista ou não está mais disponível."
-        )
-
-    # Atribui o motorista e muda o status
-    pedido.motorista_id = motorista_id
-    pedido.status = "ACEITO"
-    
-    db.commit() # Aqui o lock é liberado e os outros motoristas recebem o erro acima
-    return pedido
 import axios from 'axios'; // Assumindo o uso de axios para chamadas API
 
 const DriverNotificationOverlay = ({ motoristaId }) => {
   const { novaNotificacao, limparNotificacao } = useWebSocketNotifications(motoristaId);
 
   if (!novaNotificacao) return null;
+
+  // Efeito sonoro para garantir que o motorista ouça o pedido
+  const tocarAlerta = () => {
+    const audio = new Audio('/notification-alert.mp3');
+    audio.play().catch(e => console.log("Áudio bloqueado pelo navegador"));
+  };
+
+  // Tocar alerta quando uma nova notificação chegar
+  React.useEffect(() => {
+    if (novaNotificacao) tocarAlerta();
+  }, [novaNotificacao]);
 
   const aceitarPedido = async () => {
     try {

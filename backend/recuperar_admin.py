@@ -1,6 +1,6 @@
-from database import SessionLocal
-from models import Usuario
-from auth import hash_senha
+from backend.database import SessionLocal
+from backend.models import Usuario
+from backend.auth import hash_senha
 
 
 def restaurar_acesso():
@@ -11,13 +11,14 @@ def restaurar_acesso():
     usuario = db.query(Usuario).filter(Usuario.email == email_admin).first()
 
     if usuario:
-        usuario.senha = nova_senha
+        usuario.senha_hash = nova_senha
         usuario.role = "admin"
         # Admin principal não tem empresa_id (vê tudo ou é o tenant 0)
         usuario.empresa_id = None
         print(f"✅ Senha do usuário {email_admin} atualizada com sucesso!")
     else:
-        novo_admin = Usuario(email=email_admin, senha=nova_senha, role="admin")
+        novo_admin = Usuario(
+            email=email_admin, senha_hash=nova_senha, role="admin")
         db.add(novo_admin)
         print(f"🚀 Usuário {email_admin} criado como ADMINISTRADOR!")
 

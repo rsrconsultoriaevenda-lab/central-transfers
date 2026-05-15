@@ -13,7 +13,7 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 
 1. Crie um projeto Railway.
 2. Adicione um serviço Python e conecte o repositório.
-3. **Start Command (Crítico para WebSockets):**
+3. **Start Command (Crítico para WebSockets e Concorrência):**
    - `gunicorn -w 1 -k uvicorn.workers.UvicornWorker backend.main:app --bind 0.0.0.0:$PORT`
 4. **Variáveis de Ambiente:**
    - `ENV=production`
@@ -21,6 +21,14 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
    - `DATABASE_URL` (Use a URL do PostgreSQL do próprio Railway)
    - `WHATSAPP_APP_SECRET`
    - `MERCADO_PAGO_WEBHOOK_SECRET`
+   - `FRONTEND_URL=https://centraltransfers.com`
+   - `SMTP_USER` / `SMTP_PASS` (Para e-mails reais)
+   - `VAPID_PRIVATE_KEY` / `VAPID_PUBLIC_KEY`
+
+### Configuração de Domínio (Railway)
+1. Vá em **Settings > Domains**.
+2. Adicione `api.centraltransfers.com`.
+3. Configure o CNAME no seu DNS.
 
 ## 3. Deploy do Frontend
 
@@ -30,7 +38,13 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 2. Selecione o repositório e escolha o diretório `painel-saas/`.
 4. Build command: `npm run build`
 5. Output directory: `dist`
-6. Configure a variável `VITE_API_URL` para a URL pública do backend.
+6. **Variáveis de Ambiente:**
+   - `VITE_API_URL=https://api.centraltransfers.com`
+   - `VITE_VAPID_PUBLIC_KEY` (Mesma do backend)
+
+### Configuração de Domínio (Vercel)
+1. Vá em **Settings > Domains**.
+2. Adicione `centraltransfers.com` e `www.centraltransfers.com`.
 
 ## 5. Configuração das variáveis de ambiente
 
@@ -61,6 +75,8 @@ Defina no backend:
 4. [ ] O webhook do WhatsApp foi testado com o App da Meta em modo "Live"?
 5. [ ] **MIGRAÇÃO:** Rodou `alembic upgrade head` no ambiente de produção.
 7. [ ] **MONITORAMENTO:** Endpoint `/health` adicionado ao UptimeRobot/Cron-job.
+8. [ ] **LOGS:** Configurar retenção de logs no Railway (mínimo 7 dias para auditoria financeira).
+9. [ ] **BACKUP:** Ativar backups diários do PostgreSQL no Railway.
 
 ## 6. Testes finais
 

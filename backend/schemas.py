@@ -26,6 +26,7 @@ class MotoristaBase(BaseModel):
     status: str = "ATIVO"
     ativo: bool = True
     plano: str = "MENSAL"
+    comissao_master: Optional[Decimal] = Decimal("10.0")
 
 
 class Motorista(MotoristaBase):
@@ -107,8 +108,8 @@ class PedidoCreate(BaseModel):
     destino: str
     data_servico: datetime
     valor: Decimal
-    valor_comissao: Optional[Decimal] = 0.0
-    comissao: Optional[Decimal] = 20.0
+    valor_comissao: Optional[Decimal] = Decimal("0.0")
+    comissao: Optional[Decimal] = Decimal("20.0")
     canal_venda: Optional[str] = "direto"
     observacoes: Optional[str] = None
 
@@ -116,7 +117,7 @@ class PedidoCreate(BaseModel):
 class PedidoOut(PedidoCreate):
     id: int
     status: str
-    valor_liquido_motorista: Optional[Decimal] = 0.0
+    valor_liquido_motorista: Optional[Decimal] = Decimal("0.0")
     tipo_comissao_motorista: Optional[str] = "PERCENTUAL_CENTRAL"
     motorista_id: Optional[int] = None
     criado_at: datetime

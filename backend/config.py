@@ -2,8 +2,8 @@ import os
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    # O Pydantic lerá automaticamente a variável DATABASE_URL injetada pelo Railway.
-    # Caso esteja rodando local, ele usará o SQLite local "test.db".
+    # O Railway injeta a string do PostgreSQL aqui automaticamente.
+    # Se rodar local, ele usa o SQLite "test.db".
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "sqlite:///./test.db"
@@ -17,5 +17,8 @@ class Config:
     env_file = ".env"
     env_file_encoding = "utf-8"
 
-    # Inicialização da instância global de configurações
-    settings = Settings()
+    # =====================================================================
+    # CRITICAL: Exportação das duas formas para evitar quebras de importação
+    # =====================================================================
+    settings = Settings()  # Atende quem importa minúsculo (from backend.config import settings)
+    Settings = Settings   # Atende quem tenta instanciar ou usar como classe

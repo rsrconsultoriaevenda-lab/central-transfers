@@ -1,108 +1,169 @@
 import logging
 import secrets
-
-from datetime import datetime, timedelta
+from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional
+from typing import List
 
 from fastapi import (
     APIRouter,
     HTTPException,
     Depends,
     status,
-    Request,
-    BackgroundTasks,
-    Header
+    Request
 )
-
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from backend.database import get_db
-from backend import models, schemas, config
+from backend import models
 from backend.auth import (
     get_usuario_atual,
-    get_usuario_opcional,
     hash_senha
 )
-
-from backend.services.whatsapp_service import enviar_whatsapp_meta
-from backend.services.pagamento_service import criar_checkout_pro
 from backend.utils.phone import formatar_telefone_e164
 
-router = APIRouter(
-    prefix="/motoristas",
-    tags=["Motoristas"]
-)
+# Criamos o roteador sem travar caminhos rígidos
+router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
-
 # =====================================================
-# LISTAR MOTORISTAS
+# LISTAR MOTORISTAS (ACEITA / OU STRING VAZIA)
 # =====================================================
-
-@router.get("/", response_model=List[schemas.Motorista])
+@router.get("/")
+@router.get("")
 def listar(
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
 ):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
     return db.query(models.Motorista).all()
 
 
-# =====================================================
-# ATUALIZAR LOCALIZAÇÃO
-# =====================================================
+    # =====================================================
+    # CRIAR MOTORISTA (ADMIN) - ENTRADA DINÂMICA
+    # =====================================================
+@router.post("/")
+@router.post("")
+async def criar_motorista_admin(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    # SEGURANÇA: Apenas administradores podem criar motoristas por esta rota
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
 
+    # Recebe os dados brutos do JSON enviado pelo formulário do Dashboard
+    motorista_data = await request.json()
+
+    # Extrai e valida o telefone obrigatório
+    telefone_raw = motorista_data.get("telefone") or motorista_data.get("whatsapp")
+    if not telefone_raw:
+        raise HTTPException(400, "O campo Telefone/WhatsApp é obrigatório.")
+
+    try:
+        telefone_limpo = formatar_telefone_e164(str(telefone_raw))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    # Verifica se já existe perfil cadastrado com esse telefone
+    if db.query(models.Motorista).filter(models.Motorista.telefone == telefone_limpo).first():
+        raise HTTPException(400, "Este telefone já está cadastrado para um motorista.")
+
+    # Gera credenciais padrão baseadas no formato telefônico
+    email_login = f"{telefone_limpo}@motorista.com"
+    senha_plana = motorista_data.get("senha") or secrets.token_urlsafe(8)
+
+    try:
+        # 1. Cria o Usuário de Sistema (Autenticação)
+        novo_usuario = models.Usuario(
+            email=email_login,
+            senha_hash=hash_senha(senha_plana),
+            role="motorista"
+        )
+        db.add(novo_usuario)
+        db.flush()  # Popula o ID na sessão do SQLAlchemy
+
+        # Mapeia o plano recebido do front de forma limpa
+        plano_bruto = motorista_data.get("plano", "TRIAL")
+        plano_formatado = "MASTER" if "20%" in str(plano_bruto) else str(plano_bruto)
+
+        # 2. Cria o Perfil do Motorista (Logística)
+        novo_motorista = models.Motorista(
+            nome=motorista_data.get("nome"),
+            email=email_login,
+            telefone=telefone_limpo,
+            carro=motorista_data.get("carro"),
+            placa=motorista_data.get("placa"),
+            modelo=motorista_data.get("modelo") or motorista_data.get("carro"),
+            ano=motorista_data.get("ano") or 2023,  # Valor padrão caso não venha no JSON
+            categoria=motorista_data.get("categoria", "Standard"),
+            plano=plano_formatado,
+            status="ATIVO",
+            data_inicio_trial=datetime.now()
+        )
+        db.add(novo_motorista)
+
+        db.commit()
+
+        return {
+    "status": "success",
+    "mensagem": "Motorista cadastrado com sucesso!",
+    "acesso": {
+        "login": email_login,
+        "senha": senha_plana
+    }
+}
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Erro ao salvar motorista no banco: {str(e)}")
+        raise HTTPException(500, f"Erro interno ao salvar os dados: {str(e)}")
+
+
+    # =====================================================
+    # ATUALIZAR LOCALIZAÇÃO GEOFENCING
+    # =====================================================
 @router.post("/localizacao")
 async def atualizar_localizacao(
     request: Request,
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
 ):
-
     data = await request.json()
-
     email = user.get("email")
     role = user.get("role")
 
-    motorista = None
-
     if role != "admin":
-
-        telefone = email.split("@")[0]
-
         motorista = db.query(models.Motorista).filter(
-            models.Motorista.telefone == telefone
+            models.Motorista.email == email
         ).first()
     else:
         motorista = db.query(models.Motorista).first()
 
-    if not motorista:
-        raise HTTPException(404, "Motorista não encontrado")
+        if not motorista:
+            raise HTTPException(404, "Motorista não encontrado")
 
-    motorista.latitude = data.get("latitude")
-    motorista.longitude = data.get("longitude")
-    motorista.ultima_atualizacao = datetime.now()
-    db.commit()
-    return {"status": "ok"}
+        motorista.latitude = data.get("latitude")
+        motorista.longitude = data.get("longitude")
+        motorista.ultima_atualizacao = datetime.now()
+        db.commit()
+        return {"status": "ok"}
 
 
-# =====================================================
-# CONSULTAR SALDO
-# =====================================================
-
-@router.get("/me/saldo", response_model=schemas.MotoristaSaldo)
+        # =====================================================
+        # CONSULTAR SALDO FINANCEIRO (CORRIDAS)
+        # =====================================================
+@router.get("/me/saldo")
 def consultar_saldo_proprio(
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
 ):
-
     email = user.get("email")
-    telefone = email.split("@")[0]
-
     motorista = db.query(models.Motorista).filter(
-        models.Motorista.telefone == telefone
+        models.Motorista.email == email
     ).first()
 
     if not motorista:
@@ -117,84 +178,65 @@ def consultar_saldo_proprio(
     ).first()
 
     return {
-        "saldo_total": stats.saldo or Decimal("0.00"),
-        "total_pedidos": stats.total or 0
-    }
+    "saldo_total": stats.saldo or Decimal("0.00"),
+    "total_pedidos": stats.total or 0
+}
 
 
 # =====================================================
-# REGISTRO AUTOMÁTICO MOTORISTA
+# REGISTRO AUTOMÁTICO MOTORISTA (AUTO-CADASTRO)
 # =====================================================
-
-@router.post(
-    "/register",
-    status_code=status.HTTP_201_CREATED,
-    response_model=schemas.MotoristaCreateResponse
-)
-def register_motorista(
-    motorista_data: schemas.MotoristaRegister,
+@router.post("/register")
+async def register_motorista(
+    request: Request,
     db: Session = Depends(get_db)
 ):
+    motorista_data = await request.json()
+    telefone_raw = motorista_data.get("telefone")
 
     try:
-
-        telefone_limpo = formatar_telefone_e164(
-            motorista_data.telefone
-        )
-
+        telefone_limpo = formatar_telefone_e164(str(telefone_raw))
     except ValueError as e:
-
         raise HTTPException(400, str(e))
 
-    motorista_existente = db.query(models.Motorista).filter(
-        models.Motorista.telefone == telefone_limpo
-    ).first()
-
-    if motorista_existente:
+    if db.query(models.Motorista).filter(models.Motorista.telefone == telefone_limpo).first():
         raise HTTPException(400, "Telefone já cadastrado")
 
     email_login = f"{telefone_limpo}@motorista.com"
 
-    usuario_existente = db.query(models.Usuario).filter(
-        models.Usuario.email == email_login
-    ).first()
-
-    if usuario_existente:
+    if db.query(models.Usuario).filter(models.Usuario.email == email_login).first():
         raise HTTPException(400, "Usuário já existe")
 
-    novo_usuario = models.Usuario(
-        email=email_login,
-        senha_hash=hash_senha(motorista_data.senha),
-        role="motorista"
-    )
+    try:
+        novo_usuario = models.Usuario(
+            email=email_login,
+            senha_hash=hash_senha(motorista_data.get("senha")),
+            role="motorista"
+        )
+        db.add(novo_usuario)
+        db.flush()
 
-    db.add(novo_usuario)
-    db.flush()
+        novo_motorista = models.Motorista(
+            nome=motorista_data.get("nome"),
+            email=email_login,
+            telefone=telefone_limpo,
+            carro=motorista_data.get("carro"),
+            placa=motorista_data.get("placa"),
+            modelo=motorista_data.get("modelo") or motorista_data.get("carro"),
+            ano=motorista_data.get("ano") or 2023,
+            categoria=motorista_data.get("categoria", "Standard"),
+            status="PENDENTE_APROVACAO",
+            plano="MENSAL",
+            data_inicio_trial=datetime.now()
+        )
+        db.add(novo_motorista)
+        db.commit()
 
-    novo_motorista = models.Motorista(
-        nome=motorista_data.nome,
-        email=email_login,
-        senha_hash=hash_senha(motorista_data.senha),
-        telefone=telefone_limpo,
-        carro=motorista_data.carro,
-        placa=motorista_data.placa,
-        modelo=motorista_data.modelo,
-        ano=motorista_data.ano,
-        categoria=motorista_data.categoria,
-        status="PENDENTE_APROVACAO",
-        plano="MENSAL",
-        data_inicio_trial=datetime.now()
-    )
+        return {
+    "status": "success",
+    "mensagem": "Cadastro realizado! Aguardando aprovação administrativa."
+}
 
-    db.add(novo_motorista)
-
-    db.commit()
-    db.refresh(novo_motorista)
-
-    return {
-        "motorista": novo_motorista,
-        "acesso": {
-            "login": email_login,
-            "senha": "SENHA_OCULTA"
-        }
-    }
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Erro interno no auto-registro: {str(e)}")

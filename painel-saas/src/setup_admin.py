@@ -16,7 +16,7 @@ def criar_admin_local():
         if not existe:
             admin = Usuario(
                 email=email_admin,
-                senha=hash_senha("Ren@220382"),
+                senha_hash=hash_senha("Ren@220382"),
                 role="admin"
             )
             db.add(admin)

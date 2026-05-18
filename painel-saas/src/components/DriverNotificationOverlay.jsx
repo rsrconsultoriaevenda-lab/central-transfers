@@ -9,13 +9,23 @@ const DriverNotificationOverlay = ({ motoristaId }) => {
 
   // Efeito sonoro para garantir que o motorista ouça o pedido
   const tocarAlerta = () => {
-    const audio = new Audio('/notification-alert.mp3');
+    const audio = new Audio('/notification-alert.mp3'); // Certifique-se que o arquivo existe em /public
     audio.play().catch(e => console.log("Áudio bloqueado pelo navegador"));
   };
 
   // Tocar alerta quando uma nova notificação chegar
   React.useEffect(() => {
-    if (novaNotificacao) tocarAlerta();
+    if (novaNotificacao) {
+      tocarAlerta();
+      
+      // Notificação nativa via Service Worker (mesmo com aba em segundo plano)
+      navigator.serviceWorker.ready.then((registration) => {
+        registration.showNotification('🚖 Novo Pedido Recebido', {
+          body: novaNotificacao.mensagem,
+          icon: '/icon-192x192.png',
+        });
+      });
+    }
   }, [novaNotificacao]);
 
   const aceitarPedido = async () => {

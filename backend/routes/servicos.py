@@ -32,22 +32,27 @@ async def criar_servico(
     if user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Acesso negado")
 
-    imagem_url = None
-    if imagem:
-        imagem_url = await upload_image_to_cloudinary(imagem)
+    try:
+        imagem_url = None
+        if imagem:
+            imagem_url = await upload_image_to_cloudinary(imagem)
 
-    novo = models.Servico(
-        nome=nome,
-        tipo=tipo,
-        categoria=categoria,
-        descricao=descricao,
-        capacidade_passageiros=capacidade_passageiros,
-        capacidade_malas=capacidade_malas,
-        valor=valor,
-        valor_padrao=valor_padrao,
-        imagem_url=imagem_url
-    )
-    db.add(novo)
-    db.commit()
-    db.refresh(novo)
-    return novo
+        novo = models.Servico(
+            nome=nome,
+            tipo=tipo,
+            categoria=categoria,
+            descricao=descricao,
+            capacidade_passageiros=capacidade_passageiros,
+            capacidade_malas=capacidade_malas,
+            valor=valor,
+            valor_padrao=valor_padrao,
+            imagem_url=imagem_url
+        )
+        db.add(novo)
+        db.commit()
+        db.refresh(novo)
+        return novo
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao criar serviço: {str(e)}")

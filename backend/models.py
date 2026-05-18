@@ -30,7 +30,8 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     nome = Column(String, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    senha_hash = Column(String, nullable=False)  # Mantenha consistente com os scripts de setup
+    # Mantenha consistente com os scripts de setup
+    senha_hash = Column(String, nullable=False)
     role = Column(String, default="admin")
     ativo = Column(Boolean, default=True)
 
@@ -157,26 +158,34 @@ class Pedido(Base):
         valor_total = Decimal(str(self.valor))
 
         if not self.motorista:
-            # Se não há motorista, usa a comissão padrão de 20%
-            self.valor_comissao = (valor_total * Decimal("0.20")).quantize(Decimal("0.01"))
-            self.valor_liquido_motorista = (valor_total - self.valor_comissao).quantize(Decimal("0.01"))
+            # Se não há motorista, usa a comissão padrão da central definida no pedido
+            perc_padrao = Decimal(
+                str(self.comissao or "20.0")) / Decimal("100.0")
+            self.valor_comissao = (
+                valor_total * perc_padrao).quantize(Decimal("0.01"))
+            self.tipo_comissao_motorista = "AGUARDANDO_ACEITE"
+            self.valor_liquido_motorista = (
+                valor_total - self.valor_comissao).quantize(Decimal("0.01"))
             return
 
         if self.motorista.plano == "MASTER":
-            perc = Decimal(str(self.motorista.comissao_master or "15.0")) / Decimal("100.0")
-            self.valor_comissao = (valor_total * perc).quantize(Decimal("0.01"))
+            perc = Decimal(
+                str(self.motorista.comissao_master or "15.0")) / Decimal("100.0")
+            self.valor_comissao = (
+                valor_total * perc).quantize(Decimal("0.01"))
             self.tipo_comissao_motorista = "PERCENTUAL_CENTRAL"
         else:
             # Plano Mensal: Motorista fica com 100% do valor do serviço
             self.valor_comissao = Decimal("0.00")
             self.tipo_comissao_motorista = "PLANO_MENSAL"
 
-        self.valor_liquido_motorista = (valor_total - self.valor_comissao).quantize(Decimal("0.01"))
+        self.valor_liquido_motorista = (
+            valor_total - self.valor_comissao).quantize(Decimal("0.01"))
 
     # =========================
     # PYDANTIC SCHEMAS
     # =========================
 
 
-# Nota: Removidos Schemas Pydantic que estavam duplicados aqui. 
+# Nota: Removidos Schemas Pydantic que estavam duplicados aqui.
 # Utilize apenas o arquivo backend/schemas.py para manter a organização.

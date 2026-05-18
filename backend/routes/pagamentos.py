@@ -101,7 +101,8 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
         if not pedido:
             return {"status": "error", "message": "Pedido não encontrado"}
 
-        if pedido.status != "PAGO":
+        # Só altera se o pedido ainda estiver pendente ou aguardando pagamento
+        if pedido.status in ["PENDENTE", "AGUARDANDO_PAGAMENTO"]:
             pedido.status = "PAGO"
             db.commit()
             db.refresh(pedido)
@@ -112,15 +113,21 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
 
 async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Request):
     """Helper para disparar notificações após confirmação de pagamento."""
-    # 1. Notifica o Cliente
-    if pedido.cliente and pedido.cliente.telefone:
-        msg_cliente = (
-            f"✅ Pagamento confirmado para o pedido #{pedido.id}!\n"
-            f"Nossos motoristas já foram notificados e você receberá um aviso assim que o serviço for aceito."
-        )
-        enviar_whatsapp_meta(pedido.cliente.telefone, msg_cliente)
 
-    # Notifica via E-mail
+    # 1. Notificação In-App via WebSocket (Essencial para o PWA)
+    import asyncio
+    notifier = getattr(request.app.state, "notifier", None)
+    if notifier:
+        asyncio.create_task(notifier.broadcast({
+            "type": "NEW_ORDER",
+            "pedido_id": pedido.id,
+            "origem": pedido.origem,
+            "destino": pedido.destino,
+            "valor": str(pedido.valor),
+            "mensagem": f"⚠️ PEDIDO LIBERADO: {pedido.origem} (R$ {pedido.valor})"
+        }))
+
+    # 2. Notifica via E-mail (Backup)
     if pedido.cliente and pedido.cliente.email:
         assunto = f"✅ Pagamento Confirmado! Pedido #{pedido.id}"
         html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o serviço <strong>{pedido.servico.nome}</strong>. Em breve enviaremos os dados do motorista.</p>"
@@ -129,21 +136,9 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Requ
         except Exception as e:
             logger.error(f"Falha ao enviar e-mail de pagamento: {e}")
 
-    # 2. Notifica os Motoristas
-    # Tenta WhatsApp (se configurado)
+    # 3. WhatsApp (Opcional/Secundário agora)
     try:
-        broadcast_to_drivers(db, pedido)
+        if settings.WHATSAPP_TOKEN:
+            broadcast_to_drivers(db, pedido)
     except:
-        pass
-
-    # Notificação In-App (Estilo Uber)
-    # Acessamos o manager do app para disparar o WebSocket
-    import asyncio
-    notifier = getattr(request.app.state, "notifier", None)
-    if notifier:
-        asyncio.create_task(notifier.notify_drivers({
-            "type": "NEW_ORDER",
-            "pedido_id": pedido.id,
-            "mensagem": f"Novo pedido disponível: {pedido.origem} para {pedido.destino}",
-            "valor": str(pedido.valor)
-        }))
+        logger.info("WhatsApp ignorado conforme estratégia PWA.")

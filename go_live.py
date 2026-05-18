@@ -3,7 +3,20 @@ import subprocess
 import sys
 from pathlib import Path
 
-REQUIRED_ENV_VARS = ["DATABASE_URL", "MERCADO_PAGO_ACCESS_TOKEN", "SECRET_KEY", "FRONTEND_URL"]
+# Carrega variáveis de ambiente se o pacote estiver disponível
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+# Garante que o diretório raiz está no path para importar o backend
+sys.path.append(os.getcwd())
+
+REQUIRED_ENV_VARS = ["DATABASE_URL",
+                     "MERCADO_PAGO_ACCESS_TOKEN", "MERCADO_PAGO_WEBHOOK_SECRET",
+                     "SECRET_KEY", "FRONTEND_URL"]
+
 
 def run_step(command, description):
     print(f"\n🔄 {description}...")
@@ -51,7 +64,7 @@ def main():
             sys.exit(1)
     print("✅ Variáveis críticas encontradas.")
 
-    # 1. Auditoria de Segurança
+    # 1. Auditoria de Segurança e Configurações
     import backend.check_standards as audit
     success, missing_keys = audit.run_audit()
 
@@ -67,49 +80,7 @@ def main():
             "🔄 Por favor, execute 'python go_live.py' novamente para validar e prosseguir.")
         sys.exit(0)
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-# Importe suas configurações (onde provavelmente está o ALLOWED_ORIGINS)
-from backend.config import settings 
-
-app = FastAPI(title="Central Transfers API")
-
-# 1. Definição das origens permitidas
-# Você pode usar a lista do seu arquivo de configuração ou definir manualmente:
-origins = [
-    "http://localhost:5173",    # Frontend Cliente (Vite)
-    "http://localhost:5174",    # Painel SaaS / Driver
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "https://central-transfers.vercel.app",
-]
-
-# Adiciona dinamicamente a URL do ambiente se definida
-env_frontend = os.getenv("FRONTEND_URL")
-if env_frontend and env_frontend not in origins:
-    origins.append(env_frontend.rstrip("/"))
-
-# origins = settings.ALLOWED_ORIGINS
-
-# 2. Adição do Middleware de CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,      # Lista de domínios que podem acessar a API
-    allow_credentials=True,     # Permite envio de cookies/auth headers
-    allow_methods=["*"],        # Permite todos os métodos (GET, POST, PUT, DELETE, etc)
-    allow_headers=["*"],        # Permite todos os headers
-)
-
-# 3. Agora sim, seus endpoints e WebSockets
-@app.get("/")
-async def root():
-    return {"status": "online"}
-
-@app.websocket("/ws/{motorista_id}")
-async def websocket_endpoint(websocket: WebSocket, motorista_id: int):
-    # Sua lógica de WebSocket aqui...
-    pass
-    # 1.1 Verificação de Conectividade com o Banco
+    # 1.1 Verificação de Conectividade e Integridade
     print("\n🔍 Testando conexão com o Banco de Dados...")
     if not run_step(f"{sys.executable} check_system.py", "Verificando integridade do sistema"):
         print("❌ O sistema não está íntegro para registros reais.")
@@ -130,7 +101,8 @@ async def websocket_endpoint(websocket: WebSocket, motorista_id: int):
             sys.exit(1)
 
     # 3. Setup do Admin Mestre
-    if not run_step(f"{sys.executable} -m backend.setup_admin", "Configurando Administrador Mestre"):
+    # Ajustado para o caminho real do arquivo fornecido no projeto
+    if not run_step(f"{sys.executable} painel-saas/src/setup_admin.py", "Configurando Administrador Mestre"):
         sys.exit(1)
 
     # 4. Seed opcional

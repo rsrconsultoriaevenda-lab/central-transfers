@@ -17,6 +17,26 @@ router = APIRouter(
     tags=["Pedidos"]
 )
 
+# =====================================================
+# TESTE DE CONECTIVIDADE REAL-TIME
+# =====================================================
+@router.get("/debug-broadcast")
+async def test_realtime_broadcast(request: Request):
+    """Envia um sinal de teste para todos os motoristas conectados no PWA."""
+    notifier = getattr(request.app.state, "notifier", None)
+    if not notifier:
+        return {"status": "error", "message": "Serviço de notificação não inicializado"}
+    
+    await notifier.broadcast({
+        "type": "SYSTEM_TEST",
+        "mensagem": "🔔 Teste de conexão em tempo real: OK!",
+        "valor": "0.00",
+        "pedido_id": 0,
+        "origem": "Sistema",
+        "destino": "Todos"
+    })
+    return {"status": "sent", "active_connections": len(notifier.active_connections)}
+
 
 # =====================================================
 # LISTAR PEDIDOS
@@ -24,11 +44,24 @@ router = APIRouter(
 @router.get("/", response_model=List[schemas.PedidoOut])
 def listar_pedidos(
     db: Session = Depends(get_db),
-    usuario=Depends(get_usuario_atual)
+    user: dict = Depends(get_usuario_atual)
 ):
-    return db.query(models.Pedido).order_by(
-        models.Pedido.criado_at.desc()
-    ).all()
+    query = db.query(models.Pedido)
+
+    # Filtro por Role: Motoristas só vêem seus pedidos ou pedidos disponíveis (PENDENTE/PAGO)
+    if user.get("role") == "motorista":
+        # Aqui você pode customizar: motoristas vêem pedidos sem dono ou os seus próprios
+        # Para este exemplo, limitaremos aos pedidos dele ou abertos.
+        from sqlalchemy import or_
+        email = user.get("email")
+        motorista = db.query(models.Motorista).filter(
+            models.Motorista.email == email).first()
+        motorista_id = motorista.id if motorista else None
+
+        query = query.filter(
+            or_(models.Pedido.motorista_id == motorista_id, models.Pedido.status == "PAGO"))
+
+    return query.order_by(models.Pedido.criado_at.desc()).all()
 
 
 # =====================================================
@@ -73,12 +106,17 @@ def criar_pedido(
 
 
 @router.put("/{pedido_id}/status", response_model=schemas.PedidoOut)
-def atualizar_status(
+async def atualizar_status(
     pedido_id: int,
     status_update: schemas.PedidoStatusUpdate,
+    request: Request,
     db: Session = Depends(get_db),
     usuario=Depends(get_usuario_atual)
 ):
+    # SEGURANÇA: Apenas admin ou operador pode mudar o status manualmente
+    if usuario.get("role") not in ["admin", "operador"]:
+        raise HTTPException(
+            status_code=403, detail="Acesso negado para alteração manual de status")
 
     pedido = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id
@@ -96,6 +134,25 @@ def atualizar_status(
     pedido.calcular_financeiro()
 
     db.commit()
+
+    # Notificação WebSocket: Se o pagamento foi aprovado, avisar motoristas
+    if pedido.status == "PAGO":
+        notifier = getattr(request.app.state, "notifier", None)
+        if notifier:
+            try:
+                asyncio.create_task(
+                    notifier.broadcast({
+                        "type": "NEW_ORDER",
+                        "pedido_id": pedido.id,
+                        "origem": pedido.origem,
+                        "destino": pedido.destino,
+                        "valor": str(pedido.valor),
+                        "mensagem": f"Novo pedido: {pedido.origem} para {pedido.destino}"
+                    })
+                )
+            except Exception as e:
+                print(f"⚠️ Falha ao disparar notificação WebSocket: {e}")
+
     db.refresh(pedido)
 
     return pedido
@@ -113,6 +170,17 @@ async def atribuir_motorista(
     db: Session = Depends(get_db),
     usuario=Depends(get_usuario_atual)
 ):
+    # SEGURANÇA: Se o usuário for motorista, ele só pode aceitar para o próprio ID
+    if usuario.get("role") == "motorista":
+        email = usuario.get("email")
+        motorista_vinculado = db.query(models.Motorista).filter(
+            models.Motorista.email == email).first()
+
+        if not motorista_vinculado or motorista_vinculado.id != data.motorista_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Você não tem permissão para atribuir pedidos a outros motoristas."
+            )
 
     query = db.query(models.Pedido).filter(
         models.Pedido.id == pedido_id
@@ -186,9 +254,10 @@ async def atribuir_motorista(
 
     if notifier:
         asyncio.create_task(
-            notifier.notify_drivers({
+            notifier.broadcast({
                 "type": "ORDER_ACCEPTED",
-                "pedido_id": pedido.id
+                "pedido_id": pedido.id,
+                "mensagem": f"O pedido #{pedido.id} foi aceito por outro motorista."
             })
         )
 
@@ -227,7 +296,7 @@ def obter_estatisticas(
         func.sum(models.Pedido.valor)
     ).filter(
         models.Pedido.status == "CONCLUIDO"
-    ).scalar() or Decimal("0.00") # Garante Decimal
+    ).scalar() or Decimal("0.00")  # Garante Decimal
 
     return schemas.DashboardStats(
         total_pedidos=total,

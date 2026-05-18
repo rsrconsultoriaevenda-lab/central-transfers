@@ -64,11 +64,12 @@ def motorista_teste(api_session):
         "placa": "ABC1D23",
         "modelo": "Corolla",
         "ano": 2022,
-        "plano": "MASTER"
+        "plano": "MASTER",
+        "senha": "Ren@220382"
     }
 
     response = api_session.post(
-        f"{BASE_URL}/motoristas",
+        f"{BASE_URL}/motoristas/register",
         json=payload
     )
 

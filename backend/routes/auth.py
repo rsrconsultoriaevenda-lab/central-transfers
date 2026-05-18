@@ -1,64 +1,58 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
+from backend import models, schemas, auth
 from backend.database import get_db
-from backend import models, schemas
-from backend.auth import verificar_senha, criar_token
 
 router = APIRouter(
     prefix="/auth",
-    tags=["Auth"]
+    tags=["Autenticação"]
 )
-
 
 @router.post("/login")
 def login(
-    request: schemas.LoginRequest,
+    login_data: schemas.LoginRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Realiza login e retorna JWT.
+    Endpoint para autenticação de administradores (Usuario) e motoristas (Motorista).
     """
-
-    # 1. Busca o usuário pelo e-mail
-    user = db.query(models.Usuario).filter(
-        models.Usuario.email == request.email
+    # 1. Tenta autenticar como Usuário Administrativo
+    usuario = db.query(models.Usuario).filter(
+        models.Usuario.email == login_data.email
     ).first()
 
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuário não encontrado"
+    if usuario and auth.verificar_senha(login_data.senha, usuario.senha_hash):
+        # Gera token de acesso para o administrador
+        access_token = criar_token(
+            data={"sub": usuario.email, "role": usuario.role}
         )
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "role": usuario.role
+        }
 
-    # 2. Verifica a senha (certifique-se que o schema LoginRequest usa o campo 'senha')
-    senha_valida = verificar_senha(
-        request.senha,
-        user.senha_hash
+    # 2. Tenta autenticar como Motorista
+    # Nota: No sistema, motoristas usam o e-mail 'telefone@motorista.com' para login
+    motorista = db.query(models.Motorista).filter(
+        models.Motorista.email == login_data.email
+    ).first()
+
+    if motorista and auth.verificar_senha(login_data.senha, motorista.senha_hash):
+        # Gera token de acesso para o motorista
+        access_token = auth.criar_token_acesso(
+            data={"sub": motorista.email, "role": "motorista"}
+        )
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "role": "motorista"
+        }
+
+    # 3. Se não encontrar nenhum ou a senha for inválida
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="E-mail ou senha incorretos",
+        headers={"WWW-Authenticate": "Bearer"},
     )
-
-    if not senha_valida:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Senha inválida"
-        )
-
-    # 3. Verifica se o usuário está ativo
-    if not user.ativo:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Usuário desativado"
-        )
-
-    # 4. Gera os dados para o token e cria o JWT
-    token_data = {
-        "sub": user.email,
-        "user_id": user.id,
-        "role": user.role
-    }
-
-    access_token = criar_token(dados=token_data)
-
-    return {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }

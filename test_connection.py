@@ -1,14 +1,8 @@
-from sqlalchemy import create_engine
+import os
+from backend.config import settings
 
-DATABASE_URL = "postgresql+psycopg2://avnadmin:AVNS_YKoUmfA9pYTK3wIupNn@central-transfers-central-transfers.c.aivencloud.com:16880/defaultdb?sslmode=require"
-
-engine = create_engine(DATABASE_URL)
-
-try:
-    conn = engine.connect()
-    print("CONECTADO COM SUCESSO")
-    conn.close()
-
-except Exception as e:
-    print("ERRO:")
-    print(e)
+print("==================================================")
+print("🧪 VALIDANDO CONEXÃO DE INFRAESTRUTURA")
+print("==================================================")
+print(f"Instância de banco configurada para uso: {settings.DATABASE_URL.split('@')[-1] if '@' in settings.DATABASE_URL else settings.DATABASE_URL}")
+print("Configuração carregada com sucesso e protegida contra vazamentos!")

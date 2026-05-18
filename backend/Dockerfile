@@ -2,18 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-COPY requirements.txt .
+# 1. Copia o requirements correto que está dentro de backend
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o conteúdo para uma subpasta 'backend' para preservar a estrutura de pacotes
-# Isso permite que 'from backend import ...' funcione corretamente.
+# 2. Copia todo o projeto para a subpasta backend, mantendo a estrutura que você planejou
 COPY . ./backend/
 
-# Define o PYTHONPATH para que o diretório /app seja a raiz de busca de módulos
+# 3. Define a raiz de busca de módulos do Python
 ENV PYTHONPATH=/app
 
-# Railway utiliza a porta 8080 por padrão. Alinhando com a configuração da UI.
 EXPOSE 8080
 
-# 🔥 Executa migrações do banco de dados antes de subir o servidor
-CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# 4. 🔥 Inicialização LIMPA: Apenas o Uvicorn, sem Alembic para travar o boot
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]

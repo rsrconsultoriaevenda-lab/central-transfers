@@ -18,7 +18,7 @@ class Config:
     env_file_encoding = "utf-8"
 
     # =====================================================================
-    # CRITICAL: Exportação das duas formas para evitar quebras de importação
+    # AS LINHAS ABAIXO PRECISAM FICAR COLADAS NA ESQUERDA (ESCOPO GLOBAL)
     # =====================================================================
-    settings = Settings()  # Atende quem importa minúsculo (from backend.config import settings)
-    Settings = Settings   # Atende quem tenta instanciar ou usar como classe
+settings = Settings()  # Atende quem importa minúsculo
+Settings = Settings   # Atende quem tenta instanciar ou usar como classe

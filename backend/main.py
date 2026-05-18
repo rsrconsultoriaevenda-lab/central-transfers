@@ -1,124 +1,117 @@
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
 import logging
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 
-# 1. Imports de configuração e serviços
-from backend.config import settings
-from backend.services.notifier_service import ConnectionManager
-from backend.routes import pagamentos, whatsapp, auth, health
-from backend.setup_admin import criar_admin_mestre
+# Importação dos roteadores operacionais do ecossistema Central Transfers
+from backend.routes import (
+    auth,
+    pedidos,
+    clientes,
+    motoristas,
+    servicos,
+    dashboard,
+    pagamentos,
+    whatsapp,
+    health
+)
 
-logger = logging.getLogger(__name__)
+# Configuração de Logs para auditoria local e em produção (Railway)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("CentralTransfers")
 
-# 2. Definição do Ciclo de Vida (Lifespan)
+# Inicialização limpa do FastAPI com suporte nativo a redirecionamento seguro de trailing slash
+app = FastAPI(
+    title="Central Transfers API",
+    description="Backend de logística para gestão de transfers Aeroporto POA / Gramado",
+    version="1.0.0"
+)
 
+# ======================================================================
+# CONFIGURAÇÃO DE CORS EXPANDIDA PARA PRODUÇÃO (VERCEL & RAILWAY)
+# ======================================================================
+# Declaramos explicitamente as origens permitidas (Local, Vercel e subdomínios)
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://central-transfers.vercel.app",
+]
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Iniciando aplicação Central Transfers...")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"]
+)
+
+# ======================================================================
+# MIDDLEWARE INTERCEPTADOR PARA PREFLIGHT (OPTIONS) - BLINDAGEM CORS
+# ======================================================================
+@app.middleware("http")
+async def interceptar_cors_preflight(request: Request, call_next):
+    # Se o navegador mandar um OPTIONS (Preflight), respondemos imediatamente com os headers de sucesso
+    if request.method == "OPTIONS":
+        response = Response(status_code=200)
+        origin = request.headers.get("Origin")
+        if origin in origins or "*" in origins:
+            response.headers["Access-Control-Allow-Origin"] = origin or "*"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
+
+        return await call_next(request)
+
+        # ======================================================================
+        # MAPEAMENTO DE ROTAS COM DUPLO PREFIXO (ESTRATÉGIA ANTI-CACHE DO FRONT)
+        # ======================================================================
+
+        # 1️⃣ Mapeamento Direto (Caso o frontend chame /motoristas, /pedidos, etc.)
+        app.include_router(auth.router, prefix="/auth", tags=["Autenticação"])
+        app.include_router(pedidos.router, prefix="/pedidos", tags=["Pedidos & Corridas"])
+        app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
+        app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
+        app.include_router(servicos.router, prefix="/servicos", tags=["Serviços de Transfer"])
+        app.include_router(dashboard.router, prefix="/dashboard", tags=["Painel Administrativo"])
+        app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Mercado Pago & Finanças"])
+        app.include_router(whatsapp.router, prefix="/whatsapp", tags=["Notificações WhatsApp"])
+        app.include_router(health.router, prefix="/health", tags=["Saúde do Sistema"])
+
+        # 2️⃣ Mapeamento Espelhado com /api (Caso o frontend tente forçar /api/motoristas, etc.)
+        app.include_router(auth.router, prefix="/api/auth", tags=["Autenticação"])
+        app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos & Corridas"])
+        app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
+        app.include_router(motoristas.router, prefix="/api/motoristas", tags=["Motoristas"])
+        app.include_router(servicos.router, prefix="/api/servicos", tags=["Serviços de Transfer"])
+        app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Painel Administrativo"])
+        app.include_router(pagamentos.router, prefix="/api/pagamentos", tags=["Mercado Pago & Finanças"])
+        app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["Notificações WhatsApp"])
+        app.include_router(health.router, prefix="/api/health", tags=["Saúde do Sistema"])
+
+        # ======================================================================
+        # ROTA DE LOGÍSTICA EM TEMPO REAL (WEBSOCKETS DE ISOLAMENTO)
+        # ======================================================================
+@app.websocket("/ws/teste_limpo/{driver_id}")
+@app.websocket("/api/ws/teste_limpo/{driver_id}")
+async def teste_limpo(websocket: WebSocket, driver_id: int):
+    await websocket.accept()
+    logger.info(f"🟢 [TESTE LIMPO] Motorista {driver_id} conectou com sucesso na malha de rede!")
     try:
-        criar_admin_mestre()
-    except Exception as e:
-        logger.error(f"Erro ao inicializar Admin Mestre: {e}")
-
-        app.state.notifier = ConnectionManager()
-        logger.info("Aplicação iniciada e serviços essenciais carregados.")
-        yield
-        logger.info("Encerrando aplicação Central Transfers...")
-
-        # --- CHECKPOINT CRÍTICO: O 'app' DEVE ser definido aqui ---
-        app = FastAPI(lifespan=lifespan)
-
-        # 3. Middlewares
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=settings.get_allowed_origins(),
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
-        )
-
-        # 4. Inclusão de Rotas
-        app.include_router(health.router)
-        app.include_router(pagamentos.router)
-        app.include_router(whatsapp.router)
-        app.include_router(auth.router)
-
-        # 5. Endpoints (Websocket e Raiz)
-
-
-@app.websocket("/ws/{motorista_id}")
-async def websocket_endpoint(websocket: WebSocket, motorista_id: int):
-    manager: ConnectionManager = app.state.notifier
-    await manager.connect(websocket, motorista_id)
-    try:
+        await websocket.send_json({"type": "SISTEMA", "mensagem": "Conexão direta bem-sucedida!"})
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(motorista_id)
-    except Exception as e:
-        logger.error(
-            f"Erro na conexão WebSocket para motorista {motorista_id}: {e}")
-        manager.disconnect(motorista_id)
+        logger.info(f"🔴 [TESTE LIMPO] Motorista {driver_id} encerrou a sessão remota.")
 
+        # ======================================================================
+        # EVENTOS DO CICLO DE VIDA DO SERVIDOR (STARTUP / SHUTDOWN)
+        # ======================================================================
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 Central Transfers inicializado com sucesso!")
+    logger.info("🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
 
-@app.get("/test-broadcast")
-async def test_broadcast():
-    manager: ConnectionManager = app.state.notifier
-    await manager.notify_drivers({
-        "type": "TEST_NOTIFICATION",
-        "mensagem": "🚨 TESTE: Novo pedido disponível!",
-        "valor": "250.00"
-    })
-    return {"status": "Notificação enviada com sucesso"}
-
-
-@app.get("/")
-async def root():
-    return {
-        "status": "online",
-        "app": settings.APP_NAME,
-        "environment": settings.ENV,
-        "database": "connected",
-        "docs": "/docs"
-    }
-from fastapi import WebSocket, WebSocketException, status, Query, Depends
-from typing import Annotated
-
-# Supondo que você tenha uma função de validação no seu módulo backend/auth/
-# from backend.auth.service import decode_access_token 
-
-async def get_token_auth(
-    websocket: WebSocket,
-    token: Annotated[str | None, Query()] = None,
-):
-    """
-    Dependência para validar o token JWT via Query Parameter.
-    Se o token for inválido ou ausente, fecha a conexão.
-    """
-    if token is None:
-        # WS_1008_POLICY_VIOLATION é o código padrão para falha de política/auth
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-    
-    # Exemplo de lógica de validação:
-    # user = decode_access_token(token)
-    # if not user:
-    #     raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
-    
-    return token # Ou retorne o objeto do usuário/motorista decodificado
-
-@app.websocket("/ws/{motorista_id}")
-async def websocket_endpoint(
-    websocket: WebSocket,
-    motorista_id: int,
-    token: Annotated[str, Depends(get_token_auth)] # A autenticação acontece aqui
-):
-    await websocket.accept()
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # Lógica de processamento...
-    except Exception:
-        # Tratar desconexões
-        pass
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("🛑 Encerrando conexões e desligando Central Transfers com segurança...")

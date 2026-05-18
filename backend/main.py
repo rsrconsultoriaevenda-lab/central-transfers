@@ -115,3 +115,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("🛑 Encerrando conexões e desligando Central Transfers com segurança...")
+    
+    
+echo "# trigger build" >> backend/main.py

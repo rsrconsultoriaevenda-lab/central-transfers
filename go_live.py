@@ -13,10 +13,6 @@ except ImportError:
 # Garante que o diretório raiz está no path para importar o backend
 sys.path.append(os.getcwd())
 
-REQUIRED_ENV_VARS = ["DATABASE_URL",
-                     "MERCADO_PAGO_ACCESS_TOKEN", "MERCADO_PAGO_WEBHOOK_SECRET",
-                     "SECRET_KEY", "FRONTEND_URL"]
-
 
 def run_step(command, description):
     print(f"\n🔄 {description}...")
@@ -56,13 +52,8 @@ def main():
     print("🏗️  PREPARANDO LANÇAMENTO CENTRAL TRANSFERS")
     print("=" * 45)
 
-    # 0. Verificação de Variáveis Críticas
-    print("📋 Verificando variáveis de ambiente essenciais...")
-    for var in REQUIRED_ENV_VARS:
-        if not os.getenv(var):
-            print(f"❌ ERRO: A variável {var} não está definida no ambiente.")
-            sys.exit(1)
-    print("✅ Variáveis críticas encontradas.")
+    # Nota: A verificação de variáveis críticas agora é feita de forma inteligente
+    # pelo backend.check_standards (Step 1), que permite a correção imediata.
 
     # 1. Auditoria de Segurança e Configurações
     import backend.check_standards as audit
@@ -82,13 +73,10 @@ def main():
 
     # 1.1 Verificação de Conectividade e Integridade
     print("\n🔍 Testando conexão com o Banco de Dados...")
-    if not run_step(f"{sys.executable} check_system.py", "Verificando integridade do sistema"):
-        print("❌ O sistema não está íntegro para registros reais.")
-        sys.exit(1)
 
-    # 2. Migrações de Banco de Dados
+    # 2. Migrações de Banco de Dados (aplicamos antes da checagem de integridade)
     if not run_step("alembic upgrade head", "Atualizando esquema do Banco de Dados (Alembic)"):
-        print("\n❌ Erro de conexão ou autenticação com o Banco de Dados.")
+        print("\n❌ Erro ao aplicar migrações no Banco de Dados.")
         print("DICA: Verifique se o usuário/senha no DATABASE_URL estão corretos.")
         retry = input("Deseja atualizar a DATABASE_URL agora? (s/N): ").lower()
         if retry == 's':
@@ -100,9 +88,13 @@ def main():
         else:
             sys.exit(1)
 
-    # 3. Setup do Admin Mestre
+    # 3. Verificação de Conectividade e Integridade (após migrações)
+    if not run_step(f"{sys.executable} check_system.py", "Verificando integridade do sistema"):
+        print("❌ O sistema não está íntegro para registros reais.")
+        sys.exit(1)
+    # 4. Setup do Admin Mestre
     # Ajustado para o caminho real do arquivo fornecido no projeto
-    if not run_step(f"{sys.executable} painel-saas/src/setup_admin.py", "Configurando Administrador Mestre"):
+    if not run_step(f"{sys.executable} backend/setup_admin.py", "Configurando Administrador Mestre"):
         sys.exit(1)
 
     # 4. Seed opcional

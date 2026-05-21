@@ -17,16 +17,20 @@ def verify():
         print("✅ Rotas: Todos os módulos de rotas importados sem erros de sintaxe.")
 
         db = SessionLocal()
-        db.execute("SELECT 1")
+        # Use explicit text() for raw SQL expressions to satisfy SQLAlchemy
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
         print("✅ Banco de Dados: Conexão estabelecida.")
 
         # Verifica o erro de NotNullViolation que você encontrou
         null_pass_drivers = db.query(models.Motorista).filter(
             models.Motorista.senha_hash == None).count()
-            
+
         if null_pass_drivers > 0:
-            print(f"⚠️ AVISO: Existem {null_pass_drivers} motoristas sem senha no banco.")
-            fix = input("👉 Deseja gerar senhas temporárias ('Mudar123') para eles agora? (s/n): ")
+            print(
+                f"⚠️ AVISO: Existem {null_pass_drivers} motoristas sem senha no banco.")
+            fix = input(
+                "👉 Deseja gerar senhas temporárias ('Mudar123') para eles agora? (s/n): ")
             if fix.lower() == 's':
                 temp_hash = auth.hash_senha("Mudar123")
                 db.query(models.Motorista).filter(
@@ -35,7 +39,8 @@ def verify():
                 db.commit()
                 print("✅ Senhas corrigidas com sucesso!")
             else:
-                print("💡 DICA: Execute 'UPDATE motoristas SET senha_hash = '...' WHERE senha_hash IS NULL' manualmente.")
+                print(
+                    "💡 DICA: Execute 'UPDATE motoristas SET senha_hash = '...' WHERE senha_hash IS NULL' manualmente.")
                 print("         Use `from backend.auth import hash_senha; print(hash_senha('sua_senha_temporaria'))` para gerar o hash.")
         else:
             print("✅ Banco de Dados: Nenhum registro corrompido detectado.")

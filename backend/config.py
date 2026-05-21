@@ -26,12 +26,25 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
     WHATSAPP_API_VERSION: str = os.getenv("WHATSAPP_API_VERSION", "v20.0")
     MERCADO_PAGO_ACCESS_TOKEN: str = os.getenv("MERCADO_PAGO_ACCESS_TOKEN", "")
+    MERCADO_PAGO_WEBHOOK_SECRET: str = os.getenv(
+        "MERCADO_PAGO_WEBHOOK_SECRET", "")
+
+    # Web Push (VAPID)
+    VAPID_PRIVATE_KEY: str = os.getenv("VAPID_PRIVATE_KEY", "")
+    VAPID_PUBLIC_KEY: str = os.getenv("VAPID_PUBLIC_KEY", "")
+
+    # Admin defaults (deve ser seguro em produção)
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "")
+    ADMIN_PASS: str = os.getenv("ADMIN_PASS", "")
+
+    # SMTP (e-mail)
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASS: str = os.getenv("SMTP_PASS", "")
 
 
 class Config:
     env_file = ".env"
     env_file_encoding = "utf-8"
-
 
     # =====================================================================
     # Exportação global protegida

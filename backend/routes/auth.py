@@ -9,6 +9,7 @@ router = APIRouter(
     tags=["Autenticação"]
 )
 
+
 @router.post("/login")
 def login(
     login_data: schemas.LoginRequest,
@@ -24,11 +25,11 @@ def login(
 
     if usuario and auth.verificar_senha(login_data.senha, usuario.senha_hash):
         # Gera token de acesso para o administrador
-        access_token = criar_token(
-            data={"sub": usuario.email, "role": usuario.role}
+        access_token = auth.criar_token(
+            dados={"sub": usuario.email, "role": usuario.role}
         )
         return {
-            "access_token": access_token, 
+            "access_token": access_token,
             "token_type": "bearer",
             "role": usuario.role
         }
@@ -41,11 +42,11 @@ def login(
 
     if motorista and auth.verificar_senha(login_data.senha, motorista.senha_hash):
         # Gera token de acesso para o motorista
-        access_token = auth.criar_token_acesso(
-            data={"sub": motorista.email, "role": "motorista"}
+        access_token = auth.criar_token(
+            dados={"sub": motorista.email, "role": "motorista"}
         )
         return {
-            "access_token": access_token, 
+            "access_token": access_token,
             "token_type": "bearer",
             "role": "motorista"
         }

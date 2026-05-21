@@ -2,6 +2,9 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.config import settings
+from backend.services.notifier_service import notifier
+
 # Importação dos roteadores operacionais do ecossistema Central Transfers
 from backend.routes import (
     auth,
@@ -12,6 +15,7 @@ from backend.routes import (
     dashboard,
     pagamentos,
     whatsapp,
+    notifications,
     health
 )
 
@@ -26,15 +30,24 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Expondo o serviço global de notificações ao estado da aplicação
+app.state.notifier = notifier
+
 # ======================================================================
 # CONFIGURAÇÃO DE CORS EXPANDIDA PARA PRODUÇÃO (VERCEL & RAILWAY)
 # ======================================================================
-# Declaramos explicitamente as origens permitidas (Local, Vercel e subdomínios)
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://central-transfers.vercel.app",
-]
+raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
+if raw_origins.strip() == "*":
+    origins = ["*"]
+else:
+    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+
+if not origins:
+    origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://central-transfers.vercel.app",
+    ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -48,6 +61,8 @@ app.add_middleware(
 # ======================================================================
 # MIDDLEWARE INTERCEPTADOR PARA PREFLIGHT (OPTIONS) - BLINDAGEM CORS
 # ======================================================================
+
+
 @app.middleware("http")
 async def interceptar_cors_preflight(request: Request, call_next):
     # Se o navegador mandar um OPTIONS (Preflight), respondemos imediatamente com os headers de sucesso
@@ -61,59 +76,75 @@ async def interceptar_cors_preflight(request: Request, call_next):
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
-        return await call_next(request)
+    return await call_next(request)
 
-        # ======================================================================
-        # MAPEAMENTO DE ROTAS COM DUPLO PREFIXO (ESTRATÉGIA ANTI-CACHE DO FRONT)
-        # ======================================================================
 
-        # 1️⃣ Mapeamento Direto (Caso o frontend chame /motoristas, /pedidos, etc.)
-        app.include_router(auth.router, prefix="/auth", tags=["Autenticação"])
-        app.include_router(pedidos.router, prefix="/pedidos", tags=["Pedidos & Corridas"])
-        app.include_router(clientes.router, prefix="/clientes", tags=["Clientes"])
-        app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
-        app.include_router(servicos.router, prefix="/servicos", tags=["Serviços de Transfer"])
-        app.include_router(dashboard.router, prefix="/dashboard", tags=["Painel Administrativo"])
-        app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Mercado Pago & Finanças"])
-        app.include_router(whatsapp.router, prefix="/whatsapp", tags=["Notificações WhatsApp"])
-        app.include_router(health.router, prefix="/health", tags=["Saúde do Sistema"])
+# ======================================================================
+# MAPEAMENTO DE ROTAS COM DUPLO PREFIXO (ESTRATÉGIA ANTI-CACHE DO FRONT)
+# ======================================================================
 
-        # 2️⃣ Mapeamento Espelhado com /api (Caso o frontend tente forçar /api/motoristas, etc.)
-        app.include_router(auth.router, prefix="/api/auth", tags=["Autenticação"])
-        app.include_router(pedidos.router, prefix="/api/pedidos", tags=["Pedidos & Corridas"])
-        app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
-        app.include_router(motoristas.router, prefix="/api/motoristas", tags=["Motoristas"])
-        app.include_router(servicos.router, prefix="/api/servicos", tags=["Serviços de Transfer"])
-        app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Painel Administrativo"])
-        app.include_router(pagamentos.router, prefix="/api/pagamentos", tags=["Mercado Pago & Finanças"])
-        app.include_router(whatsapp.router, prefix="/api/whatsapp", tags=["Notificações WhatsApp"])
-        app.include_router(health.router, prefix="/api/health", tags=["Saúde do Sistema"])
+# 1️⃣ Mapeamento Direto (Caso o frontend chame /motoristas, /pedidos, etc.)
+app.include_router(auth.router, tags=["Autenticação"])
+app.include_router(pedidos.router, tags=["Pedidos & Corridas"])
+app.include_router(clientes.router, tags=["Clientes"])
+app.include_router(motoristas.router, prefix="/motoristas",
+                   tags=["Motoristas"])
+app.include_router(servicos.router, tags=["Serviços de Transfer"])
+app.include_router(dashboard.router, tags=["Painel Administrativo"])
+app.include_router(pagamentos.router, tags=["Mercado Pago & Finanças"])
+app.include_router(whatsapp.router, tags=["Notificações WhatsApp"])
+app.include_router(notifications.router, tags=["Notificações"])
+app.include_router(health.router, tags=["Saúde do Sistema"])
 
-        # ======================================================================
-        # ROTA DE LOGÍSTICA EM TEMPO REAL (WEBSOCKETS DE ISOLAMENTO)
-        # ======================================================================
+# 2️⃣ Mapeamento Espelhado com /api (Caso o frontend tente forçar /api/motoristas, etc.)
+app.include_router(auth.router, prefix="/api", tags=["Autenticação"])
+app.include_router(pedidos.router, prefix="/api", tags=["Pedidos & Corridas"])
+app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
+app.include_router(motoristas.router,
+                   prefix="/api/motoristas", tags=["Motoristas"])
+app.include_router(servicos.router, prefix="/api",
+                   tags=["Serviços de Transfer"])
+app.include_router(dashboard.router, prefix="/api",
+                   tags=["Painel Administrativo"])
+app.include_router(pagamentos.router, prefix="/api",
+                   tags=["Mercado Pago & Finanças"])
+app.include_router(whatsapp.router, prefix="/api",
+                   tags=["Notificações WhatsApp"])
+app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
+app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
+
+# ======================================================================
+# ROTA DE LOGÍSTICA EM TEMPO REAL (WEBSOCKETS DE ISOLAMENTO)
+# ======================================================================
+
+
 @app.websocket("/ws/teste_limpo/{driver_id}")
 @app.websocket("/api/ws/teste_limpo/{driver_id}")
 async def teste_limpo(websocket: WebSocket, driver_id: int):
     await websocket.accept()
-    logger.info(f"🟢 [TESTE LIMPO] Motorista {driver_id} conectou com sucesso na malha de rede!")
+    logger.info(
+        f"🟢 [TESTE LIMPO] Motorista {driver_id} conectou com sucesso na malha de rede!")
     try:
         await websocket.send_json({"type": "SISTEMA", "mensagem": "Conexão direta bem-sucedida!"})
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        logger.info(f"🔴 [TESTE LIMPO] Motorista {driver_id} encerrou a sessão remota.")
+        logger.info(
+            f"🔴 [TESTE LIMPO] Motorista {driver_id} encerrou a sessão remota.")
 
         # ======================================================================
         # EVENTOS DO CICLO DE VIDA DO SERVIDOR (STARTUP / SHUTDOWN)
         # ======================================================================
+
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Central Transfers inicializado com sucesso!")
-    logger.info("🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
+    logger.info(
+        "🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    logger.info("🛑 Encerrando conexões e desligando Central Transfers com segurança...")
-    
-    
+    logger.info(
+        "🛑 Encerrando conexões e desligando Central Transfers com segurança...")

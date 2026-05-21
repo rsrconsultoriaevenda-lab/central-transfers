@@ -1,81 +1,81 @@
-# backend/conftest.py
-
 import pytest
 import requests
+import time
+import os
 
-BASE_URL = "http://127.0.0.1:8001"
-
+BASE_URL = "http://127.0.0.1:8005"
 ADMIN_EMAIL = "rsrconsultoriaevenda@gmail.com"
 ADMIN_PASS = "Ren@220382"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def start_test_server():
+    """
+    Fixture inteligente: aguarda até o servidor FastAPI responder em `/docs`.
+    Se não estiver pronto dentro do timeout, falha explicitamente.
+
+    Esta fixture é um generator (usa `yield`) para compatibilidade com pytest-asyncio.
+    """
+    timeout = 15
+    start_time = time.time()
+    connected = False
+
+    print("\n[Pytest] 🔍 Aguardando inicialização do servidor Central Transfers...")
+
+    while time.time() - start_time < timeout:
+        try:
+            # Testamos a rota de documentação que é leve e nativa do FastAPI
+            resp = requests.get(f"{BASE_URL}/docs", timeout=1)
+            if resp.status_code == 200:
+                connected = True
+                break
+        except requests.exceptions.ConnectionError:
+            # servidor ainda não pronto, aguarda um pouco e tenta novamente
+            time.sleep(0.5)
+
+    if not connected:
+        pytest.fail("❌ O servidor na porta 8005 não ficou pronto a tempo para os testes.")
+
+    # Se chegamos aqui, o servidor está pronto — entregamos controle aos testes
+    yield None
+
+    # Teardown (se necessário) pode ir aqui
+
+
 @pytest.fixture(scope="session")
-def api_session():
-    """
-    Cria uma sessão autenticada para reutilização nos testes.
-    """
-
+def api_session(start_test_server):
+    """Garante o login administrativo usando a sessão de pé."""
     session = requests.Session()
-
-    login_payload = {
-        "email": ADMIN_EMAIL,
-        "senha": ADMIN_PASS
-    }
-
     try:
         response = session.post(
-            f"{BASE_URL}/auth/login",
-            json=login_payload,
-            timeout=5
-        )
+            f"{BASE_URL}/auth/login", json={"email": ADMIN_EMAIL, "senha": ADMIN_PASS}, timeout=5)
     except requests.exceptions.ConnectionError:
-        pytest.fail(
-            f"❌ Erro de conexão: O servidor em {BASE_URL} não está rodando."
-        )
+        pytest.fail(f"❌ Conexão recusada ao tentar autenticar em {BASE_URL}")
 
-    assert response.status_code == 200, (
-        f"Falha no login: {response.status_code} - {response.text}"
-    )
-
-    data = response.json()
-    token = data.get("access_token")
-
-    assert token, "Token JWT não retornado pela API."
-
-    session.headers.update({
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json"
-    })
-
+    assert response.status_code == 200, f"❌ Erro login admin: {response.text}"
+    token = response.json().get("access_token")
+    session.headers.update(
+        {"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
     return session
 
 
 @pytest.fixture
 def motorista_teste(api_session):
-    """
-    Cria um motorista válido para os testes E2E.
-    """
-
+    """Gera um motorista aleatório dinâmico para os testes de integração."""
+    id_unico = str(int(time.time()))[-6:]
     payload = {
-        "nome": "Motorista Teste",
-        "telefone": "11999999999",
+        "nome": f"Motorista Teste {id_unico}",
+        "telefone": f"54999{id_unico}",
         "ativo": True,
         "carro": "Toyota Corolla",
-        "placa": "ABC1D23",
+        "placa": f"ABC{id_unico[0]}D{id_unico[1:3]}",
         "modelo": "Corolla",
         "ano": 2022,
         "plano": "MASTER",
         "senha": "Ren@220382"
     }
-
     response = api_session.post(
-        f"{BASE_URL}/motoristas/register",
-        json=payload
-    )
-
-    assert response.status_code in [200, 201], (
-        f"Erro ao criar motorista: "
-        f"{response.status_code} - {response.text}"
-    )
-
+        f"{BASE_URL}/motoristas/register", json=payload)
+    assert response.status_code in [
+        200, 201], f"❌ Erro criar motorista: {response.text}"
     return response.json()

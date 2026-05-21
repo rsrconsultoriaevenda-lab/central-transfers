@@ -93,7 +93,8 @@ def main():
         print("❌ O sistema não está íntegro para registros reais.")
         sys.exit(1)
     # 4. Setup do Admin Mestre
-    # Ajustado para o caminho real do arquivo fornecido no projeto
+    # Garantir que o subprocess tenha PYTHONPATH apontando para o diretório do projeto
+    os.environ.setdefault("PYTHONPATH", os.getcwd())
     if not run_step(f"{sys.executable} backend/setup_admin.py", "Configurando Administrador Mestre"):
         sys.exit(1)
 

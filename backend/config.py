@@ -1,10 +1,14 @@
 import os
+from dotenv import load_dotenv
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
+
+load_dotenv()
 
 
 class Settings(BaseSettings):
     # Infraestrutura Base
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     SECRET_KEY: str = os.getenv(
         "SECRET_KEY", "CENTRAL_TRANSFERS_SUPER_SECRET_KEY_2026")
     ALGORITHM: str = "HS256"
@@ -40,6 +44,23 @@ class Settings(BaseSettings):
     # SMTP (e-mail)
     SMTP_USER: str = os.getenv("SMTP_USER", "")
     SMTP_PASS: str = os.getenv("SMTP_PASS", "")
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def validate_database_url(cls, value):
+        env = os.getenv("ENV", "development")
+        if not value or str(value).strip() == "":
+            if env == "development":
+                return "sqlite:///./test.db"
+            raise ValueError(
+                "DATABASE_URL não configurado. Em produção, use o PostgreSQL Aiven ou Railway."
+            )
+
+        if "sqlite://" in str(value).lower() and env != "development":
+            raise ValueError(
+                "A utilização de SQLite local não é permitida fora do ambiente de desenvolvimento."
+            )
+        return value
 
 
 class Config:

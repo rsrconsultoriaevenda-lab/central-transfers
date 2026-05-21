@@ -3,9 +3,9 @@ import requests
 import time
 import os
 
-BASE_URL = "http://127.0.0.1:8005"
-ADMIN_EMAIL = "rsrconsultoriaevenda@gmail.com"
-ADMIN_PASS = "Ren@220382"
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8001")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "rsrconsultoriaevenda@gmail.com")
+ADMIN_PASS = os.getenv("ADMIN_PASS", "Ren@220382")
 
 
 @pytest.fixture(scope="session", autouse=True)

@@ -22,9 +22,14 @@ def verify():
         db.execute(text("SELECT 1"))
         print("✅ Banco de Dados: Conexão estabelecida.")
 
-        # Verifica o erro de NotNullViolation que você encontrou
-        null_pass_drivers = db.query(models.Motorista).filter(
-            models.Motorista.senha_hash == None).count()
+        # Verifica se existem motoristas sem senha sem depender do mapeamento completo do modelo
+        from sqlalchemy import text
+        res = db.execute(text(
+            "SELECT count(1) AS cnt FROM motoristas WHERE senha_hash IS NULL")).fetchone()
+        try:
+            null_pass_drivers = int(res.cnt)
+        except Exception:
+            null_pass_drivers = int(res[0] or 0)
 
         if null_pass_drivers > 0:
             print(
@@ -33,9 +38,8 @@ def verify():
                 "👉 Deseja gerar senhas temporárias ('Mudar123') para eles agora? (s/n): ")
             if fix.lower() == 's':
                 temp_hash = auth.hash_senha("Mudar123")
-                db.query(models.Motorista).filter(
-                    models.Motorista.senha_hash == None
-                ).update({"senha_hash": temp_hash})
+                db.execute(text("UPDATE motoristas SET senha_hash = :h WHERE senha_hash IS NULL"), {
+                           "h": temp_hash})
                 db.commit()
                 print("✅ Senhas corrigidas com sucesso!")
             else:

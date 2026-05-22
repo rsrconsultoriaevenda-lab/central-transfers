@@ -19,7 +19,7 @@ Recomendado:
 ### 2. Configuração geral
 
 - Diretório de deploy: `backend/`
-- `requirements.txt` já está pronto
+- `backend/requirements.txt` já está pronto
 - `Procfile` já está pronto:
 
 ```text

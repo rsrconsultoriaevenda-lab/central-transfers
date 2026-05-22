@@ -13,7 +13,7 @@ async def simulate_driver(driver_id):
 
     try:
         # Conexão usando o parâmetro correto 'additional_headers'
-        async with websockets.connect(uri, additional_headers=custom_headers) as websocket:
+        async with websockets.connect(uri, additional_headers=custom_headers, open_timeout=10) as websocket:
             print(f"✅ Motorista {driver_id} conectado com sucesso na rota de teste.")
 
             while True:

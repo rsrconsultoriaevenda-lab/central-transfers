@@ -3,6 +3,14 @@ from backend.models import Servico, Usuario, Cliente, Motorista
 from backend.auth import hash_senha
 from decimal import Decimal
 import os
+import sys
+
+# Garante que as variáveis de ambiente do .env sejam carregadas
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 def seed():
@@ -15,9 +23,8 @@ def seed():
             return
 
     # Ao usar Alembic, as tabelas devem ser criadas via migrações.
-    # Se o banco estiver vazio, rode 'alembic upgrade head' antes do seed.
-    # No entanto, mantemos como fallback ou comentamos se preferir automação total.
-    # Base.metadata.create_all(bind=engine)
+    # Ativamos o create_all aqui para garantir que o banco local seja inicializado se estiver vazio.
+    Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     print("=== Populando Banco de Dados ===")
@@ -26,14 +33,17 @@ def seed():
     admin_user = db.query(Usuario).filter(Usuario.email == admin_email).first()
 
     if not admin_user:
-        admin_user = Usuario(email=admin_email, role="admin")
+        admin_user = Usuario(
+            email=admin_email,
+            role="admin",
+            senha_hash=hash_senha("Ren@220382")
+        )
         db.add(admin_user)
         print("Admin criado")
     else:
         admin_user.role = "admin"
+        admin_user.senha_hash = hash_senha("Ren@220382")
         print("Admin atualizado")
-
-    admin_user.senha_hash = hash_senha("Ren@220382")
 
     if db.query(Servico).count() == 0:
         servicos = [
@@ -66,7 +76,9 @@ def seed():
             modelo="Corolla",
             ano=2023,
             plano="MASTER",
-            comissao_master=Decimal("15.0")
+            comissao_master=Decimal("15.0"),
+            push_token={"endpoint": "test", "keys": {
+                "p256dh": "test", "auth": "test"}}
         )
 
         m2 = Motorista(

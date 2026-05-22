@@ -2,16 +2,15 @@ from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import declarative_base, sessionmaker
 from dotenv import load_dotenv
 import os
+from backend.config import settings
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
 engine = create_engine(
-    DATABASE_URL,
+    settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=True
+    echo=(os.getenv("ENV") == "development")
 )
 
 SessionLocal = sessionmaker(
@@ -31,6 +30,7 @@ naming_convention = {
 Base = declarative_base(
     metadata=MetaData(naming_convention=naming_convention)
 )
+
 
 def get_db():
     db = SessionLocal()

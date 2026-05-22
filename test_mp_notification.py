@@ -2,7 +2,8 @@ import requests
 import json
 
 # Altere para a URL do seu deploy no Railway ou localhost para testes locais
-BASE_URL = "https://central-transfers-production.up.railway.app"
+BASE_URL = "http://127.0.0.1:8001"
+
 
 def simular_webhook_pagamento(payment_id="5500112233"):
     """
@@ -11,7 +12,7 @@ def simular_webhook_pagamento(payment_id="5500112233"):
     para um teste real de ponta a ponta, use um ID de sandbox válido.
     """
     print(f"\n--- Enviando Webhook de Pagamento para {BASE_URL} ---")
-    
+
     payload = {
         "type": "payment",
         "data": {
@@ -21,7 +22,7 @@ def simular_webhook_pagamento(payment_id="5500112233"):
 
     try:
         response = requests.post(
-            f"{BASE_URL}/pagamentos/webhook/mercadopago", 
+            f"{BASE_URL}/pagamentos/webhook/mercadopago",
             json=payload,
             timeout=10
         )
@@ -33,6 +34,7 @@ def simular_webhook_pagamento(payment_id="5500112233"):
         print("3. O broadcast para os motoristas ativos.")
     except Exception as e:
         print(f"💥 Erro ao conectar: {e}")
+
 
 if __name__ == "__main__":
     simular_webhook_pagamento()

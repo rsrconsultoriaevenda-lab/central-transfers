@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
+import asyncio
 from sqlalchemy.orm import Session
 from datetime import datetime
 import logging
@@ -8,7 +9,7 @@ import hmac
 from backend.database import get_db
 from backend import models
 from backend.services.whatsapp_service import enviar_whatsapp_meta
-from backend.routes.whatsapp import broadcast_to_drivers
+from backend.services.notifier_service import notifier
 from backend.config import settings
 from backend.services.email_service import enviar_email_transacional
 
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/webhook/mercadopago")
-async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
+async def webhook_mercadopago(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Recebe e valida notificações do Mercado Pago com segurança HMAC."""
     # Validação de Assinatura para Produção
     signature_header = request.headers.get("x-signature")
@@ -39,8 +40,9 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     # Verificação de segurança: Validar se o hash bate com o secret do seu .env
     # Isso impede que usuários externos manipulem o status de pagamento
     manifest = f"id:{payload.get('data', {}).get('id')};request-id:{request.headers.get('x-request-id')};ts:{timestamp};"
-    hmac_obj = hmac.new(settings.MERCADO_PAGO_WEBHOOK_SECRET.encode(
-    ), manifest.encode(), hashlib.sha256)
+    webhook_secret = getattr(settings, 'MERCADO_PAGO_WEBHOOK_SECRET', "")
+    hmac_obj = hmac.new(webhook_secret.encode(),
+                        manifest.encode(), hashlib.sha256)
     if not hmac.compare_digest(hmac_obj.hexdigest(), v1):
         logger.error("🚫 Assinatura do Mercado Pago INVÁLIDA!")
         raise HTTPException(status_code=403, detail="Invalid HMAC signature")
@@ -59,7 +61,8 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
     if not payment_id:
         return {"status": "error", "message": "Payment ID not found in payload"}
 
-    sdk = mercadopago.SDK(settings.MERCADO_PAGO_ACCESS_TOKEN)
+    access_token = getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', "")
+    sdk = mercadopago.SDK(access_token)
     payment_info = sdk.payment().get(payment_id)
     data = payment_info["response"]
 
@@ -106,16 +109,15 @@ async def webhook_mercadopago(request: Request, db: Session = Depends(get_db)):
             pedido.status = "PAGO"
             db.commit()
             db.refresh(pedido)
-            await _notificar_liberacao(db, pedido, request)
+            await _notificar_liberacao(db, pedido, request, background_tasks)
 
     return {"status": "ok", "message": "Webhook processed successfully"}
 
 
-async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Request):
+async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Request, background_tasks: BackgroundTasks):
     """Helper para disparar notificações após confirmação de pagamento."""
 
     # 1. Notificação In-App via WebSocket (Essencial para o PWA)
-    import asyncio
     notifier = getattr(request.app.state, "notifier", None)
     if notifier:
         asyncio.create_task(notifier.broadcast({
@@ -135,10 +137,3 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Requ
             enviar_email_transacional(pedido.cliente.email, assunto, html)
         except Exception as e:
             logger.error(f"Falha ao enviar e-mail de pagamento: {e}")
-
-    # 3. WhatsApp (Opcional/Secundário agora)
-    try:
-        if settings.WHATSAPP_TOKEN:
-            broadcast_to_drivers(db, pedido)
-    except:
-        logger.info("WhatsApp ignorado conforme estratégia PWA.")

@@ -13,6 +13,8 @@ def start_services():
         [
             sys.executable, "-m", "uvicorn", "backend.main:app",
             "--reload",
+            "--reload-exclude", "*.db",
+            "--reload-exclude", "*.log",
             "--reload-dir", os.path.abspath("backend"),
             "--host", "127.0.0.1",
             "--port", "8001"

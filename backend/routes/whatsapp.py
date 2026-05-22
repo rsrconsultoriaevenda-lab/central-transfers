@@ -13,6 +13,7 @@ from fastapi import (
     Response,
     Request,
     BackgroundTasks,
+    Depends,
 )
 
 from fastapi.responses import PlainTextResponse
@@ -20,7 +21,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.config import settings
-from backend.database import SessionLocal
+from backend.database import SessionLocal, get_db
 from backend.services.whatsapp_service import enviar_whatsapp_meta
 
 router = APIRouter(
@@ -140,9 +141,9 @@ def _parse_order_id(message: str):
 
     return int(match.group(1)) if match else None
 
-    # =========================
-    # WEBHOOK VERIFY
-    # =========================
+# =========================
+# WEBHOOK VERIFY
+# =========================
 
 
 @router.get("/webhook")
@@ -185,7 +186,8 @@ async def whatsapp_verify(
 @router.post("/webhook")
 async def whatsapp_incoming(
     request: Request,
-    background_tasks: BackgroundTasks
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
 ):
 
     signature = request.headers.get(
@@ -194,108 +196,93 @@ async def whatsapp_incoming(
 
     body = await request.body()
 
-    # =========================
-    # VALIDAÇÃO HMAC
-    # =========================
+    app_secret = getattr(settings, "WHATSAPP_APP_SECRET", None)
+    env = getattr(settings, "ENV", "development")
 
-    if (
-        settings.WHATSAPP_APP_SECRET
-        and signature
-        and settings.ENV == "production"
-    ):
-
+    # 1. Validação de Assinatura (Apenas em Produção)
+    if app_secret and signature and env == "production":
         expected = hmac.new(
-            settings.WHATSAPP_APP_SECRET.encode(),
+            app_secret.encode(),
             body,
             hashlib.sha256
         ).hexdigest()
-
         received = signature.replace("sha256=", "")
-
         if not hmac.compare_digest(received, expected):
-
             logger.warning("Assinatura inválida")
-
             return Response(status_code=403)
 
-        # =========================
-        # PROCESSAMENTO
-        # =========================
+    # 2. Processamento da Mensagem (Dev e Produção Validada)
+    status = "ignored"
+    try:
+        data = json.loads(body)
+        if "entry" not in data:
+            return {"status": status}
 
         try:
+            # Extração segura dos campos da Meta Cloud API
+            entry = data["entry"][0]
+            changes = entry.get("changes", [{}])[0].get("value", {})
 
-            data = json.loads(body)
+            if "messages" in changes:
+                msg_obj = changes["messages"][0]
+                sender = msg_obj.get("from")
+                message_text = msg_obj.get("text", {}).get("body")
+                interactive = msg_obj.get("interactive", {})
+                button_reply = interactive.get("button_reply", {})
 
-            if "entry" in data:
+                if not sender:
+                    status = "no_sender"
+                elif button_reply.get("id"):
+                    status = "botao_processado"
+                elif message_text:
+                    lower_text = message_text.strip().lower()
+                    if lower_text == "oi" or lower_text.startswith("oi") or lower_text.startswith("olá"):
+                        status = "saudacao"
+                    elif "vagas" in lower_text:
+                        status = "vagas_listadas"
+                    else:
+                        status = "received"
 
-                try:
+                if sender and (message_text or button_reply):
+                    logger.info(
+                        f"📱 WhatsApp de {sender}: {message_text or button_reply}")
 
-                    changes = data["entry"][0]["changes"][0]["value"]
-
-                    if "messages" in changes:
-
-                        msg_obj = changes["messages"][0]
-
-                        sender = msg_obj.get("from")
-
-                        message = (
-                            msg_obj.get("text", {})
-                            .get("body")
-                        )
-
-                        if sender and message:
-
-                            logger.info(
-                                f"Mensagem recebida de {sender}: {message}"
-                            )
-
-                            notifier = getattr(
-                                request.app.state,
-                                "notifier",
-                                None
-                            )
-
-                            background_tasks.add_task(
-                                processar_evento_whatsapp,
-                                {
-                                    "sender": sender,
-                                    "message": message
-                                },
-                                notifier
-                            )
-
-                except Exception as e:
-
-                    logger.error(
-                        f"Erro ao extrair mensagem: {e}"
+                    notifier = getattr(request.app.state, "notifier", None)
+                    background_tasks.add_task(
+                        processar_evento_whatsapp,
+                        {
+                            "sender": sender,
+                            "message": message_text or ""
+                        },
+                        notifier
                     )
 
-                    return {"status": "accepted"}
+        except (KeyError, IndexError) as e:
+            logger.debug(
+                f"Evento WhatsApp ignorado ou formato desconhecido: {e}")
 
-        except Exception as e:
+    except Exception as e:
+        logger.error(f"Erro crítico no webhook: {e}")
+        status = "error"
 
-            logger.error(
-                f"Erro no webhook: {e}"
-            )
+    # Retorna JSON para testes internos, mantendo status 200 para a Meta
+    return {"status": status}
 
-            return Response(status_code=200)
 
-        # =========================
-        # PROCESSAMENTO PRINCIPAL
-        # =========================
+# =========================
+# PROCESSAMENTO PRINCIPAL
+# =========================
 
 
 async def processar_evento_whatsapp(
     data: dict,
     notifier=None
 ):
-
+    # CRÍTICO: Background tasks precisam de sua própria sessão.
+    # Se usarmos a injetada pelo Depends, o FastAPI a fecha antes da task terminar.
     db = SessionLocal()
-
     try:
-
         sender = data.get("sender")
-
         message = data.get("message", "")
 
         lower = message.lower()
@@ -409,9 +396,7 @@ async def processar_evento_whatsapp(
         logger.error(
             f"Erro processando evento: {e}"
         )
-
     finally:
-
         db.close()
 
         # =========================

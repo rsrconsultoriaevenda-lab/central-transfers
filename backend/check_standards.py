@@ -15,16 +15,21 @@ def run_audit():
 
     # Chaves obrigatórias para o funcionamento básico
     checks = {
-        "MERCADO_PAGO_ACCESS_TOKEN": settings.MERCADO_PAGO_ACCESS_TOKEN,
+        "MERCADO_PAGO_ACCESS_TOKEN": getattr(settings, 'MERCADO_PAGO_ACCESS_TOKEN', None),
+        "MERCADO_PAGO_WEBHOOK_SECRET": getattr(settings, 'MERCADO_PAGO_WEBHOOK_SECRET', None),
+        "DATABASE_URL": getattr(settings, 'DATABASE_URL', os.getenv("DATABASE_URL")),
         "SECRET_KEY": getattr(settings, 'SECRET_KEY', None),
+        "FRONTEND_URL": getattr(settings, 'FRONTEND_URL', os.getenv("FRONTEND_URL")),
         "VAPID_PRIVATE_KEY": getattr(settings, 'VAPID_PRIVATE_KEY', None),
         "VAPID_PUBLIC_KEY": getattr(settings, 'VAPID_PUBLIC_KEY', None),
-        "SMTP_USER": getattr(settings, 'SMTP_USER', None),
-        "SMTP_PASS": getattr(settings, 'SMTP_PASS', None),
+        "SMTP_USER": getattr(settings, 'SMTP_USER', os.getenv("SMTP_USER")),
+        "SMTP_PASS": getattr(settings, 'SMTP_PASS', os.getenv("SMTP_PASS")),
+        "ADMIN_EMAIL": getattr(settings, 'ADMIN_EMAIL', None),
+        "ADMIN_PASS": getattr(settings, 'ADMIN_PASS', None),
     }
 
     for key, value in checks.items():
-        if not value or any(x in str(value) for x in ["cole_seu", "SEU_SEGREDO", "temporaria"]):
+        if not value or any(x in str(value).lower() for x in ["cole_seu", "seu_segredo", "temporaria", "placeholder"]):
             print(f"❌ ERRO: {key} não configurado corretamente no .env")
             errors += 1
             failed_keys.append(key)
@@ -32,11 +37,9 @@ def run_audit():
             print(f"✅ {key}: OK")
 
     # 2. Verificações Opcionais / Informativas (Fora do loop principal)
-    whatsapp_token = getattr(settings, 'EVOLUTION_API_KEY', None) or getattr(
-        settings, 'WHATSAPP_TOKEN', None)
+    whatsapp_token = getattr(settings, 'WHATSAPP_TOKEN', None)
     if not whatsapp_token:
-        print(
-            "ℹ️  INFO: WhatsApp não configurado (EVOLUTION_API_KEY/WHATSAPP_TOKEN ausente).")
+        print("ℹ️  INFO: WhatsApp (Meta) não configurado. O sistema usará apenas WebSockets/WebPush.")
     else:
         print("✅ WHATSAPP: OK")
 

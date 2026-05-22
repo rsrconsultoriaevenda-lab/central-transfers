@@ -46,6 +46,7 @@ def create_env_file():
             f"ENV=development\n\n"
             f"# SEGURANÇA\n"
             f"SECRET_KEY={sk}\n"
+            f"FRONTEND_URL=http://localhost:5173\n"
             f"ALGORITHM=HS256\n"
             f"ACCESS_TOKEN_EXPIRE_MINUTES=60\n\n"
             f"# ADMIN MASTER\n"

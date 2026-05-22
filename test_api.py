@@ -1,20 +1,27 @@
 import requests
+import pytest
+import os
+
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8001")
+
 
 def test_health_check_servidor():
-    url = "https://central-transfers-production.up.railway.app/health"
+    url = f"{BASE_URL}/health"
     response = requests.get(url)
     print(f"\nConteúdo da resposta: {response.json()}")
     assert response.status_code == 200
     assert response.json() is not None
 
+
 def test_listar_pedidos_formato():
-    url = "https://central-transfers-production.up.railway.app/pedidos/"
+    url = f"{BASE_URL}/pedidos/"
     response = requests.get(url)
     assert response.status_code in [200, 401]
     assert isinstance(response.json(), (list, dict))
 
+
 def test_tentativa_login_sucesso():
-    url = "https://central-transfers-production.up.railway.app/auth/login"
+    url = f"{BASE_URL}/auth/login"
     dados = {
         "email": "rsrconsultoriaevenda@gmail.com",
         "senha": "Ren@220382"
@@ -24,9 +31,10 @@ def test_tentativa_login_sucesso():
     print(f"Resposta: {response.json()}")
     assert response.status_code == 200
 
+
 def test_criar_pedido_transfer_sucesso():
     # 1. Primeiro fazemos o login para pegar o token
-    url_login = "https://central-transfers-production.up.railway.app/auth/login"
+    url_login = f"{BASE_URL}/auth/login"
     login_data = {
         "email": "rsrconsultoriaevenda@gmail.com",
         "senha": "Ren@220382"
@@ -38,27 +46,23 @@ def test_criar_pedido_transfer_sucesso():
     if login_res.status_code != 200:
         print(f"\nErro no Login do Pedido: {login_res.status_code}")
         print(f"Detalhe: {login_res.json()}")
-        assert False, "Não foi possível obter o token para criar o pedido"
+        pytest.fail("Não foi possível obter o token para criar o pedido")
 
-        token = login_res.json()["access_token"]
+    token = login_res.json()["access_token"]
 
-        # 2. Agora criamos o pedido usando o Token
-        url_pedido = "https://central-transfers-production.up.railway.app/pedidos/"
-        headers = {"Authorization": f"Bearer {token}"}
+    # 2. Agora criamos o pedido usando o Token obtido
+    url_pedido = f"{BASE_URL}/pedidos/"
+    headers = {"Authorization": f"Bearer {token}"}
 
-        pedido_data = {
-            "cliente_nome": "Passageiro Teste QA",
-            "origem": "Aeroporto Salgado Filho (POA)",
-            "destino": "Hotel Serra Azul - Gramado",
-            "data_hora": "2026-05-15T14:30:00",
-            "valor": 250.00
-        }
+    pedido_data = {
+        "cliente_id": 1,  # Certifique-se de que o ID exista ou use o seed
+        "servico_id": 1,
+        "origem": "Aeroporto Salgado Filho (POA)",
+        "destino": "Hotel Serra Azul - Gramado",
+        "data_servico": "2026-05-15T14:30:00",
+        "valor": 250.00
+    }
 
-        response = requests.post(url_pedido, json=pedido_data, headers=headers)
+    response = requests.post(url_pedido, json=pedido_data, headers=headers)
 
-        print(f"\nStatus Criar Pedido: {response.status_code}")
-        print(f"Resposta: {response.json()}")
-
-        # Validação final de sucesso
-        assert response.status_code in [200, 201]
-        assert response.json()["cliente_nome"] == "Passageiro Teste QA"
+    assert response.status_code in [200, 201]

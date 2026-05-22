@@ -1,5 +1,6 @@
 from typing import Optional
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     Column,
@@ -10,7 +11,8 @@ from sqlalchemy import (
     DateTime,
     Boolean,
     Text,
-    Numeric
+    Numeric,
+    JSON
 )
 
 from sqlalchemy.orm import relationship
@@ -87,6 +89,7 @@ class Motorista(Base):
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     ultima_atualizacao = Column(DateTime, nullable=True)
+    push_token = Column(JSON, nullable=True)
 
     status = Column(String, default="ATIVO")
 
@@ -110,10 +113,15 @@ class Servico(Base):
 
     nome = Column(String, nullable=False)
     tipo = Column(String, nullable=True)
+    categoria = Column(String, default="TRANSFERS")
 
     valor = Column(Numeric(10, 2), nullable=False)
+    valor_padrao = Column(Numeric(10, 2), default=0.0)
 
     descricao = Column(Text, nullable=True)
+    capacidade_passageiros = Column(Integer, default=4)
+    capacidade_malas = Column(Integer, default=2)
+    imagem_url = Column(String, nullable=True)
 
     ativo = Column(Boolean, default=True)
 
@@ -151,7 +159,6 @@ class Pedido(Base):
 
     def calcular_financeiro(self):
         """Calcula as comissões com base no plano do motorista."""
-        from decimal import Decimal
         if self.valor is None:
             return
 

@@ -38,6 +38,7 @@ class Motorista(MotoristaBase):
 class MotoristaAcesso(BaseModel):
     login: str
     senha: Optional[str] = None
+    status: Optional[str] = "success"
 
 
 class MotoristaCreateResponse(BaseModel):

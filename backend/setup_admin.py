@@ -15,8 +15,9 @@ def criar_admin_mestre():
     db = SessionLocal()
     try:
         # Busca credenciais das configurações (carregadas via .env ou defaults)
-        email_admin = settings.ADMIN_EMAIL
-        senha_admin = settings.ADMIN_PASS
+        email_admin = getattr(settings, 'ADMIN_EMAIL',
+                              "admin@centraltransfers.com")
+        senha_admin = getattr(settings, 'ADMIN_PASS', "Mudar123")
 
         # Verifica se já existe um administrador
         existe = db.query(Usuario).filter(Usuario.role == "admin").first()
@@ -40,6 +41,7 @@ def criar_admin_mestre():
         db.rollback()
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     # Configuração básica de logging para quando rodar via CLI

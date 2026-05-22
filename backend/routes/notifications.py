@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_usuario_atual
+from backend.services.notifier_service import notifier
 
 router = APIRouter(prefix="/notifications", tags=["Notificações"])
 
@@ -30,3 +31,34 @@ async def subscribe_push(
     db.commit()
 
     return {"status": "success"}
+
+
+@router.post("/test/{motorista_id}")
+async def test_push_notification(
+    motorista_id: int,
+    db: Session = Depends(get_db),
+    usuario=Depends(get_usuario_atual)
+):
+    """Envia uma notificação de teste para um motorista específico (Apenas Admin)."""
+    if usuario.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    motorista = db.query(models.Motorista).filter(
+        models.Motorista.id == motorista_id).first()
+    if not motorista:
+        raise HTTPException(status_code=404, detail="Motorista não encontrado")
+
+    if not motorista.push_token:
+        raise HTTPException(
+            status_code=400, detail="O motorista ainda não autorizou notificações push no navegador")
+
+    test_data = {
+        "title": "🚀 Teste Central Transfers",
+        "body": f"Olá {motorista.nome}, este é um teste de push notification do seu PWA!",
+        "url": "/",
+        "icon": "/icon-192x192.png"
+    }
+
+    success = notifier.send_web_push(motorista.push_token, test_data)
+
+    return {"status": "success" if success else "failed", "motorista": motorista.nome}

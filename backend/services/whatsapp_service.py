@@ -7,9 +7,9 @@ def enviar_whatsapp_meta(
     mensagem: str = None,
     payload_interativo: dict = None
 ):
-    token = settings.WHATSAPP_TOKEN
-    phone_number_id = settings.WHATSAPP_PHONE_NUMBER_ID
-    api_version = settings.WHATSAPP_API_VERSION
+    token = getattr(settings, "WHATSAPP_TOKEN", None)
+    phone_number_id = getattr(settings, "WHATSAPP_PHONE_NUMBER_ID", None)
+    api_version = getattr(settings, "WHATSAPP_API_VERSION", "v20.0")
 
     if not token or not phone_number_id:
         return False, "WhatsApp não configurado"
@@ -57,9 +57,9 @@ def enviar_whatsapp_meta(
 
         except requests.exceptions.HTTPError:
             return False, {
-        "status_code": response.status_code,
-        "erro": response.text
-    }
+                "status_code": response.status_code,
+                "erro": response.text
+            }
 
         except requests.exceptions.RequestException as e:
             return False, str(e)

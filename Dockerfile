@@ -2,16 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Como o Railway já está configurado na pasta backend, 
-# o requirements.txt está diretamente na raiz do contexto de build
-COPY requirements.txt ./requirements.txt
-
-# Atualiza o pip e instala as dependências sem gerar cache (deixa a imagem leve)
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copia todo o restante dos arquivos do projeto para dentro de /app
+# Copia todo o repositório para dentro de /app
 COPY . .
+
+# Usamos o requirements do backend para garantir todas as dependências do FastAPI
+# quando o contexto de build está no root do projeto.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r backend/requirements.txt
 
 # Define a raiz de busca de módulos do Python para evitar erros de importação
 ENV PYTHONPATH=/app

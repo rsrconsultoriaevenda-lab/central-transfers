@@ -2,19 +2,18 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copia todo o repositório para dentro de /app
-COPY . .
-
-# Usamos o requirements do backend para garantir todas as dependências do FastAPI
-# quando o contexto de build está no root do projeto.
+# Instala dependências antes de copiar todo o projeto para aproveitar cache de build
+COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r backend/requirements.txt
+    pip install --no-cache-dir -r requirements.txt
+
+# Copia todo o projeto para dentro de /app
+COPY . .
 
 # Define a raiz de busca de módulos do Python para evitar erros de importação
 ENV PYTHONPATH=/app
 
-# O Railway injeta a porta dinamicamente, mas deixamos o aviso da porta padrão
+# O Railway injeta a porta dinamicamente, mas deixamos a porta padrão como fallback
 EXPOSE 8000
 
-# Inicialização flexível: usa a porta do Railway ou a 8000 como plano de fundo
-CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}"]

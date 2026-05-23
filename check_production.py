@@ -12,7 +12,7 @@ def check_api(url):
         if resp.status_code == 200:
             data = resp.json()
             print(
-                f"[OK] API Online. Database: {data.get('database') or 'Conectado'}")
+                f"✅ [OK] API Online. Status do Banco: {data.get('database') or 'Operacional'}")
             print(f"[OK] Ambiente: {data.get('environment')}")
             print(f"[OK] Status Geral: Sistema pronto para uso.")
         else:

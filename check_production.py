@@ -49,7 +49,7 @@ def check_api(url):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Uso: python check_production.py https://seu-app.onrender.com")
+        print("Uso: python check_production.py https://central-transfers-production.up.railway.app")
     else:
         target_url = sys.argv[1].rstrip('/')
         check_api(target_url)

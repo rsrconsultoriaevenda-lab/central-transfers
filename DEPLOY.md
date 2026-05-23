@@ -13,7 +13,6 @@ Este guia descreve como hospedar o backend FastAPI e os dois frontends React.
 
 Recomendado:
 - Railway
-- Render
 - Fly
 
 ### 2. Configuração geral
@@ -56,15 +55,6 @@ Defina no serviço de hosting:
    - `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 4. Adicione as variáveis de ambiente do banco e do WhatsApp.
 5. Se usar MySQL gerenciado, configure o banco pelo Railway e use os valores gerados.
-
-### 5. Render
-
-1. Crie um novo `Web Service` no Render.
-2. Aponte para o repositório e defina a raiz como `backend`.
-3. Use o comando de build padrão (não precisa de build para FastAPI) e o comando de start:
-   - `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-4. Adicione as variáveis de ambiente no painel de settings.
-5. Se usar banco MySQL gerenciado, crie o serviço de banco no Render e use as credenciais no backend.
 
 > Se preferir, use o arquivo `render.yaml` no root do projeto para configurar o backend e os sites estáticos `frontend` e `painel-saas` em uma única definição.
 

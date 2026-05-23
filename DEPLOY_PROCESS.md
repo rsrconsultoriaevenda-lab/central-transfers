@@ -11,7 +11,8 @@ Este arquivo descreve o fluxo completo para publicar o projeto em produção.
 
 ### Railway (Backend & Database)
 
-1. Crie um projeto Railway.
+CMD sh -c "python -m alembic upgrade head && uvicorn backend.main:app ..."
+1. Crie um projeto no Railway.
 2. Adicione um serviço Python e conecte o repositório.
 3. **Start Command (Crítico para WebSockets e Concorrência):**
    - `gunicorn -w 1 -k uvicorn.workers.UvicornWorker backend.main:app --bind 0.0.0.0:$PORT`

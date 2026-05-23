@@ -32,11 +32,14 @@ def run_audit():
                     "password", "placeholder", ":port", "/dbname"]
 
     for var in critical_vars:
-        # Busca no settings ou direto no ambiente como fallback
-        value = getattr(settings, var, None) or os.getenv(var)
+        # Busca no ambiente primeiro, depois no settings
+        value = os.getenv(var) or getattr(settings, var, None)
 
-        is_invalid = not value or any(x in str(value).lower()
-                                      for x in placeholders)
+        # Validação robusta: não pode ser nulo, nem conter strings de exemplo
+        if not value:
+            is_invalid = True
+        else:
+            is_invalid = any(x in str(value).lower() for x in placeholders)
 
         if is_invalid:
             print(f"❌ {var}: ERRO (Valor ausente ou padrão detectado)")
@@ -56,6 +59,9 @@ def run_audit():
             elif var == "SENTRY_DSN":
                 print(
                     f"⚠️  AVISO: SENTRY_DSN não configurado. Monitoramento desativado.")
+            else:
+                print(
+                    f"⚠️  AVISO: {var} não configurado ou valor padrão detectado.")
         else:
             print(f"✅ {var}: OK")
 

@@ -17,10 +17,18 @@ def verify():
         print("✅ Rotas: Todos os módulos de rotas importados sem erros de sintaxe.")
 
         db = SessionLocal()
-        # Use explicit text() for raw SQL expressions to satisfy SQLAlchemy
-        from sqlalchemy import text
+        from sqlalchemy import text, inspect
         db.execute(text("SELECT 1"))
         print("✅ Banco de Dados: Conexão estabelecida.")
+
+        # Listagem de tabelas existentes
+        inspector = inspect(db.get_bind())
+        tables = inspector.get_table_names()
+        print(f"📋 Tabelas encontradas ({len(tables)}): {', '.join(tables)}")
+
+        if "usuarios" not in tables:
+            print("❌ ERRO: Tabela 'usuarios' não encontrada. As migrações rodaram?")
+            sys.exit(1)
 
         # Verifica se existem motoristas sem senha sem depender do mapeamento completo do modelo
         from sqlalchemy import text

@@ -56,7 +56,10 @@ def main():
     # pelo backend.check_standards (Step 1), que permite a correção imediata.
 
     # 1. Auditoria de Segurança e Configurações
-    import backend.check_standards as audit
+    try:
+        import check_standards as audit
+    except ImportError:
+        import backend.check_standards as audit
     success, missing_keys = audit.run_audit()
 
     if not success:
@@ -95,10 +98,10 @@ def main():
     # 4. Setup do Admin Mestre
     # Garantir que o subprocess tenha PYTHONPATH apontando para o diretório do projeto
     os.environ.setdefault("PYTHONPATH", os.getcwd())
-    if not run_step(f"{sys.executable} backend/setup_admin.py", "Configurando Administrador Mestre"):
+    if not run_step(f"{sys.executable} setup_admin.py", "Configurando Administrador Mestre"):
         sys.exit(1)
 
-    # 4. Seed opcional
+    # 5. Seed opcional
     confirm = input(
         "\n🌱 Deseja popular o banco com dados iniciais (Seed)? (s/N): ")
     if confirm.lower() == 's':

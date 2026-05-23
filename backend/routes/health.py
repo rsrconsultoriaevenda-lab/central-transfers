@@ -26,9 +26,10 @@ def health_check(request: Request, db: Session = Depends(get_db)):
 
     # 1. Check Database Connection
     try:
-        db.execute(text("SELECT 1")).fetchone()
+        # Verifica a conexão e a existência da tabela principal
+        db.execute(text("SELECT 1 FROM usuarios LIMIT 1")).fetchone()
     except Exception as e:
-        db_status = "ERROR"
+        db_status = "ERROR (Tables missing or connection failed)"
         overall_status = "DEGRADED"
         errors.append(f"Database connection failed: {e}")
         logger.error(f"Health check DB error: {e}")

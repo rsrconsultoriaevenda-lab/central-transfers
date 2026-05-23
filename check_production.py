@@ -19,8 +19,9 @@ def check_api(url):
             print(
                 f"❌ [ERRO] API ({health_url}) retornou status {resp.status_code}")
             print(
-                f"👉 Dica: O erro 502 Bad Gateway no Railway geralmente significa que a aplicação deu 'crash' no boot.\n"
-                f"   Verifique os Logs no painel do Railway para ver o erro do Python/Alembic.")
+                f"👉 Dica: O erro 502 no Railway significa que o container não iniciou.\n"
+                f"   1. Verifique se a DATABASE_URL no Railway está correta.\n"
+                f"   2. Veja a aba 'Logs' no Railway para o erro real (ex: Connection Refused).")
 
         print(f"\n--- Verificando Webhook (Opcional) ---")
         webhook_url = f"{url}/whatsapp/incoming"

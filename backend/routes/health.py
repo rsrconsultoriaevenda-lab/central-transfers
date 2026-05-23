@@ -13,7 +13,7 @@ router = APIRouter(prefix="/health", tags=["Health Check"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/")
+@router.get("")
 def health_check(request: Request, db: Session = Depends(get_db)):
     db_status = "OK"
     meta_api_status = "OK"

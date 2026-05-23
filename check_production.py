@@ -5,14 +5,19 @@ import sys
 def check_api(url):
     print(f"--- Verificando Saúde da API: {url} ---")
     try:
-        # 1. Verifica Endpoint Raiz
-        resp = requests.get(url, timeout=10)
+        # 1. Verifica Endpoint de Saúde (Health Check)
+        health_url = f"{url}/health"
+        resp = requests.get(health_url, timeout=10)
+
         if resp.status_code == 200:
             data = resp.json()
             print(f"[OK] API Online. Database: {data.get('database')}")
             print(f"[OK] Ambiente: {data.get('environment')}")
         else:
-            print(f"[ERRO] API retornou status {resp.status_code}")
+            print(
+                f"[ERRO] API ({health_url}) retornou status {resp.status_code}")
+            print(
+                f"💡 Dica: Verifique os 'Logs' no Railway. O erro 502 indica que o container não iniciou.")
 
         # 2. Verifica Webhook Handshake
         # Simula a verificação da Meta

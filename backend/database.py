@@ -11,6 +11,11 @@ db_url = settings.DATABASE_URL
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
+# Garante SSL para bancos remotos (Aiven/Railway) se não estiver presente na URL
+if db_url and "postgresql" in db_url and "sslmode=" not in db_url:
+    sep = "&" if "?" in db_url else "?"
+    db_url += f"{sep}sslmode=require"
+
 engine = create_engine(
     db_url,
     pool_pre_ping=True,

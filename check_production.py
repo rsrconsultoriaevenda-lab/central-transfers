@@ -17,11 +17,11 @@ def check_api(url):
             print(f"[OK] Status Geral: Sistema pronto para uso.")
         else:
             print(
-                f"[ERRO] API ({health_url}) retornou status {resp.status_code}")
+                f"❌ [ERRO] API ({health_url}) retornou status {resp.status_code}")
             print(
-                f"💡 Dica: Verifique os 'Logs' no Railway. O erro 502 indica que o container não iniciou.")
+                f"👉 Dica: O erro 502 Bad Gateway no Railway geralmente significa que a aplicação deu 'crash' no boot.\n"
+                f"   Verifique os Logs no painel do Railway para ver o erro do Python/Alembic.")
 
-        # 2. Verifica Webhook Handshake
         print(f"\n--- Verificando Webhook (Opcional) ---")
         webhook_url = f"{url}/whatsapp/incoming"
         params = {
@@ -31,9 +31,14 @@ def check_api(url):
         }
         try:
             resp_web = requests.get(webhook_url, params=params, timeout=5)
-            print("[INFO] Resposta do Webhook recebida.")
+            if resp_web.status_code == 502:
+                print(
+                    "⚠️ [AVISO] Webhook também retornou 502 (Container offline).")
+            else:
+                print(
+                    f"[INFO] Resposta do Webhook: HTTP {resp_web.status_code}")
         except:
-            print("[INFO] Webhook não respondeu (esperado se não houver token Meta).")
+            print("[INFO] Webhook não respondeu (timeout).")
 
     except Exception as e:
         print(f"[FALHA CRÍTICA] Não foi possível conectar: {e}")

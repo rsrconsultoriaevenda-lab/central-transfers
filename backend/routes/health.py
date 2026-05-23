@@ -1,6 +1,6 @@
 import os
 import requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 import logging
@@ -14,12 +14,14 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/")
-def health_check(db: Session = Depends(get_db)):
+def health_check(request: Request, db: Session = Depends(get_db)):
     db_status = "OK"
     meta_api_status = "OK"
     overall_status = "OK"
     cors_status = "OK"
+    ws_status = "OK"
     errors = []
+
     frontend_url = os.getenv("FRONTEND_URL", "Não configurada")
 
     # 1. Check Database Connection
@@ -39,12 +41,13 @@ def health_check(db: Session = Depends(get_db)):
             settings, "WHATSAPP_API_VERSION", "v20.0")
 
         if not whatsapp_token or not whatsapp_phone_id:
-            meta_api_status = "INACTIVE (PWA Mode)"
+            meta_api_status = "DISABLED (PWA Active)"
         else:
             meta_api_url = f"https://graph.facebook.com/{whatsapp_api_version}/{whatsapp_phone_id}"
             headers = {"Authorization": f"Bearer {whatsapp_token}"}
 
-            response = requests.get(meta_api_url, headers=headers, timeout=5)
+            # Reduzimos o timeout para 2s para não travar a resposta do nosso sistema
+            response = requests.get(meta_api_url, headers=headers, timeout=2)
             response.raise_for_status()
 
             if "id" not in response.json():
@@ -84,20 +87,38 @@ def health_check(db: Session = Depends(get_db)):
             # Apenas valida se o token é aceito pela API de usuários do MP
             mp_url = "https://api.mercadopago.com/v1/me"
             mp_resp = requests.get(mp_url, headers={
-                                   "Authorization": f"Bearer {settings.MERCADO_PAGO_ACCESS_TOKEN}"}, timeout=5)
+                                   "Authorization": f"Bearer {settings.MERCADO_PAGO_ACCESS_TOKEN}"}, timeout=2)
             if mp_resp.status_code != 200:
                 mp_status = "INVALID_TOKEN"
     except Exception:
         mp_status = "OFFLINE"
 
+    # 5. Check WebSocket Notifier (Real-time Communication)
+    notifier = getattr(request.app.state, "notifier", None)
+    active_connections = 0
+    ws_status = "OK"
+    if not notifier:
+        ws_status = "CRITICAL (Required for PWA)"
+        overall_status = "ERROR"
+    else:
+        active_connections = len(getattr(notifier, "active_connections", []))
+
+    # 6. Check Email Config
+    email_status = "OK" if getattr(
+        settings, "SMTP_USER", None) else "NOT_CONFIGURED"
+
     response_data = {
         "status": overall_status,
+        "environment": getattr(settings, "ENV", "development"),
         "database": db_status,
         "meta_api": meta_api_status,
         "mercado_pago": mp_status,
+        "websocket": ws_status,
+        "active_ws_clients": active_connections,
+        "email_service": email_status,
         "cors_policy": cors_status,
         "configured_frontend": frontend_url,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now().isoformat()
     }
     if errors:
         response_data["errors"] = errors

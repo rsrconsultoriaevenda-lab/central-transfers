@@ -24,7 +24,11 @@ except ImportError as e:
     print("   Execute: pip install -r backend/requirements.txt")
     sys.exit(1)
 
+# Forçamos 127.0.0.1 para evitar problemas de resolução de DNS do 'localhost' no Windows
 BASE_URL = "http://127.0.0.1:8001"
+# Garante que a URL não termine com barra para não quebrar os endpoints
+BASE_URL = BASE_URL.rstrip('/')
+
 ADMIN_EMAIL = "rsrconsultoriaevenda@gmail.com"
 ADMIN_PASS = "Ren@220382"
 
@@ -40,14 +44,16 @@ def check_backend_running():
     print("="*70)
 
     try:
-        response = requests.get(f"{BASE_URL}/health", timeout=5)
+        # Aumentamos o timeout para 15s para dar tempo do backend inicializar completamente
+        response = requests.get(f"{BASE_URL}/health", timeout=15)
         if response.status_code == 200:
             print(f"✅ Backend online em {BASE_URL}")
             print(f"   Response: {response.json()}")
             return True
     except requests.exceptions.ConnectionError:
         print(f"❌ Backend NÃO está respondendo em {BASE_URL}")
-        print("   Execute: python run_dev.py")
+        print("   👉 PASSO 1: Abra um terminal e digite: python run_dev.py")
+        print("   👉 PASSO 2: Em OUTRO terminal, execute este script novamente.")
         return False
     except Exception as e:
         print(f"❌ Erro ao testar backend: {e}")

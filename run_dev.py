@@ -40,9 +40,12 @@ def start_services():
     else:
         print("❌ [3/3] Pasta 'painel-saas' não encontrada!")
 
-    print("\n✅ Todos os serviços estão rodando!")
-    print("🔗 API Docs: http://localhost:8001/docs")
-    print("🔗 Frontend Unificado: http://localhost:5173")
+    print("\n" + "="*50)
+    print("✅ SERVIÇOS INICIALIZADOS")
+    print(f"🔗 Backend API:   http://127.0.0.1:8001/docs")
+    print(f"🔗 Frontend:      http://localhost:5173")
+    print("="*50)
+    print("\n💡 DICA: Mantenha esta janela aberta e use OUTRO terminal para rodar os testes.")
 
     try:
         backend.wait()

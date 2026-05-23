@@ -27,8 +27,8 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
         return {"status": "ignored"}
 
     # Extração de parâmetros da assinatura (v1=...,ts=...)
-    parts = {item.split('=')[0]: item.split('=')[1]
-             for item in signature_header.split(',')}
+    parts = {item.split('=')[0].strip(): item.split('=')[1].strip()
+             for item in signature_header.split(',') if '=' in item}
     timestamp = parts.get('ts')
     v1 = parts.get('v1')
 
@@ -87,8 +87,9 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
                 motorista.status = "ATIVO"
                 logger.info(
                     f"Motorista {motorista.id} reativado após pagamento da mensalidade.")
-                enviar_whatsapp_meta(
-                    motorista.telefone, f"✅ Pagamento confirmado! Sua conta foi reativada. Bom trabalho!")
+                if getattr(settings, "WHATSAPP_TOKEN", None):
+                    enviar_whatsapp_meta(
+                        motorista.telefone, f"✅ Pagamento confirmado! Sua conta foi reativada. Bom trabalho!")
 
             db.commit()
             logger.info(f"Mensalidade {mensalidade_id} marcada como PAGA.")
@@ -117,19 +118,35 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
 async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Request, background_tasks: BackgroundTasks):
     """Helper para disparar notificações após confirmação de pagamento."""
 
-    # 1. Notificação In-App via WebSocket (Essencial para o PWA)
-    notifier = getattr(request.app.state, "notifier", None)
-    if notifier:
-        asyncio.create_task(notifier.broadcast({
-            "type": "NEW_ORDER",
-            "pedido_id": pedido.id,
-            "origem": pedido.origem,
-            "destino": pedido.destino,
-            "valor": str(pedido.valor),
-            "mensagem": f"⚠️ PEDIDO LIBERADO: {pedido.origem} (R$ {pedido.valor})"
-        }))
+    # 1. Notificação In-App via WebSocket (Tempo Real - Painel aberto)
+    notifier_instance = getattr(request.app.state, "notifier", notifier)
+    message_payload = {
+        "type": "NEW_ORDER",
+        "pedido_id": pedido.id,
+        "origem": pedido.origem,
+        "destino": pedido.destino,
+        "valor": str(pedido.valor),
+        "mensagem": f"⚠️ NOVO PEDIDO PAGO: {pedido.origem} → {pedido.destino}"
+    }
 
-    # 2. Notifica via E-mail (Backup)
+    if notifier_instance:
+        await notifier_instance.broadcast(message_payload)
+
+    # 2. Web Push Notifications (PWA em background/celular bloqueado)
+    motoristas_ativos = db.query(models.Motorista).filter(
+        models.Motorista.status == "ATIVO",
+        models.Motorista.push_token.isnot(None)
+    ).all()
+
+    for m in motoristas_ativos:
+        background_tasks.add_task(
+            notifier_instance.send_web_push,
+            m.push_token,
+            {"title": "🚖 Novo Pedido Pago!",
+                "body": f"De {pedido.origem} para {pedido.destino}", "url": "/"}
+        )
+
+    # 3. Notifica via E-mail (Backup para o Cliente)
     if pedido.cliente and pedido.cliente.email:
         assunto = f"✅ Pagamento Confirmado! Pedido #{pedido.id}"
         html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o serviço <strong>{pedido.servico.nome}</strong>. Em breve enviaremos os dados do motorista.</p>"

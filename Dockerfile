@@ -16,4 +16,5 @@ ENV PYTHONPATH=/app
 # O Railway injeta a porta dinamicamente, mas deixamos a porta padrão como fallback
 EXPOSE 8000
 
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}"]
+# Usamos shell form para garantir que a variável de ambiente $PORT seja expandida corretamente
+CMD uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}

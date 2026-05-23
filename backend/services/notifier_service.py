@@ -71,7 +71,9 @@ class NotifierService:
             return True
         except WebPushException as ex:
             logger.error(f"❌ [Push] Falha ao enviar notificação: {ex}")
-            # Se o erro for 410 (Gone), significa que o token expirou ou o usuário desinstalou
+            if ex.response is not None and ex.response.status_code == 410:
+                logger.warning(
+                    f"🗑️ [Push] Token expirado detectado. Deve ser removido do banco.")
             return False
         except Exception as e:
             logger.error(f"⚠️ [Push] Erro inesperado: {e}")

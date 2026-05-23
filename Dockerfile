@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Instala dependências antes de copiar todo o projeto para aproveitar cache de build
-COPY backend/requirements.txt ./requirements.txt
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 

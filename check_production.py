@@ -19,8 +19,10 @@ def check_api(url):
             print(
                 f"❌ [ERRO] API ({health_url}) retornou status {resp.status_code}")
             print(
-                f"👉 Dica: O erro 502 no Railway significa que o container não iniciou.\n"
-                f"   1. Verifique se a DATABASE_URL no Railway está correta.\n"
+                f"👉 Dica: O erro 502 no Railway significa que o container deu 'crash' no boot.\n"
+                f"   1. Verifique se a DATABASE_URL no Railway começa com 'postgresql://' (adicione o 'ql' se faltar).\n"
+                f"   2. Certifique-se de que a variável DATABASE_URL termina com '?sslmode=require'.\n"
+                f"   3. Execute 'railway logs' no terminal ou veja a aba 'Logs' no painel web.\n"
                 f"   2. Veja a aba 'Logs' no Railway para o erro real (ex: Connection Refused).")
 
         print(f"\n--- Verificando Webhook (Opcional) ---")

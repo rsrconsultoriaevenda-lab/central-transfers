@@ -1,0 +1,11 @@
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.env
+.git
+.github
+venv/
+.venv/
+painel-saas/node_modules/
+painel-saas/dist/

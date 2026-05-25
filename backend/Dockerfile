@@ -2,19 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instala dependências antes de copiar todo o projeto para aproveitar cache de build
-COPY requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Instala dependências do sistema necessárias para o driver do PostgreSQL (psycopg2)
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copia todo o projeto para dentro de /app
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# Define a raiz de busca de módulos do Python para evitar erros de importação
 ENV PYTHONPATH=/app
 
-# O Railway injeta a porta dinamicamente, mas deixamos a porta padrão como fallback
-EXPOSE 8000
-
-# Usamos shell form para garantir que a variável de ambiente $PORT seja expandida corretamente
-CMD sh -c "python -m alembic -c backend/alembic.ini upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port $PORT"
+CMD ["sh", "-c", "alembic upgrade head && uvicorn backend.main:app --host 0.0.0.0 --port 8001"]

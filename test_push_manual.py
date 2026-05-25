@@ -1,5 +1,5 @@
 from backend.services.notifier_service import notifier
-from backend.models import Motorista
+from backend.models import Motorista, Usuario
 from backend.database import SessionLocal, engine, Base
 import sys
 import os
@@ -15,14 +15,25 @@ except ImportError:
     pass
 
 
-def disparar_teste_vibracao(motorista_id):
+def disparar_teste_vibracao(motorista_id=None):
     # Garante que as tabelas existam no banco de dados antes de realizar a consulta
     Base.metadata.create_all(bind=engine)
 
     db = SessionLocal()
     try:
-        motorista = db.query(Motorista).filter(
-            Motorista.id == motorista_id).first()
+        if motorista_id is None:
+            # Busca o último motorista que possui um token de push válido
+            motorista = db.query(Motorista).filter(
+                Motorista.push_token.isnot(None)).order_by(Motorista.id.desc()).first()
+            if motorista:
+                print(
+                    f"ℹ️ Selecionado automaticamente: {motorista.nome} (ID: {motorista.id})")
+            else:
+                print("❌ Erro: Nenhum motorista com push_token encontrado no banco.")
+                return
+        else:
+            motorista = db.query(Motorista).filter(
+                Motorista.id == motorista_id).first()
 
         if not motorista or not motorista.push_token:
             print(
@@ -50,7 +61,8 @@ def disparar_teste_vibracao(motorista_id):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Uso: python test_push_manual.py [ID_DO_MOTORISTA]")
-    else:
+    if len(sys.argv) > 1:
         disparar_teste_vibracao(int(sys.argv[1]))
+    else:
+        print("💡 Dica: Você pode passar o ID do motorista. Tentando encontrar um token automaticamente...")
+        disparar_teste_vibracao()

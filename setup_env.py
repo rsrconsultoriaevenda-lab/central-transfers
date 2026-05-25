@@ -47,6 +47,7 @@ def create_env_file():
             f"# SEGURANÇA\n"
             f"SECRET_KEY={sk}\n"
             f"FRONTEND_URL=http://localhost:5173\n"
+            f"ALLOWED_ORIGINS=http://localhost:5173,https://central-transfers-painel.vercel.app\n"
             f"ALGORITHM=HS256\n"
             f"ACCESS_TOKEN_EXPIRE_MINUTES=60\n\n"
             f"# ADMIN MASTER\n"
@@ -73,7 +74,7 @@ def create_env_file():
             f"# ==============================================================================\n"
             f"# 🌐 CONFIGURAÇÕES DO FRONTEND (VITE)\n"
             f"# ==============================================================================\n"
-            f"VITE_API_URL=http://localhost:8001\n"
+            f"VITE_API_URL=https://central-transfers-production.up.railway.app\n"
             f"VITE_MERCADO_PAGO_PUBLIC_KEY=cole_sua_public_key_aqui\n"
             f"VITE_VAPID_PUBLIC_KEY={v_pub}\n"
         )

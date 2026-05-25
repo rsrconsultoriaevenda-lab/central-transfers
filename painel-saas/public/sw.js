@@ -1,48 +1,57 @@
-const CACHE_NAME = 'central-v2';
-const STATIC_ASSETS = ['/', '/index.html', '/driver', '/favicon.ico', '/logo192.png'];
-const API_URL_MATCH = /\/pedidos/;
+/* eslint-disable no-restricted-globals */
 
-self.addEventListener('install', (event) => {
+// Evento de Push: Recebe a mensagem do Backend (pywebpush)
+self.addEventListener('push', (event) => {
+  if (!(self.Notification && self.Notification.permission === 'granted')) {
+    return;
+  }
+
+  let data = {
+    title: 'Nova Solicitação',
+    body: 'Você tem um novo transfer disponível!',
+    vibrate: [200, 100, 200],
+    data: { url: '/dashboard/pedidos' }
+  };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/icon-192x192.png',
+    badge: '/badge-72x72.png',
+    vibrate: data.vibrate || [500, 110, 500],
+    data: data.data || { url: '/' },
+    actions: [
+      { action: 'open', title: 'Ver Detalhes' },
+      { action: 'close', title: 'Ignorar' }
+    ],
+    tag: 'transfer-notification',
+    renotify: true
+  };
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
+    self.registration.showNotification(data.title, options)
   );
 });
 
-self.addEventListener('fetch', (event) => {
-  const url = event.request.url;
-
-  // Estratégia Network-First para a API de Pedidos (Agenda)
-  // Tenta buscar a versão mais recente; se falhar (offline), usa o cache.
-  if (API_URL_MATCH.test(url)) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const clonedResponse = response.clone();
-          caches.open('api-cache').then((cache) => cache.put(event.request, clonedResponse));
-          return response;
-        })
-        .catch(() => caches.match(event.request))
-    );
-  } else {
-    // Estratégia Cache-First para arquivos estáticos (CSS, JS, Imagens)
-    event.respondWith(
-      caches.match(event.request).then((response) => response || fetch(event.request))
-    );
-  }
-});
-
-self.addEventListener('push', (event) => {
-  const data = event.data.json();
-  self.registration.showNotification(data.title, {
-    body: data.body,
-    icon: '/logo192.png',
-    vibrate: data.vibrate || [200, 100, 200]
-  });
-});
-
+// Evento de Clique: Direciona o motorista para o pedido
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+
+  if (event.action === 'close') return;
+
+  const urlToOpen = event.notification.data.url || '/';
+
   event.waitUntil(
-    clients.openWindow('/driver')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      if (windowClients.length > 0) return windowClients[0].focus();
+      return clients.openWindow(urlToOpen);
+    })
   );
 });

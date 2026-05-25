@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 # =====================================================
 # LISTAR MOTORISTAS (ACEITA / OU STRING VAZIA)
 # =====================================================
+
+
 @router.get("/", response_model=List[schemas.Motorista])
 @router.get("", response_model=List[schemas.Motorista])
 def listar_motoristas(
@@ -38,10 +40,11 @@ def listar_motoristas(
         raise HTTPException(status_code=403, detail="Acesso negado")
     return db.query(models.Motorista).options(joinedload(models.Motorista.mensalidades)).all()
 
-
     # =====================================================
     # CRIAR MOTORISTA (ADMIN) - ENTRADA DINÂMICA
     # =====================================================
+
+
 @router.post("/", response_model=schemas.MotoristaCreateResponse)
 @router.post("", response_model=schemas.MotoristaCreateResponse)
 async def criar_motorista_admin(
@@ -58,7 +61,8 @@ async def criar_motorista_admin(
         raise HTTPException(400, str(e))
 
     if db.query(models.Motorista).filter(models.Motorista.telefone == telefone_limpo).first():
-        raise HTTPException(400, "Este telefone já está cadastrado para um motorista.")
+        raise HTTPException(
+            400, "Este telefone já está cadastrado para um motorista.")
 
     email_login = f"{telefone_limpo}@motorista.com"
     senha_plana = motorista_in.senha or secrets.token_urlsafe(8)
@@ -72,7 +76,8 @@ async def criar_motorista_admin(
         db.add(novo_usuario)
         db.flush()
 
-        plano_formatado = "MASTER" if "20%" in str(motorista_in.plano) else str(motorista_in.plano)
+        plano_formatado = "MASTER" if "20%" in str(
+            motorista_in.plano) else str(motorista_in.plano)
 
         novo_motorista = models.Motorista(
             nome=motorista_in.nome,
@@ -92,23 +97,24 @@ async def criar_motorista_admin(
         db.commit()
 
         return {
-    "motorista": novo_motorista,
-    "acesso": {
-        "login": email_login,
-        "senha": senha_plana,
-        "status": "success"
-    }
-}
+            "motorista": novo_motorista,
+            "acesso": {
+                "login": email_login,
+                "senha": senha_plana,
+                "status": "success"
+            }
+        }
 
     except Exception as e:
         db.rollback()
         logger.error(f"Erro ao salvar motorista no banco: {str(e)}")
         raise HTTPException(500, f"Erro interno ao salvar os dados: {str(e)}")
 
-
     # =====================================================
     # ATUALIZAR LOCALIZAÇÃO GEOFENCING
     # =====================================================
+
+
 @router.post("/localizacao")
 async def atualizar_localizacao(
     request: Request,
@@ -120,30 +126,59 @@ async def atualizar_localizacao(
     role = user.get("role")
 
     if role != "admin":
-        motorista = db.query(models.Motorista).filter(models.Motorista.email == email).first()
+        motorista = db.query(models.Motorista).filter(
+            models.Motorista.email == email).first()
     else:
         motorista = db.query(models.Motorista).first()
 
-        if not motorista:
-            raise HTTPException(404, "Motorista não encontrado")
+    if not motorista:
+        raise HTTPException(404, "Motorista não encontrado")
 
-        motorista.latitude = data.get("latitude")
-        motorista.longitude = data.get("longitude")
-        motorista.ultima_atualizacao = datetime.now()
-        db.commit()
-        return {"status": "ok"}
+    motorista.latitude = data.get("latitude")
+    motorista.longitude = data.get("longitude")
+    motorista.ultima_atualizacao = datetime.now()
+    db.commit()
+
+    return {"status": "ok"}
+
+    # =====================================================
+    # ATUALIZAR TOKEN DE NOTIFICAÇÃO (WEBPUSH)
+    # =====================================================
 
 
-        # =====================================================
-        # CONSULTAR SALDO FINANCEIRO (CORRIDAS)
-        # =====================================================
+@router.post("/update-push-token")
+async def atualizar_push_token(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    data = await request.json()
+    email = user.get("email")
+
+    motorista = db.query(models.Motorista).filter(
+        models.Motorista.email == email).first()
+
+    if not motorista:
+        raise HTTPException(404, "Motorista não encontrado")
+
+    motorista.push_token = data.get("subscription")
+    db.commit()
+
+    return {"status": "token_updated"}
+
+    # =====================================================
+    # CONSULTAR SALDO FINANCEIRO (CORRIDAS)
+    # =====================================================
+
+
 @router.get("/me/saldo")
 def consultar_saldo_proprio(
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
 ):
     email = user.get("email")
-    motorista = db.query(models.Motorista).filter(models.Motorista.email == email).first()
+    motorista = db.query(models.Motorista).filter(
+        models.Motorista.email == email).first()
 
     if not motorista:
         raise HTTPException(404, "Perfil de motorista não encontrado")
@@ -157,9 +192,9 @@ def consultar_saldo_proprio(
     ).first()
 
     return {
-    "saldo_total": stats.saldo or Decimal("0.00"),
-    "total_pedidos": stats.total or 0
-}
+        "saldo_total": stats.saldo or Decimal("0.00"),
+        "total_pedidos": stats.total or 0
+    }
 
 
 # =====================================================
@@ -198,13 +233,14 @@ async def register_motorista(
             nome=motorista_in.nome,
             email=email_login,
             telefone=telefone_limpo,
-            senha_hash=novo_usuario.senha_hash,  # 🌟 CORREÇÃO: Preenchendo a coluna obrigatória NOT NULL
+            # 🌟 CORREÇÃO: Preenchendo a coluna obrigatória NOT NULL
+            senha_hash=novo_usuario.senha_hash,
             carro=motorista_in.carro,
             placa=motorista_in.placa,
             modelo=motorista_in.modelo or motorista_in.carro,
             ano=motorista_in.ano or 2024,
             categoria=motorista_in.categoria or "STANDARD",
-            status="PENDENTE_APROVACAO",
+            status="ATIVO",
             plano="MENSAL",
             data_inicio_trial=datetime.now()
         )
@@ -214,15 +250,15 @@ async def register_motorista(
 
         # 🌟 AJUSTE DE CONTRATO: Retorna a estrutura esperada pela fixture `motorista_teste` do Pytest
         return {
-    "status": "success",
-    "mensagem": "Cadastro realizado! Aguardando aprovação administrativa.",
-    "motorista": {
-        "id": novo_motorista.id,
-        "nome": novo_motorista.nome,
-        "email": novo_motorista.email,
-        "telefone": novo_motorista.telefone
-    }
-}
+            "status": "success",
+            "mensagem": "Cadastro realizado! Aguardando aprovação administrativa.",
+            "motorista": {
+                "id": novo_motorista.id,
+                "nome": novo_motorista.nome,
+                "email": novo_motorista.email,
+                "telefone": novo_motorista.telefone
+            }
+        }
 
     except Exception as e:
         db.rollback()

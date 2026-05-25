@@ -7,6 +7,11 @@ import os
 def start_services():
     print("🚀 Iniciando Central Transfers (Ambiente de Desenvolvimento)...")
 
+    # Verificação de Segurança
+    if not os.path.exists(".env") and not os.path.exists("backend/.env"):
+        print("⚠️ AVISO: Arquivo .env não encontrado! O backend pode falhar ao conectar ao banco ou WhatsApp.")
+        time.sleep(1)
+
     # 1. Backend (8001)
     print("📦 [1/3] Iniciando Backend FastAPI...")
     backend = subprocess.Popen(
@@ -40,10 +45,14 @@ def start_services():
     else:
         print("❌ [3/3] Pasta 'painel-saas' não encontrada!")
 
+    port_frontend = "5173" if frontend else "---"
+    # Vite pula porta se 5173 estiver ocupada
+    port_painel = "5174" if frontend else "5173"
+
     print("\n" + "="*50)
     print("✅ SERVIÇOS INICIALIZADOS")
     print(f"🔗 Backend API:   http://127.0.0.1:8001/docs")
-    print(f"🔗 Frontend:      http://localhost:5173")
+    print(f"🔗 Painel/App:    http://localhost:{port_painel}")
     print("="*50)
     print("\n💡 DICA: Mantenha esta janela aberta e use OUTRO terminal para rodar os testes.")
 

@@ -1,25 +1,38 @@
+import enum
+from datetime import datetime, timezone
 from typing import Optional
-from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     Column,
     Integer,
-    String,
+    String,  # Mantém String
     Float,
     ForeignKey,
     DateTime,
     Boolean,
     Text,
     Numeric,
-    JSON
+    JSON,
+    Index,
+    Enum
 )
 
 from sqlalchemy.orm import relationship
 
-from pydantic import BaseModel, EmailStr
-
 from backend.database import Base
+
+# =========================
+# ENUMS
+# =========================
+
+
+class StatusPedido(str, enum.Enum):
+    PENDENTE = "PENDENTE"
+    PAGO = "PAGO"
+    ACEITO = "ACEITO"
+    CONCLUIDO = "CONCLUIDO"
+    CANCELADO = "CANCELADO"
 
 
 # =========================
@@ -37,7 +50,7 @@ class Usuario(Base):
     role = Column(String, default="admin")
     ativo = Column(Boolean, default=True)
 
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Cliente(Base):
@@ -49,7 +62,7 @@ class Cliente(Base):
     telefone = Column(String)
     email = Column(String)
 
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Mensalidade(Base):
@@ -62,7 +75,7 @@ class Mensalidade(Base):
     status = Column(String, default="PENDENTE")  # PENDENTE, PAGO
     data_pagamento = Column(DateTime, nullable=True)
     checkout_url = Column(String, nullable=True)
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     motorista = relationship("Motorista", back_populates="mensalidades")
 
@@ -99,9 +112,10 @@ class Motorista(Base):
     mensalidade_ativa = Column(Boolean, default=True)
 
     vencimento_mensalidade = Column(DateTime, nullable=True)
-    data_inicio_trial = Column(DateTime, default=datetime.utcnow)
+    data_inicio_trial = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc))
 
-    criado_em = Column(DateTime, default=datetime.utcnow)
+    criado_em = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     mensalidades = relationship("Mensalidade", back_populates="motorista")
 
@@ -147,15 +161,22 @@ class Pedido(Base):
     canal_venda = Column(String, default="direto")
     tipo_comissao_motorista = Column(String, default="AGUARDANDO_ACEITE")
 
-    status = Column(String, default="PENDENTE")
+    status = Column(Enum(StatusPedido), default=StatusPedido.PENDENTE)
 
     observacoes = Column(Text, nullable=True)
 
-    criado_at = Column(DateTime, default=datetime.utcnow)
+    criado_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     cliente = relationship("Cliente")
     motorista = relationship("Motorista")
     servico = relationship("Servico")
+
+    # Índices para busca rápida em produção
+    __table_args__ = (
+        Index('ix_pedidos_status', 'status'),
+        Index('ix_pedidos_data_servico', 'data_servico'),
+        Index('ix_pedidos_motorista_id', 'motorista_id'),
+    )
 
     def calcular_financeiro(self):
         """Calcula as comissões com base no plano do motorista."""

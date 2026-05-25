@@ -1,8 +1,41 @@
 {
+  "name": "central-transfers-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "painel-saas"
+  ],
+  "scripts": {
+    "dev": "python run_dev.py",
+    "test:frontend": "npm test --workspaces --if-present --",
+    "test:backend": "python -m pytest backend",
+    "test:all": "npm run test:frontend -- --run && npm run test:backend",
+    "build:all": "npm run build --workspaces",
+    "kill": "python kill_ports.py",
+    "db:migrate": "python -m alembic upgrade head",
+    "db:rollback": "python -m alembic downgrade -1",
+    "audit": "python backend/validate_routes.py"
+  },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",
     "axios": "^1.16.0",
-    "react-router-dom": "^7.14.2",
-    "recharts": "^3.8.1"
+    "react-router-dom": "7.14.2",
+    "recharts": "3.8.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@vitejs/plugin-react": "^6.0.2",
+    "jsdom": "^29.1.1",
+    "msw": "^2.14.6",
+    "vitest": "^4.1.7"
+  },
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@types/react": "18.3.1",
+    "@types/react-dom": "18.3.1"
   }
 }

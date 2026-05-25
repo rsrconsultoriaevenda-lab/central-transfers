@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,7 +15,6 @@ from backend.routes import (
     servicos,
     dashboard,
     pagamentos,
-    whatsapp,
     notifications,
     health
 )
@@ -23,11 +23,34 @@ from backend.routes import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CentralTransfers")
 
+# Configuração opcional de Sentry para Produção
+SENTRY_DSN = getattr(settings, "SENTRY_DSN", None)
+if SENTRY_DSN and settings.ENV == "production":
+    try:
+        import sentry_sdk
+        sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
+        logger.info("🛡️ Monitoramento Sentry ativado.")
+    except ImportError:
+        logger.warning("⚠️ Sentry SDK não instalado.")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Eventos de Inicialização (Startup)
+    logger.info("🚀 Central Transfers inicializado com sucesso!")
+    logger.info(
+        "🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
+    yield
+    # Eventos de Encerramento (Shutdown)
+    logger.info(
+        "🛑 Encerrando conexões e desligando Central Transfers com segurança...")
+
 # Inicialização limpa do FastAPI com suporte nativo a redirecionamento seguro de trailing slash
 app = FastAPI(
     title="Central Transfers API",
     description="Backend de logística para gestão de transfers Aeroporto POA / Gramado",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Expondo o serviço global de notificações ao estado da aplicação
@@ -40,7 +63,8 @@ raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
 if raw_origins.strip() == "*":
     origins = ["*"]
 else:
-    origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
+    origins = [origin.strip()
+               for origin in raw_origins.split(",") if origin.strip()]
 
 if not origins:
     origins = [
@@ -92,7 +116,6 @@ app.include_router(motoristas.router, prefix="/motoristas",
 app.include_router(servicos.router, tags=["Serviços de Transfer"])
 app.include_router(dashboard.router, tags=["Painel Administrativo"])
 app.include_router(pagamentos.router, tags=["Mercado Pago & Finanças"])
-app.include_router(whatsapp.router, tags=["Notificações WhatsApp"])
 app.include_router(notifications.router, tags=["Notificações"])
 app.include_router(health.router, tags=["Saúde do Sistema"])
 
@@ -108,8 +131,6 @@ app.include_router(dashboard.router, prefix="/api",
                    tags=["Painel Administrativo"])
 app.include_router(pagamentos.router, prefix="/api",
                    tags=["Mercado Pago & Finanças"])
-app.include_router(whatsapp.router, prefix="/api",
-                   tags=["Notificações WhatsApp"])
 app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
 app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
 
@@ -131,20 +152,3 @@ async def teste_limpo(websocket: WebSocket, driver_id: int):
     except WebSocketDisconnect:
         logger.info(
             f"🔴 [TESTE LIMPO] Motorista {driver_id} encerrou a sessão remota.")
-
-        # ======================================================================
-        # EVENTOS DO CICLO DE VIDA DO SERVIDOR (STARTUP / SHUTDOWN)
-        # ======================================================================
-
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info("🚀 Central Transfers inicializado com sucesso!")
-    logger.info(
-        "🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info(
-        "🛑 Encerrando conexões e desligando Central Transfers com segurança...")

@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 export default function DriverApp() {
   const [isOnline, setIsOnline] = useState(false);
   const [isBrowserOnline, setIsBrowserOnline] = useState(navigator.onLine);
-  const [activeTab, setActiveTab] = useState('agenda'); // agenda, ganhos, perfil
+  const [activeTab, setActiveTab] = useState('agenda'); // agenda, historico, perfil
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [mockOrder, setMockOrder] = useState(null);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -14,17 +14,30 @@ export default function DriverApp() {
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Benefícios: Simulação de Nível e Fidelidade do Motorista
-  const [driverStats] = useState({
+  // Filtro do Histórico Financeiro
+  const [historyPeriod, setHistoryPeriod] = useState('semanal'); // semanal, mensal, anual
+
+  // Dados do Motorista (Perfil)
+  const [driverProfile, setDriverProfile] = useState({
+    nome: 'João Silva',
+    email: 'joao.silva@centraltransfers.com',
+    telefone: '(54) 99999-1234',
+    veiculo: 'Renault Master - Preta',
+    placa: 'BRA2E19',
     nivel: 'PRATA',
     pontos: 1250,
-    viagensParaMeta: 7,
+    foto: null
   });
 
-  // Referência para o objeto de áudio para controlar play/pause
-  const [notificationAudio] = useState(new Audio('https://assets.mixkit.co/active_storage/sfx/1357/1357-preview.mp3'));
+  // Estado para Troca de Senha
+  const [passwordForm, setPasswordForm] = useState({
+    senhaAtual: '',
+    novaSenha: '',
+    confirmarSenha: ''
+  });
 
-  // Configura o áudio para repetir (loop)
+  // Referência para o áudio de notificação
+  const [notificationAudio] = useState(new Audio('https://assets.mixkit.co/active_storage/sfx/1357/1357-preview.mp3'));
   notificationAudio.loop = true;
 
   const getAuthHeader = () => {
@@ -37,11 +50,9 @@ export default function DriverApp() {
     try {
       const res = await axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() });
       const orders = res.data.filter(p => p.status !== 'CANCELADO');
-      
       setMyOrders(orders.length > 0 ? orders : getMockOrders());
     } catch (err) {
       console.error("Erro ao carregar ordens do motorista", err);
-      // Fallback para mock caso a API falhe ou não tenha dados
       setMyOrders(getMockOrders());
     } finally {
       setLoading(false);
@@ -50,17 +61,18 @@ export default function DriverApp() {
 
   const getMockOrders = () => [
     {
-      id: "MOCK-001",
+      id: "TRF-7812",
       origem: "Aeroporto Salgado Filho (POA)",
-      destino: "Rua Coberta, Gramado",
+      destino: "Hotel Master, Gramado",
       data_servico: new Date().toISOString(),
       status: "ACEITO",
-      valor: 280.00
+      valor: 280.00,
+      observacoes: "Passageiros com 3 malas grandes. Aguardar no desembarque."
     },
     {
-      id: "MOCK-002",
-      origem: "Hotel Master Gramado",
-      destino: "Snowland",
+      id: "TRF-7901",
+      origem: "Rua Coberta, Gramado",
+      destino: "Snowland, Gramado",
       data_servico: new Date(Date.now() + 3600000).toISOString(),
       status: "PENDENTE",
       valor: 65.00
@@ -77,43 +89,55 @@ export default function DriverApp() {
       await axios.put(`${API_URL}/pedidos/${pedidoId}/status`, { status: newStatus }, { headers: getAuthHeader() });
       loadMyOrders();
     } catch (err) {
-      alert("Erro ao atualizar status");
+      // Simulação local caso falte rota no back
+      setMyOrders(prev => prev.map(o => o.id === pedidoId ? { ...o, status: newStatus } : o));
     }
   };
 
   const handleCloseModal = () => {
     notificationAudio.pause();
     notificationAudio.currentTime = 0;
-    // Para a vibração imediatamente
     if ("vibrate" in navigator) navigator.vibrate(0);
     setShowNewOrderModal(false);
   };
 
-  // Simulação de nova chamada para teste de interface
+  // Upload de Imagem simulado por Base64
+  const handleFotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDriverProfile(prev => ({ ...prev, foto: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Alteração de Senha simulada
+  const handlePasswordChange = (e) => {
+    e.preventDefault();
+    if (passwordForm.novaSenha !== passwordForm.confirmarSenha) {
+      alert("A nova senha e a confirmação não batem!");
+      return;
+    }
+    alert("Senha alterada com sucesso na Central!");
+    setPasswordForm({ senhaAtual: '', novaSenha: '', confirmarSenha: '' });
+  };
+
   useEffect(() => {
     if (isOnline) {
       const timer = setTimeout(() => {
-        setMockOrder({ id: 999, origem: "Rua Coberta", destino: "Snowland", valor: 45.00 });
+        setMockOrder({ id: "TRF-9912", origem: "Aeroporto POA", destino: "Wish Serrano, Gramado", valor: 295.00 });
         setShowNewOrderModal(true);
-        
-        // Inicia o som
-        notificationAudio.play().catch(e => console.log("Aguardando interação para áudio"));
-        
-        // Inicia a vibração (Padrão: Vibrar 500ms, Pausa 200ms, repete...)
-        if ("vibrate" in navigator) {
-          navigator.vibrate([500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500]);
-        }
-      }, 5000);
-      return () => {
-        clearTimeout(timer);
-        handleCloseModal();
-      };
+        notificationAudio.play().catch(() => console.log("Interação necessária para o áudio"));
+        if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 500]);
+      }, 4000);
+      return () => { clearTimeout(timer); handleCloseModal(); };
     } else {
       handleCloseModal();
     }
-  }, [isOnline, notificationAudio]);
+  }, [isOnline]);
 
-  // Monitorar a conexão real do dispositivo
   useEffect(() => {
     const handleOnline = () => setIsBrowserOnline(true);
     const handleOffline = () => setIsBrowserOnline(false);
@@ -125,60 +149,49 @@ export default function DriverApp() {
     };
   }, []);
 
-  // Função para assinar o Web Push
-  const subscribeToPush = async () => {
-    try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: import.meta.env.VITE_VAPID_PUBLIC_KEY
-      });
-
-      await axios.post(`${API_URL}/notifications/subscribe`, subscription, {
-        headers: getAuthHeader()
-      });
-      console.log("Motorista inscrito para notificações Push!");
-    } catch (err) {
-      console.error("Falha ao assinar Push:", err);
-    }
-  };
-
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then(perm => {
-        if (perm === "granted") subscribeToPush();
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-    });
-  }, []);
-
-  const handleInstallApp = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') setDeferredPrompt(null);
-    }
-  };
-
   useEffect(() => { loadMyOrders(); }, []);
+
+  // Dados estáticos baseados no período do histórico selecionado
+  const getHistoryData = () => {
+    switch(historyPeriod) {
+      case 'semanal': return { faturamento: 'R$ 1.940,00', corridas: 7, km: '840 km', lista: [
+        { id: '1', data: '25 Mai', rota: 'POA ➔ Gramado', valor: 280.00, status: 'CONCLUÍDO' },
+        { id: '2', data: '24 Mai', rota: 'Canela ➔ POA', valor: 290.00, status: 'CONCLUÍDO' },
+        { id: '3', data: '22 Mai', rota: 'Gramado ➔ Nova Petrópolis', valor: 150.00, status: 'CONCLUÍDO' },
+      ]};
+      case 'mensal': return { faturamento: 'R$ 8.420,00', corridas: 32, km: '3.620 km', lista: [
+        { id: 'M1', data: 'Mai/26', rota: 'Consolidado Semana 3', valor: 2240.00, status: 'PAGO' },
+        { id: 'M2', data: 'Mai/26', rota: 'Consolidado Semana 2', valor: 2100.00, status: 'PAGO' },
+        { id: 'M3', data: 'Mai/26', rota: 'Consolidado Semana 1', valor: 2080.00, status: 'PAGO' },
+      ]};
+      case 'anual': return { faturamento: 'R$ 96.380,00', corridas: 342, km: '41.200 km', lista: [
+        { id: 'A1', data: '2026', rota: 'Acumulado Geral Temporada', valor: 96380.00, status: 'DECLARADO' }
+      ]};
+      default: return { faturamento: 'R$ 0,00', corridas: 0, km: '0 km', lista: [] };
+    }
+  };
+
+  const activeHistory = getHistoryData();
 
   return (
     <div style={styles.container}>
       {!isBrowserOnline && (
-        <div style={{ background: '#ef4444', color: '#fff', textAlign: 'center', fontSize: '12px', padding: '8px', fontWeight: 'bold' }}>
-          ⚠️ VOCÊ ESTÁ SEM INTERNET. EXIBINDO DADOS SALVOS.
+        <div style={styles.offlineBanner}>
+          ⚠️ DISPOSITIVO OFFLINE. EXIBINDO DADOS LOCAIS.
         </div>
       )}
-      <header style={{...styles.header, backgroundColor: isOnline ? (isBrowserOnline ? '#10b981' : '#f59e0b') : '#64748b'}}>
+      
+      <header style={{...styles.header, backgroundColor: isOnline ? (isBrowserOnline ? '#10b981' : '#f59e0b') : '#1e293b'}}>
         <div style={styles.userInfo}>
-          <div style={styles.miniAvatar}>JD</div>
-          <span style={{color: '#fff', fontWeight: 'bold'}}>Olá, João</span>
+          {driverProfile.foto ? (
+            <img src={driverProfile.foto} alt="Perfil" style={styles.avatarImg} />
+          ) : (
+            <div style={styles.miniAvatar}>JS</div>
+          )}
+          <div>
+            <span style={{color: '#fff', fontWeight: 'bold', display: 'block'}}>Olá, {driverProfile.nome}</span>
+            <span style={styles.badgeNivel}>🏆 Categoria {driverProfile.nivel}</span>
+          </div>
         </div>
         <div style={styles.statusToggle} onClick={() => setIsOnline(!isOnline)}>
           <div style={{...styles.toggleCircle, left: isOnline ? '32px' : '4px'}} />
@@ -186,146 +199,151 @@ export default function DriverApp() {
         </div>
       </header>
 
-      {/* Simulador de Mapa (Uber Experience) */}
-      <div style={styles.mapPlaceholder}>
-        <div style={styles.mapGradient} />
-        <div style={styles.mapOverlay}>
-          <div style={styles.locationPulse} />
-          <p style={{fontSize: '12px', color: '#fff', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.5)'}}>Aguardando Chamadas...</p>
-        </div>
-      </div>
-
-      {deferredPrompt && (
-        <div style={{ padding: '10px 20px', background: '#4c1d95', textAlign: 'center' }}>
-          <button onClick={handleInstallApp} style={{ background: '#fff', color: '#4c1d95', padding: '5px 15px', borderRadius: '8px', border: 'none', fontWeight: 'bold' }}>
-            📥 INSTALAR APLICATIVO CENTRAL
-          </button>
-        </div>
-      )}
-
-      <div style={styles.earningsCard}>
-        <span style={styles.earningsLabel}>Ganhos de hoje</span>
-        <h2 style={styles.earningsValue}>R$ 482,50</h2>
-        <div style={styles.statsRow}>
-          <span>⏱️ 5.2h online</span>
-          <span>🚗 8 viagens</span>
-        </div>
-      </div>
-
+      {/* Navegação Principal por Abas Superior */}
       <nav style={styles.tabs}>
-        <button onClick={() => setActiveTab('agenda')} style={activeTab === 'agenda' ? styles.tabActive : styles.tab}>Agenda</button>
-        <button onClick={() => setActiveTab('ganhos')} style={activeTab === 'ganhos' ? styles.tabActive : styles.tab}>Ganhos</button>
+        <button onClick={() => setActiveTab('agenda')} style={activeTab === 'agenda' ? styles.tabActive : styles.tab}>📅 Agenda</button>
+        <button onClick={() => setActiveTab('historico')} style={activeTab === 'historico' ? styles.tabActive : styles.tab}>📊 Histórico</button>
+        <button onClick={() => setActiveTab('perfil')} style={activeTab === 'perfil' ? styles.tabActive : styles.tab}>👤 Minha Conta</button>
       </nav>
 
       <div style={styles.content}>
+        {/* ABA 1: AGENDA DE CORRIDAS */}
         {activeTab === 'agenda' && (
-          <div style={styles.list}>
-            {myOrders.map(order => (
-              <div key={order.id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <div style={{...styles.orderType, background: order.valor > 500 ? 'linear-gradient(90deg, #D4AF37, #C5A059)' : 'rgba(124,58,237,0.1)', color: order.valor > 500 ? '#fff' : '#7c3aed'}}>{order.valor > 500 ? '💎 PREMIUM' : 'TRANSFER PRIVATIVO'}</div>
-                  <span style={styles.timeTag}>⏰ {new Date(order.data_servico).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  <span style={styles.priceTag}>R$ {order.valor ? Number(order.valor).toFixed(2) : '0.00'}</span>
-                </div>
-                <div style={styles.route}>
-                  <div style={styles.dotLine}><div style={styles.dot} /><div style={styles.line} /><div style={styles.dotSquare} /></div>
-                  <div style={styles.routeDetails}>
-                    <p style={styles.address}><strong>Origem:</strong> {order.origem}</p>
-                    <p style={styles.address}><strong>Destino:</strong> {order.destino}</p>
+          <div>
+            <div style={styles.mapPlaceholder}>
+              <div style={styles.mapGradient} />
+              <div style={styles.mapOverlay}>
+                <div style={styles.locationPulse} />
+                <p style={{fontSize: '13px', color: '#fff', fontWeight: 'bold'}}>{isOnline ? 'Rastreando localização ativa...' : 'Fique online para receber chamadas'}</p>
+              </div>
+            </div>
+
+            <div style={styles.list}>
+              <h3 style={styles.sectionTitle}>Suas Atividades Programadas</h3>
+              {myOrders.map(order => (
+                <div key={order.id} style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <div style={styles.orderType}>TRANSFER PRIVATIVO</div>
+                    <span style={styles.timeTag}>⏰ {new Date(order.data_servico).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    <span style={styles.priceTag}>R$ {Number(order.valor).toFixed(2)}</span>
+                  </div>
+                  <div style={styles.route}>
+                    <div style={styles.dotLine}><div style={styles.dot} /><div style={styles.line} /><div style={styles.dotSquare} /></div>
+                    <div style={styles.routeDetails}>
+                      <p style={styles.address}><strong>Origem:</strong> {order.origem}</p>
+                      <p style={styles.address}><strong>Destino:</strong> {order.destino}</p>
+                    </div>
+                  </div>
+                  {order.observacoes && (
+                    <div style={styles.obsCard}>{order.observacoes}</div>
+                  )}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => openInMaps(order.origem, order.destino)} style={styles.btnSecondary}>📍 NAVEGAR</button>
+                    {order.status !== 'CONCLUIDO' ? (
+                      <button onClick={() => updateStatus(order.id, 'CONCLUIDO')} style={styles.btnAction}>CONCLUIR</button>
+                    ) : (
+                      <button disabled style={{...styles.btnAction, background: '#10b981'}}>✓ FINALIZADO</button>
+                    )}
                   </div>
                 </div>
-                {order.observacoes && (
-                  <div style={styles.obsCard}>
-                    <span style={{fontSize: '10px', fontWeight: '800', color: '#94a3b8'}}>OBSERVAÇÕES DO CLIENTE</span>
-                    <p style={{fontSize: '13px', margin: '5px 0 0', color: '#cbd5e1', lineHeight: '1.4'}}>{order.observacoes}</p>
-                  </div>
-                )}
-                {/* Alerta de Adicionais para o Motorista */}
-                {order.valor > 500 && (
-                  <div style={styles.addonAlert}>
-                    <span style={{fontSize: '12px'}}>🎁 <strong>ITENS EXTRAS:</strong></span>
-                    <ul style={{margin: '5px 0 0 15px', padding: 0, fontSize: '12px', color: '#fbbf24'}}>
-                      <li>Kit Boas-vindas (Vinho + Taças)</li>
-                    </ul>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => openInMaps(order.origem, order.destino)} style={styles.btnSecondary}>📍 VER ROTA</button>
-                  <button onClick={() => updateStatus(order.id, 'CONCLUIDO')} style={styles.btnAction}>CONCLUIR</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ABA 2: HISTÓRICO FINANCEIRO (SEMANAL, MENSAL, ANUAL) */}
+        {activeTab === 'historico' && (
+          <div style={{padding: '0 15px'}}>
+            {/* Filtros de Período */}
+            <div style={styles.periodFilterContainer}>
+              <button onClick={() => setHistoryPeriod('semanal')} style={historyPeriod === 'semanal' ? styles.btnFilterActive : styles.btnFilter}>Semanal</button>
+              <button onClick={() => setHistoryPeriod('mensal')} style={historyPeriod === 'mensal' ? styles.btnFilterActive : styles.btnFilter}>Mensal</button>
+              <button onClick={() => setHistoryPeriod('anual')} style={historyPeriod === 'anual' ? styles.btnFilterActive : styles.btnFilter}>Anual</button>
+            </div>
+
+            {/* Quadro de Resumo de Ganhos */}
+            <div style={styles.earningsCard}>
+              <span style={styles.earningsLabel}>Faturamento Bruto ({historyPeriod})</span>
+              <h2 style={styles.earningsValue}>{activeHistory.faturamento}</h2>
+              <div style={styles.statsRow}>
+                <span>🚗 {activeHistory.corridas} viagens</span>
+                <span>🛣️ {activeHistory.km}</span>
+              </div>
+            </div>
+
+            {/* Lista consolidada do histórico */}
+            <h4 style={{color: '#94a3b8', margin: '15px 0 10px'}}>Extrato de Repasses</h4>
+            {activeHistory.lista.map(item => (
+              <div key={item.id} style={styles.historyItem}>
+                <div>
+                  <span style={{fontSize: '11px', color: '#7c3aed', fontWeight: 'bold'}}>{item.data}</span>
+                  <p style={{margin: '3px 0 0', fontSize: '14px', fontWeight: '500'}}>{item.rota}</p>
+                </div>
+                <div style={{textAlign: 'right'}}>
+                  <span style={{color: '#10b981', fontWeight: 'bold'}}>R$ {item.valor.toFixed(2)}</span>
+                  <span style={{display: 'block', fontSize: '10px', color: '#94a3b8'}}>{item.status}</span>
                 </div>
               </div>
             ))}
           </div>
         )}
+
+        {/* ABA 3: PERFIL, FOTO E SEGURANÇA */}
+        {activeTab === 'perfil' && (
+          <div style={{padding: '0 15px'}}>
+            
+            {/* Bloco de Informações do Motorista & Upload da Foto */}
+            <div style={styles.profileBox}>
+              <div style={styles.photoUploadContainer}>
+                <div style={styles.bigAvatarContainer}>
+                  {driverProfile.foto ? (
+                    <img src={driverProfile.foto} alt="Foto Motorista" style={styles.bigAvatar} />
+                  ) : (
+                    <div style={styles.bigAvatarPlaceholder}>FOTO</div>
+                  )}
+                </div>
+                <label style={styles.lblUpload}>
+                  📷 Carregar Nova Foto
+                  <input type="file" accept="image/*" onChange={handleFotoUpload} style={{display: 'none'}} />
+                </label>
+              </div>
+
+              {/* Detalhes Técnicos e Cadastrais */}
+              <div style={styles.detailsGrid}>
+                <div style={styles.detailField}><label>NOME COMPLETO</label><p>{driverProfile.nome}</p></div>
+                <div style={styles.detailField}><label>EMAIL CORPORATIVO</label><p>{driverProfile.email}</p></div>
+                <div style={styles.detailField}><label>WHATSAPP/TELEFONE</label><p>{driverProfile.telefone}</p></div>
+                <div style={styles.detailField}><label>VEÍCULO CADASTRADO</label><p>{driverProfile.veiculo}</p></div>
+                <div style={styles.detailField}><label>PLACA ANTT / MERCOSUL</label><p style={{color: '#fbbf24'}}>{driverProfile.placa}</p></div>
+              </div>
+            </div>
+
+            {/* Formulário de Troca de Senha */}
+            <div style={styles.profileBox}>
+              <h4 style={{margin: '0 0 15px 0', color: '#7c3aed'}}>🔐 Alteração de Segurança</h4>
+              <form onSubmit={handlePasswordChange} style={styles.passwordForm}>
+                <div style={styles.inputWrapper}>
+                  <label>Senha Atual</label>
+                  <input type="password" required value={passwordForm.senhaAtual} onChange={e => setPasswordForm({...passwordForm, senhaAtual: e.target.value})} style={styles.inputStyle} placeholder="••••••••" />
+                </div>
+                <div style={styles.inputWrapper}>
+                  <label>Nova Senha</label>
+                  <input type="password" required value={passwordForm.novaSenha} onChange={e => setPasswordForm({...passwordForm, novaSenha: e.target.value})} style={styles.inputStyle} placeholder="Mínimo 6 dígitos" />
+                </div>
+                <div style={styles.inputWrapper}>
+                  <label>Confirmar Nova Senha</label>
+                  <input type="password" required value={passwordForm.confirmarSenha} onChange={e => setPasswordForm({...passwordForm, confirmarSenha: e.target.value})} style={styles.inputStyle} placeholder="Repita a nova senha" />
+                </div>
+                <button type="submit" style={styles.btnSavePassword}>ATUALIZAR CREDENCIAIS</button>
+              </form>
+            </div>
+
+          </div>
+        )}
       </div>
 
-      {/* Modal de Nova Chamada (Estilo Uber) */}
+      {/* MODAL DE ENTRADA DE NOVA SOLICITAÇÃO */}
       {showNewOrderModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.requestCard}>
-            <div style={styles.pulseRing} />
-            <h3>Nova Solicitação!</h3>
-            <p><strong>{mockOrder?.origem}</strong></p>
-            <p>⬇️</p>
-            <p><strong>{mockOrder?.destino}</strong></p>
-            <div style={styles.modalPrice}>R$ {mockOrder && mockOrder.valor ? Number(mockOrder.valor).toFixed(2) : '0.00'}</div>
-            <div style={styles.modalButtons}>
-              <button onClick={handleCloseModal} style={styles.btnReject}>Recusar</button>
-              <button onClick={() => {handleCloseModal(); setIsOnline(true)}} style={styles.btnAccept}>ACEITAR</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <footer style={styles.footerNav}>
-        <div style={styles.navItem}>🏠</div>
-        <div style={styles.navItem}>📊</div>
-        <div style={styles.navItem}>👤</div>
-      </footer>
-    </div>
-  );
-}
-
-const styles = {
-  container: { background: '#0a0f1e', minHeight: '100vh', paddingBottom: '80px', fontFamily: '"Inter", sans-serif', color: '#fff' },
-  header: { padding: '40px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.3s' },
-  mapPlaceholder: { height: '220px', background: '#1e293b', margin: '0 15px', borderRadius: '28px', position: 'relative', overflow: 'hidden', border: '1px solid #334155', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' },
-  mapGradient: { position: 'absolute', width: '100%', height: '100%', background: 'radial-gradient(circle at center, transparent 0%, rgba(10,15,30,0.4) 100%)' },
-  mapOverlay: { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
-  locationPulse: { width: '14px', height: '14px', background: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 0 15px rgba(59, 130, 246, 0.2)', marginBottom: '15px' },
-  statusToggle: { width: '70px', height: '32px', background: 'rgba(255,255,255,0.2)', borderRadius: '20px', position: 'relative', cursor: 'pointer' },
-  toggleCircle: { width: '24px', height: '24px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '4px', transition: '0.3s' },
-  statusText: { position: 'absolute', fontSize: '9px', fontWeight: 'bold', top: '10px', right: '8px', color: '#fff' },
-  earningsCard: { margin: '20px', padding: '25px', background: 'linear-gradient(135deg, #4c1d95 0%, #1e1b4b 100%)', borderRadius: '24px', textAlign: 'center' },
-  earningsValue: { fontSize: '36px', margin: '10px 0' },
-  earningsLabel: { opacity: 0.7, fontSize: '14px' },
-  statsRow: { display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', opacity: 0.8 },
-  tabs: { display: 'flex', gap: '10px', padding: '0 20px', marginBottom: '20px' },
-  tab: { flex: 1, padding: '10px', borderRadius: '12px', border: 'none', background: 'rgba(255,255,255,0.05)', color: '#fff' },
-  tabActive: { flex: 1, padding: '10px', borderRadius: '12px', border: 'none', background: '#fff', color: '#0a0f1e', fontWeight: 'bold' },
-  card: { background: '#161e31', margin: '0 15px 15px', padding: '20px', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' },
-  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
-  orderType: { fontSize: '10px', fontWeight: '800', color: '#7c3aed', background: 'rgba(124,58,237,0.1)', padding: '4px 8px', borderRadius: '6px' },
-  timeTag: { background: '#334155', padding: '4px 10px', borderRadius: '8px', fontSize: '12px' },
-  priceTag: { color: '#10b981', fontWeight: '900', fontSize: '18px' },
-  route: { display: 'flex', gap: '15px', marginBottom: '20px' },
-  dotLine: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', paddingTop: '5px' },
-  dot: { width: '8px', height: '8px', background: '#10b981', borderRadius: '50%' },
-  line: { width: '2px', height: '30px', background: '#334155' },
-  dotSquare: { width: '8px', height: '8px', background: '#7c3aed' },
-  address: { fontSize: '13px', margin: '0 0 10px 0', opacity: 0.9 },
-  btnAction: { width: '100%', padding: '15px', borderRadius: '12px', border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 'bold' },
-  btnSecondary: { width: '100%', padding: '15px', borderRadius: '12px', border: '1px solid #7c3aed', background: 'transparent', color: '#7c3aed', fontWeight: 'bold' },
-  obsCard: { background: 'rgba(255,255,255,0.05)', padding: '12px', borderRadius: '12px', marginBottom: '15px', border: '1px dashed rgba(255,255,255,0.1)' },
-  addonAlert: { background: 'rgba(251, 191, 36, 0.1)', padding: '10px', borderRadius: '10px', marginBottom: '15px', borderLeft: '4px solid #fbbf24' },
-  footerNav: { position: 'fixed', bottom: 0, width: '100%', height: '70px', background: '#1e293b', display: 'flex', justifyContent: 'space-around', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.1)' },
-  navItem: { fontSize: '24px', cursor: 'pointer' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100, padding: '20px' },
-  requestCard: { width: '100%', background: '#fff', color: '#000', borderRadius: '30px', padding: '30px', textAlign: 'center', position: 'relative' },
-  modalPrice: { fontSize: '42px', fontWeight: '900', color: '#7c3aed', margin: '20px 0' },
-  modalButtons: { display: 'flex', gap: '10px' },
-  btnAccept: { flex: 2, padding: '20px', borderRadius: '15px', border: 'none', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '18px' },
-  btnReject: { flex: 1, padding: '20px', borderRadius: '15px', border: 'none', background: '#f1f5f9', color: '#64748b', fontWeight: 'bold' },
-  miniAvatar: { width: '32px', height: '32px', background: '#7c3aed', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '12px' },
-  userInfo: { display: 'flex', alignItems: 'center', gap: '10px' }
-};
+            <h3 style={{margin

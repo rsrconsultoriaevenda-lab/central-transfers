@@ -14,7 +14,7 @@ def create_test_item():
     print(f"🚀 Conectando em: {API_URL}")
 
     # 1. Login
-    login_res = requests.post(f"{API_URL}/auth/login/", json={
+    login_res = requests.post(f"{API_URL}/auth/login", json={
         "email": ADMIN_EMAIL,
         "senha": ADMIN_PASS
     })
@@ -34,7 +34,7 @@ def create_test_item():
         "descricao": "Serviço para validação de fluxo real de pagamento e webhook."
     }
 
-    res = requests.post(f"{API_URL}/servicos/",
+    res = requests.post(f"{API_URL}/servicos",
                         data=service_data, headers=headers)
     if res.status_code in [200, 201]:
         print("✅ Serviço de Teste (R$ 1,00) criado com sucesso!")

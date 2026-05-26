@@ -57,19 +57,15 @@ async def root_redirect():
     return RedirectResponse(url="/api/docs")
 
 # Mapeamento de rotas prefixadas com /api para compatibilidade com Vercel/Proxy
-app.include_router(auth.router, prefix="/api/auth", tags=["Autenticação"])
-app.include_router(pedidos.router, prefix="/api/pedidos",
-                   tags=["Pedidos & Corridas"])
-app.include_router(clientes.router, prefix="/api/clientes", tags=["Clientes"])
-app.include_router(motoristas.router,
-                   prefix="/api/motoristas", tags=["Motoristas"])
-app.include_router(servicos.router, prefix="/api/servicos",
+app.include_router(auth.router, prefix="/api", tags=["Autenticação"])
+app.include_router(pedidos.router, prefix="/api", tags=["Pedidos & Corridas"])
+app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
+app.include_router(motoristas.router, prefix="/api", tags=["Motoristas"])
+app.include_router(servicos.router, prefix="/api",
                    tags=["Serviços de Transfer"])
-app.include_router(dashboard.router, prefix="/api/dashboard",
+app.include_router(dashboard.router, prefix="/api",
                    tags=["Painel Administrativo"])
-app.include_router(notifications.router,
-                   prefix="/api/notifications", tags=["Notificações"])
-app.include_router(health.router, prefix="/api/health",
-                   tags=["Saúde do Sistema"])
+app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
+app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
 app.include_router(pagamentos.router, prefix="/api",
                    tags=["Pagamentos & Checkout"])

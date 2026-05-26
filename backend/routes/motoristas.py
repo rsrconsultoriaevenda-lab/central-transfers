@@ -22,7 +22,7 @@ from backend.auth import (
 )
 from backend.utils.phone import formatar_telefone_e164
 
-router = APIRouter()
+router = APIRouter(prefix="/motoristas", tags=["Motoristas"])
 logger = logging.getLogger(__name__)
 
 # =====================================================

@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 export default function DriverApp() {
   const [isOnline, setIsOnline] = useState(false);
   const [isBrowserOnline, setIsBrowserOnline] = useState(navigator.onLine);
-  const [activeTab, setActiveTab] = useState('agenda'); // agenda, historico, perfil
+  const [activeTab, setActiveTab] = useState('agenda');
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [mockOrder, setMockOrder] = useState(null);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -14,10 +14,8 @@ export default function DriverApp() {
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filtro do Histórico Financeiro
-  const [historyPeriod, setHistoryPeriod] = useState('semanal'); // semanal, mensal, anual
+  const [historyPeriod, setHistoryPeriod] = useState('semanal');
 
-  // Dados do Motorista (Perfil)
   const [driverProfile, setDriverProfile] = useState({
     nome: 'João Silva',
     email: 'joao.silva@centraltransfers.com',
@@ -29,14 +27,12 @@ export default function DriverApp() {
     foto: null
   });
 
-  // Estado para Troca de Senha
   const [passwordForm, setPasswordForm] = useState({
     senhaAtual: '',
     novaSenha: '',
     confirmarSenha: ''
   });
 
-  // Referência para o áudio de notificação
   const [notificationAudio] = useState(new Audio('https://assets.mixkit.co/active_storage/sfx/1357/1357-preview.mp3'));
   notificationAudio.loop = true;
 
@@ -89,7 +85,6 @@ export default function DriverApp() {
       await axios.put(`${API_URL}/pedidos/${pedidoId}/status`, { status: newStatus }, { headers: getAuthHeader() });
       loadMyOrders();
     } catch (err) {
-      // Simulação local caso falte rota no back
       setMyOrders(prev => prev.map(o => o.id === pedidoId ? { ...o, status: newStatus } : o));
     }
   };
@@ -101,7 +96,6 @@ export default function DriverApp() {
     setShowNewOrderModal(false);
   };
 
-  // Upload de Imagem simulado por Base64
   const handleFotoUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -113,7 +107,6 @@ export default function DriverApp() {
     }
   };
 
-  // Alteração de Senha simulada
   const handlePasswordChange = (e) => {
     e.preventDefault();
     if (passwordForm.novaSenha !== passwordForm.confirmarSenha) {
@@ -151,7 +144,6 @@ export default function DriverApp() {
 
   useEffect(() => { loadMyOrders(); }, []);
 
-  // Dados estáticos baseados no período do histórico selecionado
   const getHistoryData = () => {
     switch(historyPeriod) {
       case 'semanal': return { faturamento: 'R$ 1.940,00', corridas: 7, km: '840 km', lista: [
@@ -199,7 +191,6 @@ export default function DriverApp() {
         </div>
       </header>
 
-      {/* Navegação Principal por Abas Superior */}
       <nav style={styles.tabs}>
         <button onClick={() => setActiveTab('agenda')} style={activeTab === 'agenda' ? styles.tabActive : styles.tab}>📅 Agenda</button>
         <button onClick={() => setActiveTab('historico')} style={activeTab === 'historico' ? styles.tabActive : styles.tab}>📊 Histórico</button>
@@ -207,7 +198,6 @@ export default function DriverApp() {
       </nav>
 
       <div style={styles.content}>
-        {/* ABA 1: AGENDA DE CORRIDAS */}
         {activeTab === 'agenda' && (
           <div>
             <div style={styles.mapPlaceholder}>
@@ -251,17 +241,14 @@ export default function DriverApp() {
           </div>
         )}
 
-        {/* ABA 2: HISTÓRICO FINANCEIRO (SEMANAL, MENSAL, ANUAL) */}
         {activeTab === 'historico' && (
           <div style={{padding: '0 15px'}}>
-            {/* Filtros de Período */}
             <div style={styles.periodFilterContainer}>
               <button onClick={() => setHistoryPeriod('semanal')} style={historyPeriod === 'semanal' ? styles.btnFilterActive : styles.btnFilter}>Semanal</button>
               <button onClick={() => setHistoryPeriod('mensal')} style={historyPeriod === 'mensal' ? styles.btnFilterActive : styles.btnFilter}>Mensal</button>
               <button onClick={() => setHistoryPeriod('anual')} style={historyPeriod === 'anual' ? styles.btnFilterActive : styles.btnFilter}>Anual</button>
             </div>
 
-            {/* Quadro de Resumo de Ganhos */}
             <div style={styles.earningsCard}>
               <span style={styles.earningsLabel}>Faturamento Bruto ({historyPeriod})</span>
               <h2 style={styles.earningsValue}>{activeHistory.faturamento}</h2>
@@ -271,7 +258,6 @@ export default function DriverApp() {
               </div>
             </div>
 
-            {/* Lista consolidada do histórico */}
             <h4 style={{color: '#94a3b8', margin: '15px 0 10px'}}>Extrato de Repasses</h4>
             {activeHistory.lista.map(item => (
               <div key={item.id} style={styles.historyItem}>
@@ -281,4 +267,141 @@ export default function DriverApp() {
                 </div>
                 <div style={{textAlign: 'right'}}>
                   <span style={{color: '#10b981', fontWeight: 'bold'}}>R$ {item.valor.toFixed(2)}</span>
-                  <span style={{display: 'block', fontSize: '10px', color: '#94a3b
+                  <span style={{display: 'block', fontSize: '10px', color: '#94a3b8'}}>{item.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {activeTab === 'perfil' && (
+          <div style={{padding: '0 15px'}}>
+            <div style={styles.profileBox}>
+              <div style={styles.photoUploadContainer}>
+                <div style={styles.bigAvatarContainer}>
+                  {driverProfile.foto ? (
+                    <img src={driverProfile.foto} alt="Foto Motorista" style={styles.bigAvatar} />
+                  ) : (
+                    <div style={styles.bigAvatarPlaceholder}>SEM FOTO</div>
+                  )}
+                </div>
+                <label style={styles.lblUpload}>
+                  📷 Carregar Nova Foto
+                  <input type="file" accept="image/*" onChange={handleFotoUpload} style={{display: 'none'}} />
+                </label>
+              </div>
+
+              <div style={styles.detailsGrid}>
+                <div style={styles.detailField}>
+                  <span style={styles.detailFieldLabel}>NOME COMPLETO</span>
+                  <p style={{margin: '2px 0 0', fontSize: '14px'}}>{driverProfile.nome}</p>
+                </div>
+                <div style={styles.detailField}>
+                  <span style={styles.detailFieldLabel}>EMAIL CORPORATIVO</span>
+                  <p style={{margin: '2px 0 0', fontSize: '14px'}}>{driverProfile.email}</p>
+                </div>
+                <div style={styles.detailField}>
+                  <span style={styles.detailFieldLabel}>WHATSAPP / TELEFONE</span>
+                  <p style={{margin: '2px 0 0', fontSize: '14px'}}>{driverProfile.telefone}</p>
+                </div>
+                <div style={styles.detailField}>
+                  <span style={styles.detailFieldLabel}>VEÍCULO CADASTRADO</span>
+                  <p style={{margin: '2px 0 0', fontSize: '14px'}}>{driverProfile.veiculo}</p>
+                </div>
+                <div style={styles.detailField}>
+                  <span style={styles.detailFieldLabel}>PLACA MERCOSUL</span>
+                  <p style={{margin: '2px 0 0', fontSize: '14px', color: '#fbbf24', fontWeight: 'bold'}}>{driverProfile.placa}</p>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.profileBox}>
+              <h4 style={{margin: '0 0 15px 0', color: '#7c3aed'}}>🔐 Alteração de Segurança</h4>
+              <form onSubmit={handlePasswordChange} style={styles.passwordForm}>
+                <div style={styles.inputWrapper}>
+                  <label style={{fontSize: '11px', color: '#64748b'}}>Senha Atual</label>
+                  <input type="password" required value={passwordForm.senhaAtual} onChange={e => setPasswordForm({...passwordForm, senhaAtual: e.target.value})} style={styles.inputStyle} placeholder="••••••••" />
+                </div>
+                <div style={styles.inputWrapper}>
+                  <label style={{fontSize: '11px', color: '#64748b'}}>Nova Senha</label>
+                  <input type="password" required value={passwordForm.novaSenha} onChange={e => setPasswordForm({...passwordForm, novaSenha: e.target.value})} style={styles.inputStyle} placeholder="Mínimo 6 dígitos" />
+                </div>
+                <div style={styles.inputWrapper}>
+                  <label style={{fontSize: '11px', color: '#64748b'}}>Confirmar Nova Senha</label>
+                  <input type="password" required value={passwordForm.confirmarSenha} onChange={e => setPasswordForm({...passwordForm, confirmarSenha: e.target.value})} style={styles.inputStyle} placeholder="Repita a nova senha" />
+                </div>
+                <button type="submit" style={styles.btnSavePassword}>ATUALIZAR CREDENCIAIS</button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {showNewOrderModal && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.requestCard}>
+            <h3 style={{margin: '0 0 10px 0', color: '#000'}}>⚠️ Viagem Disponível!</h3>
+            <p style={{margin: '5px 0', color: '#334155'}}><strong>De:</strong> {mockOrder?.origem}</p>
+            <p style={{margin: '5px 0', color: '#334155'}}><strong>Para:</strong> {mockOrder?.destino}</p>
+            <div style={styles.modalPrice}>R$ {mockOrder?.valor.toFixed(2)}</div>
+            <div style={styles.modalButtons}>
+              <button onClick={handleCloseModal} style={styles.btnReject}>Recusar</button>
+              <button onClick={() => { handleCloseModal(); updateStatus(mockOrder.id, 'ACEITO'); }} style={styles.btnAccept}>ACEITAR</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  container: { background: '#0a0f1e', minHeight: '100vh', paddingBottom: '40px', fontFamily: '"Inter", sans-serif', color: '#fff' },
+  offlineBanner: { background: '#ef4444', color: '#fff', textAlign: 'center', fontSize: '12px', padding: '8px', fontWeight: 'bold' },
+  header: { padding: '45px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.3s' },
+  userInfo: { display: 'flex', alignItems: 'center', gap: '12px' },
+  miniAvatar: { width: '38px', height: '38px', background: '#7c3aed', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' },
+  avatarImg: { width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #7c3aed' },
+  badgeNivel: { fontSize: '10px', background: 'rgba(255,255,255,0.15)', padding: '2px 6px', borderRadius: '4px', marginTop: '3px', display: 'inline-block' },
+  statusToggle: { width: '70px', height: '32px', background: 'rgba(255,255,255,0.2)', borderRadius: '20px', position: 'relative', cursor: 'pointer' },
+  toggleCircle: { width: '24px', height: '24px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '4px', transition: '0.3s' },
+  statusText: { position: 'absolute', fontSize: '9px', fontWeight: 'bold', top: '10px', right: '8px', color: '#fff' },
+  tabs: { display: 'flex', gap: '5px', padding: '15px 15px 5px', background: '#0f172a' },
+  tab: { flex: 1, padding: '12px 5px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' },
+  tabActive: { flex: 1, padding: '12px 5px', borderRadius: '10px', border: 'none', background: '#1e293b', color: '#7c3aed', fontWeight: 'bold', fontSize: '13px' },
+  content: { paddingTop: '15px' },
+  sectionTitle: { fontSize: '15px', color: '#94a3b8', margin: '0 0 15px 20px', fontWeight: '600' },
+  mapPlaceholder: { height: '140px', background: '#111827', margin: '0 15px 20px', borderRadius: '20px', position: 'relative', overflow: 'hidden', border: '1px solid #1e293b' },
+  mapGradient: { position: 'absolute', width: '100%', height: '100%', background: 'radial-gradient(circle, transparent 30%, #0a0f1e 100%)' },
+  mapOverlay: { position: 'absolute', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
+  locationPulse: { width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 0 10px rgba(16, 185, 129, 0.3)', marginBottom: '10px' },
+  card: { background: '#111827', margin: '0 15px 15px', padding: '18px', borderRadius: '20px', border: '1px solid #1e293b' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
+  orderType: { fontSize: '10px', fontWeight: 'bold', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', padding: '3px 8px', borderRadius: '5px' },
+  timeTag: { background: '#1e293b', padding: '4px 8px', borderRadius: '6px', fontSize: '11px' },
+  priceTag: { color: '#10b981', fontWeight: 'bold', fontSize: '16px' },
+  route: { display: 'flex', gap: '12px', marginBottom: '15px' },
+  dotLine: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', paddingTop: '4px' },
+  dot: { width: '7px', height: '7px', background: '#10b981', borderRadius: '50%' },
+  line: { width: '1px', height: '25px', background: '#334155' },
+  dotSquare: { width: '7px', height: '7px', background: '#7c3aed' },
+  address: { fontSize: '12px', margin: '0 0 6px 0', color: '#cbd5e1' },
+  obsCard: { background: '#1e293b', padding: '10px', borderRadius: '8px', fontSize: '12px', marginBottom: '15px', color: '#94a3b8', borderLeft: '3px solid #7c3aed' },
+  btnAction: { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' },
+  btnSecondary: { padding: '12px 20px', borderRadius: '10px', border: '1px solid #334155', background: 'transparent', color: '#cbd5e1', fontWeight: '500', fontSize: '13px', cursor: 'pointer' },
+  periodFilterContainer: { display: 'flex', background: '#111827', padding: '5px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #1e293b' },
+  btnFilter: { flex: 1, background: 'transparent', border: 'none', color: '#64748b', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' },
+  btnFilterActive: { flex: 1, background: '#7c3aed', border: 'none', color: '#fff', padding: '8px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px' },
+  earningsCard: { padding: '20px', background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)', borderRadius: '20px', textAlign: 'center', marginBottom: '20px', border: '1px solid #1e293b' },
+  earningsValue: { fontSize: '32px', margin: '8px 0', color: '#10b981', fontWeight: 'bold' },
+  earningsLabel: { color: '#64748b', fontSize: '13px' },
+  statsRow: { display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: '#94a3b8' },
+  historyItem: { background: '#111827', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', border: '1px solid #1e293b' },
+  profileBox: { background: '#111827', padding: '20px', borderRadius: '20px', marginBottom: '20px', border: '1px solid #1e293b' },
+  photoUploadContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' },
+  bigAvatarContainer: { width: '80px', height: '80px', borderRadius: '50%', background: '#1e293b', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '3px solid #7c3aed', marginBottom: '10px' },
+  bigAvatar: { width: '100%', height: '100%', objectFit: 'cover' },
+  bigAvatarPlaceholder: { fontSize: '11px', color: '#64748b', fontWeight: 'bold' },
+  lblUpload: { fontSize: '12px', color: '#a78bfa', cursor: 'pointer', fontWeight: '500' },
+  detailsGrid: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  detailField: { borderBottom: '1px solid #1e293b', paddingBottom: '8px' },

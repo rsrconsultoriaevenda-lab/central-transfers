@@ -58,12 +58,11 @@ async def test_simular_pagamento(choice: str):
                 # Verifica no banco se a alteração persistiu
                 if "MENSAL_" in external_reference:
                     mid = int(external_reference.replace("MENSAL_", ""))
-                    m = db.query(models.Mensalidade).get(mid)
+                    m = db.get(models.Mensalidade, mid)
                     print(
                         f"   📊 Status no Banco (Mensalidade {mid}): {m.status}")
                 elif "PEDIDO_" in external_reference:
-                    p = db.query(models.Pedido).get(
-                        int(external_reference.replace("PEDIDO_", "")))
+                    p = db.get(models.Pedido, int(external_reference.replace("PEDIDO_", "")))
                     print(f"   📊 Status Final no Banco: {p.status}")
             else:
                 print(

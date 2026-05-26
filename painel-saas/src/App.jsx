@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useEffect } from 'react';
+﻿﻿﻿﻿import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -14,6 +14,7 @@ import {
   Cell,
   Legend
 } from 'recharts';
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
 import Login from './Login';
 import DriverApp from './DriverApp';
@@ -24,7 +25,7 @@ import Failure from './Failure';
 // Detecta o host atual. Se acessar por IP, conecta o backend no mesmo IP na porta 8001.
 const currentHost = window.location.hostname;
 const API_URL = import.meta.env.VITE_API_URL || 
-  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001' : `http://${currentHost}:8001`);
+  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001' : `${window.location.protocol}//${currentHost}/api`);
 
 // Cores do Sistema - Facilita a troca de tema (Branding)
 const THEME = {
@@ -38,8 +39,19 @@ const THEME = {
 };
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
-  // SEGURANÇA DESABILITADA: Permite acesso direto a qualquer rota sem validar token ou papel
-  // Permite acesso direto a qualquer rota
+  const token = localStorage.getItem('token');
+  const userRole = localStorage.getItem('user_role');
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
+    // Se for motorista tentando acessar admin, manda pro app do motorista
+    if (userRole === 'motorista') return <Navigate to="/driver" replace />;
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 };
 
@@ -107,9 +119,9 @@ function Dashboard() {
     setLoading(true);
     try {
       const [pedidosRes, motoristasRes, servicosRes] = await Promise.all([
-        axios.get(`${API_URL}/pedidos`, { headers: getAuthHeader() }),
-        axios.get(`${API_URL}/motoristas`, { headers: getAuthHeader() }),
-        axios.get(`${API_URL}/servicos`, { headers: getAuthHeader() })
+        axios.get(`${API_URL}/pedidos/`, { headers: getAuthHeader() }),
+        axios.get(`${API_URL}/motoristas/`, { headers: getAuthHeader() }),
+        axios.get(`${API_URL}/servicos/`, { headers: getAuthHeader() })
       ]);
 
       const pedidos = pedidosRes.data || [];
@@ -164,7 +176,7 @@ function Dashboard() {
     if (!window.confirm(`Deseja alterar o plano para ${novoPlano}?`)) return;
     try {
       setLoading(true);
-      await axios.patch(`${API_URL}/motoristas/${id}`, { plano: novoPlano }, { headers: getAuthHeader() });
+      await axios.patch(`${API_URL}/motoristas/${id}/`, { plano: novoPlano }, { headers: getAuthHeader() });
       await carregarDadosReais();
     } catch (err) { alert("Erro ao atualizar plano."); }
     finally { setLoading(false); }
@@ -175,7 +187,7 @@ function Dashboard() {
     if (!window.confirm(`Deseja realmente ${acao} este cadastro?`)) return;
     try {
       setLoading(true);
-      await axios.patch(`${API_URL}/motoristas/${id}/status`, { status: novoStatus }, { headers: getAuthHeader() });
+      await axios.patch(`${API_URL}/motoristas/${id}/status/`, { status: novoStatus }, { headers: getAuthHeader() });
       await carregarDadosReais();
     } catch (err) { 
       alert("Erro ao atualizar status do motorista."); 
@@ -186,7 +198,7 @@ function Dashboard() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axios.post(`${API_URL}/motoristas`, newDriver, { headers: getAuthHeader() });
+      const res = await axios.post(`${API_URL}/motoristas/`, newDriver, { headers: getAuthHeader() });
       
       const { acesso } = res.data;
       if (acesso && acesso.senha) {
@@ -218,7 +230,7 @@ function Dashboard() {
     if (newService.imagem) formData.append('imagem', newService.imagem);
 
     try {
-      await axios.post(`${API_URL}/servicos`, formData, { 
+      await axios.post(`${API_URL}/servicos/`, formData, { 
         headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
       });
       setShowAddService(false);
@@ -231,6 +243,22 @@ function Dashboard() {
       alert(`Erro ao cadastrar serviço: ${JSON.stringify(err.response?.data?.detail || "Verifique se as colunas categoria/valor existem no banco.")}`); 
     }
     finally { setLoading(false); }
+  };
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ""
+  });
+
+  const mapContainerStyle = {
+    width: '100%',
+    height: '500px',
+    borderRadius: '30px'
+  };
+
+  const center = {
+    lat: -29.3776, // Centro padrão em Gramado
+    lng: -50.8733
   };
 
   const handleLogout = () => {
@@ -457,16 +485,43 @@ function Dashboard() {
         ) : tab === 'Live' ? (
           <div style={ds.cardWhite}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-              <h2 style={{color: '#1e293b'}}>Monitoramento em Tempo Real</h2>
-              <span style={{color: THEME.success, fontWeight: 'bold', fontSize: '12px'}}>● {motoristas.length} MOTORISTAS ATIVOS</span>
+              <div>
+                <h2 style={{color: '#1e293b'}}>Monitoramento de Frota</h2>
+                <p style={{fontSize: '12px', color: THEME.textLight}}>Acompanhe seus motoristas no mapa em tempo real</p>
+              </div>
+              <span style={{color: THEME.success, fontWeight: 'bold', fontSize: '12px', background: '#f0fdf4', padding: '5px 12px', borderRadius: '20px'}}>
+                ● {motoristas.filter(m => m.status === 'ATIVO').length} MOTORISTAS ONLINE
+              </span>
             </div>
-            <div style={ds.mapLivePlaceholder}>
-               <div style={ds.mapMarkerPulse} />
-               <div style={{...ds.mapMarkerPulse, top: '40%', left: '30%', animationDelay: '0.5s'}} />
-               <div style={{...ds.mapMarkerPulse, top: '60%', left: '70%', animationDelay: '1s'}} />
-               <p style={{color: '#94a3b8', fontSize: '14px', zIndex: 1}}>Integrando camada de geolocalização por satélite...</p>
-               <div style={ds.mapGridOverlay} />
-            </div>
+            {isLoaded ? (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={center}
+                zoom={13}
+              >
+                {motoristas
+                  .filter(m => m.latitude && m.longitude)
+                  .map((m) => (
+                    <Marker
+                      key={m.id}
+                      position={{ 
+                        lat: parseFloat(m.latitude), 
+                        lng: parseFloat(m.longitude) 
+                      }}
+                      title={m.nome}
+                      icon={{
+                        url: 'https://maps.google.com/mapfiles/kml/shapes/car.png',
+                        scaledSize: new window.google.maps.Size(30, 30)
+                      }}
+                    />
+                  ))}
+              </GoogleMap>
+            ) : (
+              <div style={ds.mapLivePlaceholder}>
+                 <p style={{color: '#94a3b8', fontSize: '14px', zIndex: 1}}>Carregando mapa...</p>
+                 <div style={ds.mapGridOverlay} />
+              </div>
+            )}
           </div>
         ) : (
           <div style={ds.cardWhite}>Selecione uma opção no menu lateral.</div>

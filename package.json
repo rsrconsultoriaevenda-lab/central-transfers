@@ -15,7 +15,8 @@
     "kill": "python kill_ports.py",
     "db:migrate": "python -m alembic upgrade head",
     "db:rollback": "python -m alembic downgrade -1",
-    "audit": "python backend/validate_routes.py"
+    "audit": "python backend/validate_routes.py",
+    "finalize": "python go_live.py"
   },
   "dependencies": {
     "@react-google-maps/api": "^2.20.8",

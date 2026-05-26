@@ -109,7 +109,3 @@ class PaymentService:
         logger.info(
             f"⚠️ Pedido {pedido_id} ignorado. Status atual: {status_atual}")
         return False
-
-
-if __name__ == "__main__":
-    clean_env()

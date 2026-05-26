@@ -9,7 +9,6 @@ export default function DriverApp() {
   const [activeTab, setActiveTab] = useState('agenda');
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [mockOrder, setMockOrder] = useState(null);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
 
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +47,7 @@ export default function DriverApp() {
       const orders = res.data.filter(p => p.status !== 'CANCELADO');
       setMyOrders(orders.length > 0 ? orders : getMockOrders());
     } catch (err) {
-      console.error("Erro ao carregar ordens do motorista", err);
+      console.error("Erro ao carregar ordens", err);
       setMyOrders(getMockOrders());
     } finally {
       setLoading(false);
@@ -113,7 +112,7 @@ export default function DriverApp() {
       alert("A nova senha e a confirmação não batem!");
       return;
     }
-    alert("Senha alterada com sucesso na Central!");
+    alert("Senha alterada com sucesso!");
     setPasswordForm({ senhaAtual: '', novaSenha: '', confirmarSenha: '' });
   };
 
@@ -122,7 +121,7 @@ export default function DriverApp() {
       const timer = setTimeout(() => {
         setMockOrder({ id: "TRF-9912", origem: "Aeroporto POA", destino: "Wish Serrano, Gramado", valor: 295.00 });
         setShowNewOrderModal(true);
-        notificationAudio.play().catch(() => console.log("Interação necessária para o áudio"));
+        notificationAudio.play().catch(() => console.log("Interação necessária para áudio"));
         if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 500]);
       }, 4000);
       return () => { clearTimeout(timer); handleCloseModal(); };
@@ -149,12 +148,12 @@ export default function DriverApp() {
       case 'semanal': return { faturamento: 'R$ 1.940,00', corridas: 7, km: '840 km', lista: [
         { id: '1', data: '25 Mai', rota: 'POA ➔ Gramado', valor: 280.00, status: 'CONCLUÍDO' },
         { id: '2', data: '24 Mai', rota: 'Canela ➔ POA', valor: 290.00, status: 'CONCLUÍDO' },
-        { id: '3', data: '22 Mai', rota: 'Gramado ➔ Nova Petrópolis', valor: 150.00, status: 'CONCLUÍDO' },
+        { id: '3', data: '22 Mai', rota: 'Gramado ➔ Nova Petrópolis', valor: 150.00, status: 'CONCLUÍDO' }
       ]};
       case 'mensal': return { faturamento: 'R$ 8.420,00', corridas: 32, km: '3.620 km', lista: [
         { id: 'M1', data: 'Semana 3', rota: 'Consolidado Logística', valor: 2240.00, status: 'PAGO' },
         { id: 'M2', data: 'Semana 2', rota: 'Consolidado Logística', valor: 2100.00, status: 'PAGO' },
-        { id: 'M3', data: 'Semana 1', rota: 'Consolidado Logística', valor: 2080.00, status: 'PAGO' },
+        { id: 'M3', data: 'Semana 1', rota: 'Consolidado Logística', valor: 2080.00, status: 'PAGO' }
       ]};
       case 'anual': return { faturamento: 'R$ 96.380,00', corridas: 342, km: '41.200 km', lista: [
         { id: 'A1', data: 'Temporada 2026', rota: 'Acumulado Central Transfers', valor: 96380.00, status: 'CONSOLIDADO' }
@@ -194,7 +193,7 @@ export default function DriverApp() {
       <nav style={styles.tabs}>
         <button onClick={() => setActiveTab('agenda')} style={activeTab === 'agenda' ? styles.tabActive : styles.tab}>📅 Agenda</button>
         <button onClick={() => setActiveTab('historico')} style={activeTab === 'historico' ? styles.tabActive : styles.tab}>📊 Histórico</button>
-        <button onClick={() => setActiveTab('perfil')} style={activeTab === 'perfil' ? styles.tabActive : styles.tab}>👤 Minha Conta</button>
+        <button onClick={() => setActiveTab('perfil')} style={activeTab === 'perfil' ? styles.tabActive : styles.tab}>👤 Perfil</button>
       </nav>
 
       <div style={styles.content}>
@@ -218,7 +217,11 @@ export default function DriverApp() {
                     <span style={styles.priceTag}>R$ {Number(order.valor).toFixed(2)}</span>
                   </div>
                   <div style={styles.route}>
-                    <div style={styles.dotLine}><div style={styles.dot} /><div style={styles.line} /><div style={styles.dotSquare} /></div>
+                    <div style={styles.dotLine}>
+                      <div style={styles.dot} />
+                      <div style={styles.line} />
+                      <div style={styles.dotSquare} />
+                    </div>
                     <div style={styles.routeDetails}>
                       <p style={styles.address}><strong>Origem:</strong> {order.origem}</p>
                       <p style={styles.address}><strong>Destino:</strong> {order.destino}</p>
@@ -405,3 +408,15 @@ const styles = {
   lblUpload: { fontSize: '12px', color: '#a78bfa', cursor: 'pointer', fontWeight: '500' },
   detailsGrid: { display: 'flex', flexDirection: 'column', gap: '12px' },
   detailField: { borderBottom: '1px solid #1e293b', paddingBottom: '8px' },
+  detailFieldLabel: { display: 'block', fontSize: '10px', color: '#64748b', fontWeight: 'bold', marginBottom: '2px' },
+  passwordForm: { display: 'flex', flexDirection: 'column', gap: '12px' },
+  inputWrapper: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  inputStyle: { background: '#0a0f1e', border: '1px solid #1e293b', padding: '10px', borderRadius: '8px', color: '#fff', fontSize: '13px' },
+  btnSavePassword: { background: 'transparent', border: '1px dashed #7c3aed', color: '#a78bfa', padding: '12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer', marginTop: '5px' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100, padding: '25px' },
+  requestCard: { width: '100%', background: '#fff', borderRadius: '24px', padding: '25px', textAlign: 'center' },
+  modalPrice: { fontSize: '36px', fontWeight: 'bold', color: '#7c3aed', margin: '15px 0' },
+  modalButtons: { display: 'flex', gap: '10px' },
+  btnAccept: { flex: 2, padding: '15px', borderRadius: '12px', border: 'none', background: '#10b981', color: '#fff', fontWeight: 'bold', fontSize: '15px' },
+  btnReject: { flex: 1, padding: '15px', borderRadius: '12px', border: 'none', background: '#e2e8f0', color: '#475569', fontWeight: 'bold' }
+};

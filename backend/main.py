@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
@@ -113,3 +114,9 @@ app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
 app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
 app.include_router(pagamentos.router, prefix="/api/pagamentos",
                    tags=["Mercado Pago & Finanças"])
+
+
+@app.get("/", include_in_schema=False)
+async def root_redirect():
+    """Redireciona a raiz para a documentação da API para evitar 404."""
+    return RedirectResponse(url="/docs")

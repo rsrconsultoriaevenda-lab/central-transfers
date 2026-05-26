@@ -2,12 +2,30 @@ import subprocess
 import time
 import sys
 import os
+from pathlib import Path
+
+
+def sanitize_env_file():
+    """Remove linhas malformadas do .env para limpar os logs de inicialização."""
+    # Verifica tanto na raiz quanto dentro da pasta backend
+    for env_loc in [".env", "backend/.env"]:
+        env_path = Path(env_loc)
+        if env_path.exists():
+            try:
+                lines = env_path.read_text(encoding="utf-8").splitlines()
+                cleaned = [l.strip() for l in lines if "=" in l or l.strip(
+                ).startswith("#") or not l.strip()]
+                env_path.write_text("\n".join(cleaned) +
+                                    "\n", encoding="utf-8")
+            except Exception:
+                pass
 
 
 def start_services():
     print("🚀 Iniciando Central Transfers (Ambiente de Desenvolvimento)...")
 
     # Verificação de Segurança
+    sanitize_env_file()
     if not os.path.exists(".env") and not os.path.exists("backend/.env"):
         print("⚠️ AVISO: Arquivo .env não encontrado! O backend pode falhar ao conectar ao banco ou WhatsApp.")
         time.sleep(1)

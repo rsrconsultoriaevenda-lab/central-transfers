@@ -11,7 +11,8 @@ from backend.config import settings
 from backend.services.email_service import enviar_email_transacional
 from backend.services.payment_service import PaymentService
 
-router = APIRouter(prefix="/pagamentos", tags=["Pagamentos"])
+# Removido o prefixo interno para permitir o mapeamento duplo limpo no main.py
+router = APIRouter(tags=["Pagamentos"])
 logger = logging.getLogger(__name__)
 payment_service = PaymentService()
 
@@ -68,7 +69,7 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
             pedido_id = int(ref_id.replace("PEDIDO_", ""))
             pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
             if pedido:
-                # Dispara as notificações em background para liberar a resposta HTTP rápido
+                # Dispara as notificações pesadas em background para liberar o Mercado Pago rápido
                 background_tasks.add_task(_notificar_liberacao, db, pedido, request)
 
                 return {"status": "ok" if success else "processed"}
@@ -113,4 +114,8 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Requ
                     # 3. Notificação via E-mail para o cliente final
                     if pedido.cliente and pedido.cliente.email:
                         assunto = f"✅ Pagamento Confirmado! Pedido #{pedido.id}"
-                        html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o
+                        html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o serviço de transfer. Em breve enviaremos os dados do veículo e motorista escalado.</p>"
+                        enviar_email_transacional(pedido.cliente.email, assunto, html)
+
+    except Exception as e:
+        logger.error(f"Erro no fluxo de background _notificar_liberacao: {e}")

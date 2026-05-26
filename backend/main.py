@@ -27,9 +27,9 @@ logger = logging.getLogger("CentralTransfers")
 SENTRY_DSN = getattr(settings, "SENTRY_DSN", None)
 if SENTRY_DSN and settings.ENV == "production":
     try:
-        import sentry_sdk
-        sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
-        logger.info("🛡️ Monitoramento Sentry ativado.")
+import sentry_sdk
+sentry_sdk.init(dsn=SENTRY_DSN, traces_sample_rate=1.0)
+logger.info("🛡️ Monitoramento Sentry ativado.")
     except ImportError:
         logger.warning("⚠️ Sentry SDK não instalado.")
 
@@ -38,58 +38,52 @@ if SENTRY_DSN and settings.ENV == "production":
 async def lifespan(app: FastAPI):
     # Eventos de Inicialização (Startup)
     logger.info("🚀 Central Transfers inicializado com sucesso!")
-    logger.info(
-        "🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
+    logger.info("🔒 Filtros de CORS aplicados. Middleware de Preflight e Roteamento duplo ativos.")
     yield
     # Eventos de Encerramento (Shutdown)
-    logger.info(
-        "🛑 Encerrando conexões e desligando Central Transfers com segurança...")
+    logger.info("🛑 Encerrando conexões e desligando Central Transfers com segurança...")
 
-# Inicialização limpa do FastAPI com suporte nativo a redirecionamento seguro de trailing slash
-app = FastAPI(
-    title="Central Transfers API",
-    description="Backend de logística para gestão de transfers Aeroporto POA / Gramado",
-    version="1.0.0",
-    lifespan=lifespan
-)
+    # Inicialização limpa do FastAPI
+    app = FastAPI(
+        title="Central Transfers API",
+        description="Backend de logística para gestão de transfers Aeroporto POA / Gramado",
+        version="1.0.0",
+        lifespan=lifespan
+    )
 
-# Expondo o serviço global de notificações ao estado da aplicação
-app.state.notifier = notifier
+    # Expondo o serviço global de notificações ao estado da aplicação
+    app.state.notifier = notifier
 
-# ======================================================================
-# CONFIGURAÇÃO DE CORS EXPANDIDA PARA PRODUÇÃO (VERCEL & RAILWAY)
-# ======================================================================
-raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
-if raw_origins.strip() == "*":
-    origins = ["*"]
-else:
-    origins = [origin.strip()
-               for origin in raw_origins.split(",") if origin.strip()]
+    # ======================================================================
+    # CONFIGURAÇÃO DE CORS EXPANDIDA PARA PRODUÇÃO (VERCEL & RAILWAY)
+    # ======================================================================
+    raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
+    if raw_origins.strip() == "*":
+        origins = ["*"]
+    else:
+        origins = [origin.strip() for origin in raw_origins.split(",") if origin.strip()]
 
-if not origins:
-    origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "https://central-transfers.vercel.app",
-    ]
+        if not origins:
+            origins = [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "https://central-transfers.vercel.app",
+            ]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
-)
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=origins,
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+                expose_headers=["*"]
+            )
 
-# ======================================================================
-# MIDDLEWARE INTERCEPTADOR PARA PREFLIGHT (OPTIONS) - BLINDAGEM CORS
-# ======================================================================
-
-
+            # ======================================================================
+            # MIDDLEWARE INTERCEPTADOR PARA PREFLIGHT (OPTIONS) - BLINDAGEM CORS
+            # ======================================================================
 @app.middleware("http")
 async def interceptar_cors_preflight(request: Request, call_next):
-    # Se o navegador mandar um OPTIONS (Preflight), respondemos imediatamente com os headers de sucesso
     if request.method == "OPTIONS":
         response = Response(status_code=200)
         origin = request.headers.get("Origin")
@@ -100,55 +94,35 @@ async def interceptar_cors_preflight(request: Request, call_next):
             response.headers["Access-Control-Allow-Credentials"] = "true"
             return response
 
-    return await call_next(request)
+        return await call_next(request)
 
 
-# ======================================================================
-# MAPEAMENTO DE ROTAS COM DUPLO PREFIXO (ESTRATÉGIA ANTI-CACHE DO FRONT)
-# ======================================================================
+        # ======================================================================
+        # MAPEAMENTO DE ROTAS COM DUPLO PREFIXO (ESTRATÉGIA ANTI-CACHE DO FRONT)
+        # ======================================================================
 
-# 1️⃣ Mapeamento Direto (Caso o frontend chame /motoristas, /pedidos, etc.)
-app.include_router(auth.router, tags=["Autenticação"])
-app.include_router(pedidos.router, tags=["Pedidos & Corridas"])
-app.include_router(clientes.router, tags=["Clientes"])
-app.include_router(motoristas.router, prefix="/motoristas",
-                   tags=["Motoristas"])
-app.include_router(servicos.router, tags=["Serviços de Transfer"])
-app.include_router(dashboard.router, tags=["Painel Administrativo"])
-app.include_router(pagamentos.router, tags=["Mercado Pago & Finanças"])
-app.include_router(notifications.router, tags=["Notificações"])
-app.include_router(health.router, tags=["Saúde do Sistema"])
+        # 1️⃣ Mapeamento Direto (Caso o frontend chame /motoristas, /pedidos, etc.)
+        app.include_router(auth.router, tags=["Autenticação"])
+        app.include_router(pedidos.router, tags=["Pedidos & Corridas"])
+        app.include_router(clientes.router, tags=["Clientes"])
+        app.include_router(motoristas.router, prefix="/motoristas", tags=["Motoristas"])
+        app.include_router(servicos.router, tags=["Serviços de Transfer"])
+        app.include_router(dashboard.router, tags=["Painel Administrativo"])
+        app.include_router(notifications.router, tags=["Notificações"])
+        app.include_router(health.router, tags=["Saúde do Sistema"])
 
-# 2️⃣ Mapeamento Espelhado com /api (Caso o frontend tente forçar /api/motoristas, etc.)
-app.include_router(auth.router, prefix="/api", tags=["Autenticação"])
-app.include_router(pedidos.router, prefix="/api", tags=["Pedidos & Corridas"])
-app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
-app.include_router(motoristas.router,
-                   prefix="/api/motoristas", tags=["Motoristas"])
-app.include_router(servicos.router, prefix="/api",
-                   tags=["Serviços de Transfer"])
-app.include_router(dashboard.router, prefix="/api",
-                   tags=["Painel Administrativo"])
-app.include_router(pagamentos.router, prefix="/api",
-                   tags=["Mercado Pago & Finanças"])
-app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
-app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
-
-# ======================================================================
-# ROTA DE LOGÍSTICA EM TEMPO REAL (WEBSOCKETS DE ISOLAMENTO)
-# ======================================================================
+        # Ajuste: Define explicitamente o prefixo de pagamentos na raiz
+        app.include_router(pagamentos.router, prefix="/pagamentos", tags=["Mercado Pago & Finanças"])
 
 
-@app.websocket("/ws/teste_limpo/{driver_id}")
-@app.websocket("/api/ws/teste_limpo/{driver_id}")
-async def teste_limpo(websocket: WebSocket, driver_id: int):
-    await websocket.accept()
-    logger.info(
-        f"🟢 [TESTE LIMPO] Motorista {driver_id} conectou com sucesso na malha de rede!")
-    try:
-        await websocket.send_json({"type": "SISTEMA", "mensagem": "Conexão direta bem-sucedida!"})
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        logger.info(
-            f"🔴 [TESTE LIMPO] Motorista {driver_id} encerrou a sessão remota.")
+        # 2️⃣ Mapeamento Espelhado com /api (Caso o frontend tente forçar /api/motoristas, etc.)
+        app.include_router(auth.router, prefix="/api", tags=["Autenticação"])
+        app.include_router(pedidos.router, prefix="/api", tags=["Pedidos & Corridas"])
+        app.include_router(clientes.router, prefix="/api", tags=["Clientes"])
+        app.include_router(motoristas.router, prefix="/api/motoristas", tags=["Motoristas"])
+        app.include_router(servicos.router, prefix="/api", tags=["Serviços de Transfer"])
+        app.include_router(dashboard.router, prefix="/api", tags=["Painel Administrativo"])
+        app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
+        app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
+
+        # Ajuste: Monta o caminho espelhado sem duplicar o

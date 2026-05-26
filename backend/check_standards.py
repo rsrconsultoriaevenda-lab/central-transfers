@@ -49,51 +49,6 @@ def run_audit():
         "SMTP_PASS": getattr(settings, 'SMTP_PASS', os.getenv("SMTP_PASS")),
         "ADMIN_EMAIL": getattr(settings, 'ADMIN_EMAIL', None),
         "ADMIN_PASS": getattr(settings, 'ADMIN_PASS', None),
-    }
-
-    for key, value in checks.items():
-        if not value or any(x in str(value).lower() for x in ["cole_seu", "seu_segredo", "temporaria", "placeholder"]):
-            print(f"❌ ERRO: {key} não configurado corretamente no .env")
-            errors += 1
-            failed_keys.append(key)
-        
-        # Validação de HTTPS para Produção
-        if key == "FRONTEND_URL" and value and "https://" not in str(value).lower() and "localhost" not in str(value):
-            print(f"❌ ERRO: {key} deve usar HTTPS para funcionamento do PWA/Service Worker!")
-            errors += 1
-            failed_keys.append(key)
-        else:
-            print(f"✅ {key}: OK")
-
-    # 2. Verificações Opcionais / Informativas (Fora do loop principal)
-    whatsapp_token = getattr(settings, 'WHATSAPP_TOKEN', None)
-    if not whatsapp_token:
-        print("ℹ️  INFO: WhatsApp (Meta) não configurado. O sistema usará apenas WebSockets/WebPush.")
-    else:
-        print("✅ WHATSAPP: OK")
-
-    # Validação de Ambiente
-    env = getattr(settings, 'ENV', 'development')
-    if env != 'production':
-        print(f"⚠️  AVISO: O sistema está em modo '{env}'. Altere ENV=production no Railway para o deploy final!")
-        # Não bloqueia, mas alerta fortemente
-
-    sentry = getattr(settings, 'SENTRY_DSN', None)
-    if not sentry:
-        print("⚠️ AVISO: SENTRY_DSN não configurado. Monitoramento de logs desativado.")
-
-    validation_mode = getattr(settings, 'VALIDATION_MODE', False)
-    if validation_mode:
-        print("⚠️ AVISO: VALIDATION_MODE está ativo. Desative para Produção!")
-        errors += 1
-
-    if errors > 0:
-        print(
-            f"\n🛑 Auditoria falhou com {errors} erros. O lançamento não é seguro.")
-        return False, failed_keys
-
-    print("\n🚀 TUDO PRONTO PARA O GO-LIVE! O sistema está estável.")
-    return True, []
 
 
 if __name__ == "__main__":

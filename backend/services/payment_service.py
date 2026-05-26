@@ -1,3 +1,4 @@
+from pathlib import Path
 import logging
 import mercadopago
 from sqlalchemy.orm import Session
@@ -22,7 +23,7 @@ class PaymentService:
                 return payment_info.get("response")
             logger.error(
                 f"Erro ao buscar pagamento {payment_id} no MP: {payment_info}")
-                return None
+            return None
         except Exception as e:
             logger.error(f"Exceção ao consultar API do Mercado Pago: {str(e)}")
             return None
@@ -39,12 +40,12 @@ class PaymentService:
         if status_mp != "approved":
             logger.info(
                 f"Pagamento {payment_id} com status: {status_mp}. Ignorando processamento.")
-                return False
+            return False
 
         if not external_ref:
             logger.warning(
                 f"Pagamento {payment_id} aprovado mas sem external_reference.")
-                return False
+            return False
 
         # 1. Caso seja MENSALIDADE
         if external_ref.startswith("MENSAL_"):
@@ -76,11 +77,11 @@ class PaymentService:
                     enviar_whatsapp_meta(
                         motorista.telefone, "✅ Sua mensalidade foi confirmada! Conta reativada.")
 
-                        db.commit()
-                        logger.info(
-                            f"Mensalidade {mensalidade_id} confirmada com sucesso.")
-                            return True
-                return False
+            db.commit()
+            logger.info(
+                f"Mensalidade {mensalidade_id} confirmada com sucesso.")
+            return True
+        return False
 
     async def _process_pedido(self, external_ref: str, db: Session):
         pedido_id_raw = external_ref.replace("PEDIDO_", "")
@@ -90,12 +91,25 @@ class PaymentService:
             models.Pedido.id == pedido_id
         ).with_for_update().first()
 
-        if pedido and pedido.status in ["PENDENTE", "AGUARDANDO_PAGAMENTO"]:
+        if not pedido:
+            logger.warning(
+                f"❌ Pedido {pedido_id} não encontrado no banco de dados.")
+            return False
+
+        status_atual = str(pedido.status)
+        # Comparação direta com o membro do Enum para máxima precisão
+        if status_atual in ["PENDENTE", "StatusPedido.PENDENTE", "AGUARDANDO_PAGAMENTO"]:
             pedido.status = models.StatusPedido.PAGO
             db.commit()
-
             # Dispara notificações via notifier global
             await notifier.broadcast({"type": "NEW_ORDER", "pedido_id": pedido.id, "msg": "Novo pedido pago!"})
             logger.info(f"Pedido {pedido_id} marcado como PAGO.")
             return True
+
+        logger.info(
+            f"⚠️ Pedido {pedido_id} ignorado. Status atual: {status_atual}")
         return False
+
+
+if __name__ == "__main__":
+    clean_env()

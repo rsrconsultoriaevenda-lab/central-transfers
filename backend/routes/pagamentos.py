@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks, status, Response
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks, status, Response, Body
 from sqlalchemy.orm import Session
 import logging
 import hashlib
@@ -9,15 +9,35 @@ from backend.services.whatsapp_service import enviar_whatsapp_meta
 from backend.services.notifier_service import notifier
 from backend.config import settings
 from backend.services.email_service import enviar_email_transacional
-from backend.services.payment_service import PaymentService
+from backend.pagamento_service import criar_checkout_pro
 
 # Removido o prefixo interno para permitir o mapeamento duplo limpo no main.py
 router = APIRouter(tags=["Pagamentos"])
 logger = logging.getLogger(__name__)
-payment_service = PaymentService()
 
 
-@router.post("/webhook")
+@router.post("/checkout")
+async def gerar_checkout(pedido_id: int = Body(..., embed=True), db: Session = Depends(get_db)):
+    """Gera o link de pagamento do Mercado Pago para um pedido."""
+    pedido = db.query(models.Pedido).filter(
+        models.Pedido.id == pedido_id).first()
+    if not pedido:
+        raise HTTPException(status_code=404, detail="Pedido não encontrado")
+
+    try:
+        checkout_url = criar_checkout_pro(
+            item_id=pedido.id,
+            valor=float(pedido.valor),
+            descricao=f"Transfer: {pedido.origem} -> {pedido.destino}",
+            item_type="PEDIDO"
+        )
+        return {"init_point": checkout_url}
+    except Exception as e:
+        logger.error(f"Erro ao criar checkout: {e}")
+        raise HTTPException(status_code=500, detail="Erro ao gerar checkout")
+
+
+@router.post("/pagamentos/webhook")
 async def webhook_mercadopago(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Recebe e valida notificações do Mercado Pago com segurança HMAC."""
 
@@ -28,7 +48,7 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
         return {"status": "ignored"}
 
     parts = {item.split('=')[0].strip(): item.split('=')[1].strip()
-    for item in signature_header.split(',') if '=' in item}
+             for item in signature_header.split(',') if '=' in item}
     timestamp = parts.get('ts')
     v1 = parts.get('v1')
 
@@ -44,7 +64,8 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
     manifest = f"id:{payload.get('data', {}).get('id')};request-id:{request.headers.get('x-request-id')};ts:{timestamp};"
     webhook_secret = getattr(settings, 'MERCADO_PAGO_WEBHOOK_SECRET', "")
 
-    hmac_obj = hmac.new(webhook_secret.encode(), manifest.encode(), hashlib.sha256)
+    hmac_obj = hmac.new(webhook_secret.encode(),
+                        manifest.encode(), hashlib.sha256)
     if not hmac.compare_digest(hmac_obj.hexdigest(), v1):
         logger.error("🚫 Assinatura do Mercado Pago INVÁLIDA!")
         raise HTTPException(status_code=403, detail="Invalid HMAC signature")
@@ -56,7 +77,8 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
 
     payment_id = payload.get("data", {}).get("id") or payload.get("id")
     if not payment_id:
-        raise HTTPException(status_code=400, detail="Payment ID not found in payload")
+        raise HTTPException(
+            status_code=400, detail="Payment ID not found in payload")
 
     # 3. PROCESSAMENTO DA REGRA DE NEGÓCIO (Banco de Dados / Service)
     success = await payment_service.process_payment_update(str(payment_id), db)
@@ -70,9 +92,11 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
         ref_id = payment_data.get("external_reference", "")
         if ref_id.startswith("PEDIDO_") or ref_id.isdigit():
             pedido_id = int(ref_id.replace("PEDIDO_", ""))
-            pedido = db.query(models.Pedido).filter(models.Pedido.id == pedido_id).first()
+            pedido = db.query(models.Pedido).filter(
+                models.Pedido.id == pedido_id).first()
             if pedido:
-                background_tasks.add_task(_notificar_liberacao, db, pedido, request)
+                background_tasks.add_task(
+                    _notificar_liberacao, db, pedido, request)
 
     return {"status": "ok"}
 
@@ -111,13 +135,15 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido, request: Requ
                         }
                     )
                 except Exception as e:
-                    logger.error(f"Falha ao enviar Web Push para motorista {m.id}: {e}")
+                    logger.error(
+                        f"Falha ao enviar Web Push para motorista {m.id}: {e}")
 
                     # 3. Notificação via E-mail para o cliente final
                     if pedido.cliente and pedido.cliente.email:
                         assunto = f"✅ Pagamento Confirmado! Pedido #{pedido.id}"
                         html = f"<h2>Pagamento Recebido!</h2><p>Olá {pedido.cliente.nome}, recebemos seu pagamento para o serviço de transfer. Em breve enviaremos os dados do veículo e motorista escalado.</p>"
-                        enviar_email_transacional(pedido.cliente.email, assunto, html)
+                        enviar_email_transacional(
+                            pedido.cliente.email, assunto, html)
 
     except Exception as e:
         logger.error(f"Erro no fluxo de background _notificar_liberacao: {e}")

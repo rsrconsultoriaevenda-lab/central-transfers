@@ -160,12 +160,12 @@ export default function DriverApp() {
         { id: '3', data: '22 Mai', rota: 'Gramado ➔ Nova Petrópolis', valor: 150.00, status: 'CONCLUÍDO' },
       ]};
       case 'mensal': return { faturamento: 'R$ 8.420,00', corridas: 32, km: '3.620 km', lista: [
-        { id: 'M1', data: 'Mai/26', rota: 'Consolidado Semana 3', valor: 2240.00, status: 'PAGO' },
-        { id: 'M2', data: 'Mai/26', rota: 'Consolidado Semana 2', valor: 2100.00, status: 'PAGO' },
-        { id: 'M3', data: 'Mai/26', rota: 'Consolidado Semana 1', valor: 2080.00, status: 'PAGO' },
+        { id: 'M1', data: 'Semana 3', rota: 'Consolidado Logística', valor: 2240.00, status: 'PAGO' },
+        { id: 'M2', data: 'Semana 2', rota: 'Consolidado Logística', valor: 2100.00, status: 'PAGO' },
+        { id: 'M3', data: 'Semana 1', rota: 'Consolidado Logística', valor: 2080.00, status: 'PAGO' },
       ]};
       case 'anual': return { faturamento: 'R$ 96.380,00', corridas: 342, km: '41.200 km', lista: [
-        { id: 'A1', data: '2026', rota: 'Acumulado Geral Temporada', valor: 96380.00, status: 'DECLARADO' }
+        { id: 'A1', data: 'Temporada 2026', rota: 'Acumulado Central Transfers', valor: 96380.00, status: 'CONSOLIDADO' }
       ]};
       default: return { faturamento: 'R$ 0,00', corridas: 0, km: '0 km', lista: [] };
     }
@@ -281,69 +281,4 @@ export default function DriverApp() {
                 </div>
                 <div style={{textAlign: 'right'}}>
                   <span style={{color: '#10b981', fontWeight: 'bold'}}>R$ {item.valor.toFixed(2)}</span>
-                  <span style={{display: 'block', fontSize: '10px', color: '#94a3b8'}}>{item.status}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ABA 3: PERFIL, FOTO E SEGURANÇA */}
-        {activeTab === 'perfil' && (
-          <div style={{padding: '0 15px'}}>
-            
-            {/* Bloco de Informações do Motorista & Upload da Foto */}
-            <div style={styles.profileBox}>
-              <div style={styles.photoUploadContainer}>
-                <div style={styles.bigAvatarContainer}>
-                  {driverProfile.foto ? (
-                    <img src={driverProfile.foto} alt="Foto Motorista" style={styles.bigAvatar} />
-                  ) : (
-                    <div style={styles.bigAvatarPlaceholder}>FOTO</div>
-                  )}
-                </div>
-                <label style={styles.lblUpload}>
-                  📷 Carregar Nova Foto
-                  <input type="file" accept="image/*" onChange={handleFotoUpload} style={{display: 'none'}} />
-                </label>
-              </div>
-
-              {/* Detalhes Técnicos e Cadastrais */}
-              <div style={styles.detailsGrid}>
-                <div style={styles.detailField}><label>NOME COMPLETO</label><p>{driverProfile.nome}</p></div>
-                <div style={styles.detailField}><label>EMAIL CORPORATIVO</label><p>{driverProfile.email}</p></div>
-                <div style={styles.detailField}><label>WHATSAPP/TELEFONE</label><p>{driverProfile.telefone}</p></div>
-                <div style={styles.detailField}><label>VEÍCULO CADASTRADO</label><p>{driverProfile.veiculo}</p></div>
-                <div style={styles.detailField}><label>PLACA ANTT / MERCOSUL</label><p style={{color: '#fbbf24'}}>{driverProfile.placa}</p></div>
-              </div>
-            </div>
-
-            {/* Formulário de Troca de Senha */}
-            <div style={styles.profileBox}>
-              <h4 style={{margin: '0 0 15px 0', color: '#7c3aed'}}>🔐 Alteração de Segurança</h4>
-              <form onSubmit={handlePasswordChange} style={styles.passwordForm}>
-                <div style={styles.inputWrapper}>
-                  <label>Senha Atual</label>
-                  <input type="password" required value={passwordForm.senhaAtual} onChange={e => setPasswordForm({...passwordForm, senhaAtual: e.target.value})} style={styles.inputStyle} placeholder="••••••••" />
-                </div>
-                <div style={styles.inputWrapper}>
-                  <label>Nova Senha</label>
-                  <input type="password" required value={passwordForm.novaSenha} onChange={e => setPasswordForm({...passwordForm, novaSenha: e.target.value})} style={styles.inputStyle} placeholder="Mínimo 6 dígitos" />
-                </div>
-                <div style={styles.inputWrapper}>
-                  <label>Confirmar Nova Senha</label>
-                  <input type="password" required value={passwordForm.confirmarSenha} onChange={e => setPasswordForm({...passwordForm, confirmarSenha: e.target.value})} style={styles.inputStyle} placeholder="Repita a nova senha" />
-                </div>
-                <button type="submit" style={styles.btnSavePassword}>ATUALIZAR CREDENCIAIS</button>
-              </form>
-            </div>
-
-          </div>
-        )}
-      </div>
-
-      {/* MODAL DE ENTRADA DE NOVA SOLICITAÇÃO */}
-      {showNewOrderModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.requestCard}>
-            <h3 style={{margin
+                  <span style={{display: 'block', fontSize: '10px', color: '#94a3b

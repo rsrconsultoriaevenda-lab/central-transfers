@@ -1,11 +1,12 @@
 {
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "https://central-transfers-production.up.railway.app/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api).*)" ,
       "destination": "/index.html"
     }
   ]

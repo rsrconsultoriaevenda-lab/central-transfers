@@ -11,6 +11,7 @@
     "test:frontend": "npm test --workspaces --if-present --",
     "test:backend": "python -m pytest backend",
     "test:all": "npm run test:frontend -- --run && npm run test:backend",
+    "build": "npm run build --workspaces",
     "build:all": "npm run build --workspaces",
     "kill": "python kill_ports.py",
     "db:migrate": "python -m alembic upgrade head",

@@ -111,31 +111,35 @@ export default function Storefront() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
-    
+
     setIsCheckingOut(true);
     try {
-      // Exemplo de como enviar o carrinho completo para gerar uma preferência de pagamento única
-      const res = await axios.post(`${API_URL}/checkout`, {
+      const payload = {
         itens: cart.map(item => ({
           id: item.id,
-          titulo: item.nome,
+          nome: item.nome,
           preco: item.valor
         })),
         metadata: {
-          ...bookingDetails,
-          parceiro_cod: referralCode // Envia o código de quem indicou
+          nome: bookingDetails.nome,
+          telefone: bookingDetails.telefone,
+          origem: bookingDetails.origem,
+          destino: bookingDetails.destino,
+          observacoes: bookingDetails.observacoes,
+          parceiro_cod: referralCode
         }
-      });
+      };
+
+      const res = await axios.post(`${API_URL}/checkout`, payload);
 
       if (res.data.init_point) {
-        // Redireciona para o checkout do Mercado Pago (SandBox ou Produção)
         window.location.href = res.data.init_point;
       } else {
         alert("Erro ao gerar link de pagamento.");
       }
     } catch (err) {
       console.error("Erro ao finalizar checkout:", err);
-      alert("Ocorreu um erro ao processar sua reserva. Verifique o console.");
+      alert("Falha de conexão. Verifique se o backend está online.");
     } finally {
       setIsCheckingOut(false);
     }

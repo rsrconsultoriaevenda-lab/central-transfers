@@ -8,7 +8,6 @@ load_dotenv()
 # DICA: Verifique se o seu backend oficial é Render ou Railway e ajuste aqui:
 RENDER_URL = "https://central-transfers-backend.onrender.com/api"
 API_URL = os.getenv("VITE_API_URL") or RENDER_URL
-
 # Garante que a URL da API sempre termine com /api
 if not API_URL.endswith("/api"):
     API_URL = API_URL.rstrip("/") + "/api"
@@ -22,7 +21,9 @@ def create_test_item():
     print(f"📡 AUDITORIA DE AMBIENTE")
     print(
         f"📍 VITE_API_URL no .env: {os.getenv('VITE_API_URL', 'NÃO DEFINIDA')}")
-    print(f"👤 Login: {ADMIN_EMAIL or '❌ NÃO CARREGADO'}")
+    print(f"👤 ADMIN_EMAIL: {ADMIN_EMAIL or '❌ NÃO CARREGADO'}")
+    print(
+        f"🔑 ADMIN_PASS: {'*' * len(ADMIN_PASS) if ADMIN_PASS else '❌ NÃO CARREGADO'}")
     print(f"🚀 ALVO FINAL DO SCRIPT: {API_URL}")
     print("="*50 + "\n")
 

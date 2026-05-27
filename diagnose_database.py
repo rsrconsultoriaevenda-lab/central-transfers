@@ -10,6 +10,7 @@ from backend import models
 from backend.database import SessionLocal
 import sys
 import os
+import requests
 from sqlalchemy import text
 
 sys.path.insert(0, os.getcwd())
@@ -149,6 +150,28 @@ def diagnose():
             print(f"   🛣️  {s.nome:30} → R$ {s.valor:8.2f}")
         if len(servicos) > 5:
             print(f"   ... e {len(servicos) - 5} serviços mais")
+    print()
+
+    # 7.1. Integration Analysis
+    print("7️⃣.1️⃣  ANÁLISE DE INTEGRAÇÕES")
+    print("-" * 70)
+    mp_token = settings.MERCADO_PAGO_ACCESS_TOKEN
+    if not mp_token:
+        print("   ❌ Mercado Pago: Token não configurado no .env/Render")
+    else:
+        print(f"   ✅ Mercado Pago: Token detectado ({mp_token[:10]}...)")
+        try:
+            resp = requests.get(
+                "https://api.mercadopago.com/v1/me",
+                headers={"Authorization": f"Bearer {mp_token}"},
+                timeout=5
+            )
+            if resp.status_code == 200:
+                print("      🟢 Autenticação na API do Mercado Pago: OK")
+            else:
+                print(f"      🔴 Erro na API do Mercado Pago: {resp.status_code} - {resp.text}")
+        except Exception as e:
+            print(f"      ⚠️ Falha ao conectar no Mercado Pago: {e}")
     print()
 
     # 8. Summary

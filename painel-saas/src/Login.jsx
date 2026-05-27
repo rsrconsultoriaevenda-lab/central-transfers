@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-
-const currentHost = window.location.hostname;
-const API_URL = import.meta.env.VITE_API_URL || 
-  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001' : `${window.location.protocol}//${currentHost}/api`);
+import { API_URL } from './App';
 
 export default function Login() {
   const navigate = useNavigate();

@@ -22,10 +22,13 @@ import Storefront from './Storefront';
 import Success from './Success';
 import Failure from './Failure';
 
-// Detecta o host atual. Se acessar por IP, conecta o backend no mesmo IP na porta 8001.
+// 🌐 CONFIGURAÇÃO CENTRALIZADA DA API
 const currentHost = window.location.hostname;
-const API_URL = import.meta.env.VITE_API_URL || 
-  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001' : `${window.location.protocol}//${currentHost}/api`);
+export const API_URL = import.meta.env.VITE_API_URL || 
+  (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001/api' : '/api');
+
+// Log de Auditoria: Abre o F12 no navegador e você verá para onde o sistema está olhando
+console.log(`%c🚐 [Central Transfers] Conectado ao Backend: ${API_URL}`, "color: #7c3aed; font-weight: bold; font-size: 12px; background: #f3f4f6; padding: 5px; border-radius: 5px;");
 
 // Cores do Sistema - Facilita a troca de tema (Branding)
 const THEME = {
@@ -395,9 +398,9 @@ function Dashboard() {
                   onChange={(e) => setDriverStatusFilter(e.target.value)}
                 >
                   <option value="ALL">Todos Status</option>
-                  <option value="ALL">Todas Categorias</option>
-                  <option value="STANDARD">Standard</option>
-                  <option value="PREMIUM">Premium</option>
+                  <option value="ATIVO">Ativo</option>
+                  <option value="PENDENTE_APROVACAO">Pendente</option>
+                  <option value="INATIVO">Inativo</option>
                 </select>
                   <button style={ds.btnPrimary} onClick={() => setShowAddDriver(true)}>+ Novo Motorista</button>
                 </div>

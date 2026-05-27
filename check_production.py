@@ -1,10 +1,28 @@
+from backend.routes import (
+    auth,
+    pedidos,
+    clientes,
+    motoristas,
+    servicos,
+    dashboard,
+    pagamentos,
+    notifications,
+    health
+)
+from backend.services.notifier_service import notifier
+from backend.config import settings
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
+from contextlib import asynccontextmanager
+import logging
 import sys
 import requests
 
 # 1. DEFINIÇÃO DA URL BASE
-url = "https://central-transfers-production.up.railway.app"
-health_url = f"{url}/health"
-webhook_url = f"{url}/pagamentos/webhook"
+# Ajuste para a URL do Render conforme o seu uso atual
+url = "https://central-transfers-backend.onrender.com"
+health_url = f"{url}/api/health"
+webhook_url = f"{url}/api/pagamentos/webhook"
 
 print("\n--- 1. Iniciando Validação do Ambiente de Produção ---")
 print(f"[INFO] Testando rota principal: {health_url}")
@@ -40,26 +58,9 @@ except requests.exceptions.RequestException as e:
     print(f"⚠️ [AVISO] Webhook não respondeu: {e}")
 
 print("\n--- Validação Concluída ---")
-import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
-from fastapi.middleware.cors import CORSMiddleware
 
-from backend.config import settings
-from backend.services.notifier_service import notifier
 
 # Importação dos roteadores operacionais do ecossistema Central Transfers
-from backend.routes import (
-    auth,
-    pedidos,
-    clientes,
-    motoristas,
-    servicos,
-    dashboard,
-    pagamentos,
-    notifications,
-    health
-)
 
 # Configuração de Logs para auditoria local e em produção (Railway)
 logging.basicConfig(level=logging.INFO)
@@ -104,7 +105,8 @@ raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
 if raw_origins and raw_origins.strip() == "*":
     origins = ["*"]
 else:
-    origins = [o.strip() for o in raw_origins.split(",") if o.strip()] if raw_origins else []
+    origins = [o.strip() for o in raw_origins.split(
+        ",") if o.strip()] if raw_origins else []
 
     if not origins:
         origins = [

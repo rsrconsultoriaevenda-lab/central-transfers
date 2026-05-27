@@ -5,13 +5,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Use a URL do Render
-API_URL = "https://central-transfers-backend.onrender.com/api"
+# DICA: Verifique se o seu backend oficial é Render ou Railway e ajuste aqui:
+RENDER_URL = "https://central-transfers-backend.onrender.com/api"
+API_URL = os.getenv("VITE_API_URL") or RENDER_URL
+
+# Garante que a URL da API sempre termine com /api
+if not API_URL.endswith("/api"):
+    API_URL = API_URL.rstrip("/") + "/api"
+
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
 ADMIN_PASS = os.getenv("ADMIN_PASS")
 
 
 def create_test_item():
-    print(f"🚀 Conectando em: {API_URL}")
+    print("\n" + "="*50)
+    print(f"📡 AUDITORIA DE AMBIENTE")
+    print(
+        f"📍 VITE_API_URL no .env: {os.getenv('VITE_API_URL', 'NÃO DEFINIDA')}")
+    print(f"👤 Login: {ADMIN_EMAIL or '❌ NÃO CARREGADO'}")
+    print(f"🚀 ALVO FINAL DO SCRIPT: {API_URL}")
+    print("="*50 + "\n")
+
+    if not ADMIN_EMAIL or not ADMIN_PASS:
+        print("❌ ERRO: Credenciais de ADMIN não encontradas no .env")
+        return
 
     # 1. Login
     login_res = requests.post(f"{API_URL}/auth/login", json={
@@ -34,7 +51,8 @@ def create_test_item():
         "descricao": "Serviço para validação de fluxo real de pagamento e webhook."
     }
 
-    res = requests.post(f"{API_URL}/servicos",
+    # Adicionada a barra final '/' para evitar problemas de redirecionamento 307/401
+    res = requests.post(f"{API_URL}/servicos/",
                         data=service_data, headers=headers)
     if res.status_code in [200, 201]:
         print("✅ Serviço de Teste (R$ 1,00) criado com sucesso!")

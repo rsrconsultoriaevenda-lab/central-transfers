@@ -56,7 +56,18 @@ app.add_middleware(
 async def root_redirect():
     return RedirectResponse(url="/api/docs")
 
-# Mapeamento de rotas prefixadas com /api para compatibilidade com Vercel/Proxy
+# 1️⃣ Mapeamento Direto (Compatibilidade com Storefront e App do Motorista)
+app.include_router(auth.router, tags=["Autenticação"])
+app.include_router(pedidos.router, tags=["Pedidos & Corridas"])
+app.include_router(clientes.router, tags=["Clientes"])
+app.include_router(motoristas.router, tags=["Motoristas"])
+app.include_router(servicos.router, tags=["Serviços de Transfer"])
+app.include_router(dashboard.router, tags=["Painel Administrativo"])
+app.include_router(notifications.router, tags=["Notificações"])
+app.include_router(health.router, tags=["Saúde do Sistema"])
+app.include_router(pagamentos.router, tags=["Pagamentos & Checkout"])
+
+# 2️⃣ Mapeamento com /api (Otimizado para Proxy Vercel)
 app.include_router(auth.router, prefix="/api", tags=["Autenticação"])
 app.include_router(pedidos.router, prefix="/api", tags=["Pedidos & Corridas"])
 app.include_router(clientes.router, prefix="/api", tags=["Clientes"])

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+import { API_URL } from './App';
 
 const THEME = {
   primary: '#4c1d95',   // Roxo Profundo
@@ -20,6 +19,8 @@ export default function Storefront() {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [cart, setCart] = useState([]);
   const [bookingDetails, setBookingDetails] = useState({
+    nome: '',
+    telefone: '',
     origem: '',
     destino: '',
     data: '',

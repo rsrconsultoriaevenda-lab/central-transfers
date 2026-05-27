@@ -105,8 +105,39 @@ export default function Storefront() {
   const filteredServices = category === 'ALL' ? services : services.filter(s => s.categoria === category);
 
   const addToCart = (service) => {
-    setCart([...cart, service]);
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === service.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === service.id
+            ? { ...item, quantidade: (item.quantidade || 1) + 1 }
+            : item
+        );
+      }
+      return [...prevCart, { ...service, quantidade: 1 }];
+    });
     setIsCartOpen(true);
+  };
+
+  const updateQuantity = (index, delta) => {
+    setCart(prevCart => {
+      const newCart = [...prevCart];
+      const newQty = (newCart[index].quantidade || 1) + delta;
+      if (newQty >= 1) {
+        newCart[index] = { ...newCart[index], quantidade: newQty };
+      }
+      return newCart;
+    });
+  };
+
+  const removeFromCart = (indexToRemove) => {
+    setCart(prevCart => prevCart.filter((_, index) => index !== indexToRemove));
+  };
+
+  const clearCart = () => {
+    if (window.confirm("Tem certeza que deseja esvaziar o carrinho?")) {
+      setCart([]);
+    }
   };
 
   const handleCheckout = async () => {
@@ -118,7 +149,8 @@ export default function Storefront() {
         itens: cart.map(item => ({
           id: item.id,
           nome: item.nome,
-          preco: item.valor
+          preco: item.valor,
+          quantidade: item.quantidade || 1
         })),
         metadata: {
           nome: bookingDetails.nome,
@@ -231,7 +263,10 @@ export default function Storefront() {
       {isCartOpen && (
         <div style={styles.drawerOverlay} onClick={() => setIsCartOpen(false)} className="overlay-anim">
           <div style={styles.drawer} onClick={e => e.stopPropagation()} className="drawer-anim">
-            <div style={styles.drawerHeader}>
+            <div style={{...styles.drawerHeader, justifyContent: 'space-between'}}>
+              {cart.length > 0 && (
+                <button style={styles.clearCartBtn} onClick={clearCart}>Esvaziar</button>
+              )}
               <h2 style={styles.drawerTitle}>Sua Reserva</h2>
               <button style={styles.closeBtn} onClick={() => setIsCartOpen(false)}>✕</button>
             </div>
@@ -284,12 +319,21 @@ export default function Storefront() {
                   <div style={{marginTop: '20px'}}>
                     <h4 style={styles.sectionTitle}>Itens Selecionados</h4>
                     {cart.map((item, index) => (
-                      <div key={index} style={styles.cartItem}>
+                      <div key={index} style={styles.cartItem}> {/* Usar index como key é ok aqui pois a ordem é estável para remoção */}
                         <div style={{flex: 1}}>
                           <h4 style={{margin: 0, fontSize: '14px', color: THEME.text}}>{item.nome}</h4>
                           <small style={{color: THEME.muted}}>{item.categoria}</small>
+                          
+                          <div style={styles.qtyContainer}>
+                            <button style={styles.qtyBtn} onClick={() => updateQuantity(index, -1)}>-</button>
+                            <span style={styles.qtyValue}>{item.quantidade || 1}</span>
+                            <button style={styles.qtyBtn} onClick={() => updateQuantity(index, 1)}>+</button>
+                          </div>
                         </div>
-                        <div style={{fontWeight: '700', color: THEME.primary}}>R$ {item.valor.toFixed(2)}</div>
+                        <div style={styles.cartItemActions}>
+                          <button style={styles.removeItemBtn} onClick={() => removeFromCart(index)}>✕</button>
+                        </div>
+                        <div style={{fontWeight: '700', color: THEME.primary}}>R$ {(item.valor * (item.quantidade || 1)).toFixed(2)}</div>
                       </div>
                     ))}
                   </div>
@@ -301,7 +345,7 @@ export default function Storefront() {
               <div style={styles.drawerFooter}>
                 <div style={styles.totalRow}>
                   <span>Total</span>
-                  <span>R$ {cart.reduce((acc, curr) => acc + curr.valor, 0).toFixed(2)}</span>
+                  <span>R$ {cart.reduce((acc, curr) => acc + (curr.valor * (curr.quantidade || 1)), 0).toFixed(2)}</span>
                 </div>
                 <button 
                   style={{...styles.checkoutBtn, opacity: isCheckingOut ? 0.7 : 1}} 
@@ -559,5 +603,50 @@ const styles = {
   sectionTitle: { fontSize: '12px', fontWeight: '800', color: THEME.primary, textTransform: 'uppercase', marginBottom: '15px', letterSpacing: '1px' },
   drawerInput: {
     width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px', fontSize: '14px', outline: 'none'
+  }
+  ,
+  clearCartBtn: {
+    background: 'none',
+    border: 'none',
+    color: THEME.muted,
+    fontSize: '12px',
+    cursor: 'pointer',
+    fontWeight: '600',
+    padding: '5px 10px',
+    borderRadius: '5px',
+    transition: 'color 0.2s ease',
+  },
+  removeItemBtn: {
+    background: 'none',
+    border: 'none',
+    color: THEME.muted,
+    cursor: 'pointer',
+    fontSize: '16px',
+    marginRight: '10px',
+  },
+  qtyContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginTop: '8px'
+  },
+  qtyBtn: {
+    background: '#f1f5f9',
+    border: 'none',
+    width: '24px',
+    height: '24px',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: THEME.text
+  },
+  qtyValue: {
+    fontSize: '13px',
+    fontWeight: '600',
+    minWidth: '20px',
+    textAlign: 'center'
   }
 };

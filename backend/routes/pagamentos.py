@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
 from datetime import datetime, timezone
+from decimal import Decimal
 from sqlalchemy.orm import Session
 import logging
 import hmac
@@ -10,7 +11,7 @@ from backend.pagamento_service import criar_checkout_pro, process_payment_update
 from backend.services.notifier_service import notifier
 from backend.config import settings
 
-router = APIRouter(tags=["Pagamentos"])
+router = APIRouter(prefix="/pagamentos", tags=["Pagamentos"])
 logger = logging.getLogger(__name__)
 
 
@@ -36,20 +37,31 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             cliente = models.Cliente(nome=meta.get(
                 "nome", "Cliente Site"), telefone=tel)
             db.add(cliente)
-            db.commit()
-            db.refresh(cliente)
+            db.flush()  # Obtém o ID sem encerrar a transação atual
+
+        # Conversão segura de data: O banco de dados exige um objeto datetime
+        data_raw = meta.get("data")
+        try:
+            if data_raw and isinstance(data_raw, str):
+                data_servico = datetime.fromisoformat(
+                    data_raw.replace("Z", "+00:00"))
+            else:
+                data_servico = datetime.now(timezone.utc)
+        except (ValueError, TypeError):
+            data_servico = datetime.now(timezone.utc)
 
         novo_pedido = models.Pedido(
             cliente_id=cliente.id,
-            servico_id=itens[0].get("id"),
+            servico_id=itens[0].get("id") if itens else None,
             origem=meta.get("origem", "A definir"),
             destino=meta.get("destino", "A definir"),
-            data_servico=meta.get("data") or datetime.now(timezone.utc), # Garante timezone
-            valor=sum(Decimal(str(i.get("preco", 0))) for i in itens), # Use Decimal para valores
+            data_servico=data_servico,
+            valor=sum(Decimal(str(i.get("preco", 0))) *
+                      i.get("quantidade", 1) for i in itens),
             observacoes=meta.get("observacoes", ""),
             status="PENDENTE"
         )
-        novo_pedido.calcular_financeiro() # Calcula financeiro para o novo pedido
+        novo_pedido.calcular_financeiro()
         db.add(novo_pedido)
         db.commit()
         db.refresh(novo_pedido)
@@ -64,7 +76,7 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
     try:
         checkout_url = criar_checkout_pro(
             item_id=pedido.id,
-            valor=float(pedido.valor), # Mercado Pago espera float
+            valor=float(pedido.valor),  # Mercado Pago espera float
             descricao=f"Transfer: {pedido.origem} -> {pedido.destino}",
             item_type="PEDIDO"
         )
@@ -75,7 +87,7 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             status_code=500, detail="Falha ao gerar link de pagamento")
 
 
-@router.post("/pagamentos/webhook")
+@router.post("/webhook")
 async def webhook_mercadopago(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Recebe notificação, processa pagamento e dispara notificações."""
     payload = await request.json()

@@ -3,6 +3,7 @@ from backend.config import settings
 from backend import models
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+from decimal import Decimal
 
 
 def get_payment_details(payment_id: str):

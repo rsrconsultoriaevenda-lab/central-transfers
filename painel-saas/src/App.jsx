@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useEffect } from 'react';
+﻿﻿﻿﻿import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -24,8 +24,11 @@ import Failure from './Failure';
 
 // 🌐 CONFIGURAÇÃO CENTRALIZADA DA API
 const currentHost = window.location.hostname;
-export const API_URL = import.meta.env.VITE_API_URL || 
+const baseApiUrl = import.meta.env.VITE_API_URL || 
   (currentHost === 'localhost' || currentHost === '127.0.0.1' ? 'http://127.0.0.1:8001/api' : '/api');
+
+// Garante que a URL sempre termine com /api para compatibilidade com o Backend
+export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl}/api`;
 
 // Log de Auditoria: Abre o F12 no navegador e você verá para onde o sistema está olhando
 console.log(`%c🚐 [Central Transfers] Conectado ao Backend: ${API_URL}`, "color: #7c3aed; font-weight: bold; font-size: 12px; background: #f3f4f6; padding: 5px; border-radius: 5px;");

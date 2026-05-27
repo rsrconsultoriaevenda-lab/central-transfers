@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
+import { API_URL } from './App';
 
 export default function DriverApp() {
   const [isOnline, setIsOnline] = useState(false);
@@ -9,6 +8,7 @@ export default function DriverApp() {
   const [activeTab, setActiveTab] = useState('agenda');
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   const [mockOrder, setMockOrder] = useState(null);
+  const ws = useRef(null);
 
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,6 +16,7 @@ export default function DriverApp() {
   const [historyPeriod, setHistoryPeriod] = useState('semanal');
 
   const [driverProfile, setDriverProfile] = useState({
+    id: 1, // ID para identificação no WebSocket
     nome: 'João Silva',
     email: 'joao.silva@centraltransfers.com',
     telefone: '(54) 99999-1234',
@@ -118,14 +119,34 @@ export default function DriverApp() {
 
   useEffect(() => {
     if (isOnline) {
-      const timer = setTimeout(() => {
-        setMockOrder({ id: "TRF-9912", origem: "Aeroporto POA", destino: "Wish Serrano, Gramado", valor: 295.00 });
-        setShowNewOrderModal(true);
-        notificationAudio.play().catch(() => console.log("Interação necessária para áudio"));
-        if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 500]);
-      }, 4000);
-      return () => { clearTimeout(timer); handleCloseModal(); };
+      // Conectar ao WebSocket quando o motorista ficar ONLINE
+      // Converte http/https para ws/wss e troca o prefixo /api por /ws
+      const socketUrl = API_URL.replace(/^http/, 'ws').replace('/api', '/ws') + `/${driverProfile.id}`;
+      
+      ws.current = new WebSocket(socketUrl);
+
+      ws.current.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'NEW_ORDER') {
+            setMockOrder({ 
+              id: data.pedido_id, 
+              origem: data.origem || "Novo Pedido", 
+              destino: data.destino || "Ver Detalhes", 
+              valor: data.valor 
+            });
+            setShowNewOrderModal(true);
+            notificationAudio.play().catch(e => console.log("Interação de áudio pendente:", e));
+            if ("vibrate" in navigator) navigator.vibrate([500, 200, 500, 200, 500]);
+          }
+        } catch (err) {
+          console.error("Erro ao processar mensagem do servidor:", err);
+        }
+      };
+
+      return () => { if (ws.current) ws.current.close(); handleCloseModal(); };
     } else {
+      if (ws.current) ws.current.close();
       handleCloseModal();
     }
   }, [isOnline]);

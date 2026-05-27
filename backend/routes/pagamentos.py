@@ -76,7 +76,7 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
     try:
         checkout_url = criar_checkout_pro(
             item_id=pedido.id,
-            valor=float(pedido.valor),  # Mercado Pago espera float
+            valor=float(pedido.valor) if pedido.valor else 0.0,
             descricao=f"Transfer: {pedido.origem} -> {pedido.destino}",
             item_type="PEDIDO"
         )
@@ -111,6 +111,8 @@ async def _notificar_liberacao(db: Session, pedido: models.Pedido):
         "type": "NEW_ORDER",
         "pedido_id": pedido.id,
         "mensagem": f"Novo pedido: {pedido.origem} -> {pedido.destino}",
-        "valor": float(pedido.valor)
+        "origem": pedido.origem,
+        "destino": pedido.destino,
+        "valor": float(pedido.valor) if pedido.valor else 0.0
     }
     await notifier.broadcast(message)

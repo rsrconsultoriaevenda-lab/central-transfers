@@ -92,7 +92,7 @@ export default function Storefront() {
         // const domain = window.location.hostname;
         // const res = await axios.get(`${API_URL}/tenant/settings?domain=${domain}`);
         // setTenantConfig(res.data);
-        console.log("Identificando configurações do cliente SaaS...");
+        console.log("🚐 [Central Transfers] Conectado ao Backend:", API_URL);
       } catch (err) {
         console.log("Usando branding padrão");
       }
@@ -144,6 +144,14 @@ export default function Storefront() {
     if (cart.length === 0) return;
 
     setIsCheckingOut(true);
+
+    // Validação de campos obrigatórios
+    if (!bookingDetails.nome || !bookingDetails.telefone || !bookingDetails.origem || !bookingDetails.destino || !bookingDetails.data) {
+      alert("Por favor, preencha todos os campos obrigatórios: Nome, Telefone, Origem, Destino e Data.");
+      setIsCheckingOut(false);
+      return;
+    }
+
     try {
       const payload = {
         itens: cart.map(item => ({
@@ -162,7 +170,7 @@ export default function Storefront() {
         }
       };
 
-      const res = await axios.post(`${API_URL}/checkout`, payload);
+      const res = await axios.post(`${API_URL}/pagamentos/checkout`, payload);
 
       if (res.data.init_point) {
         window.location.href = res.data.init_point;
@@ -241,7 +249,7 @@ export default function Storefront() {
           {filteredServices.map(service => (
             <div key={service.id} style={{...styles.card, border: service.valor > 500 ? '2px solid #C5A059' : styles.card.border}} className="card-luxury">
               <div style={styles.imageContainer}>
-                <img src={service.imagem_url || 'https://via.placeholder.com/400x300'} alt={service.nome} style={styles.cardImage} />
+                <img src={service.imagem_url || 'https://placehold.co/400x300?text=Premium+Transfer'} alt={service.nome} style={styles.cardImage} />
                 <div style={{...styles.priceBadge, background: service.valor > 500 ? 'linear-gradient(135deg, #000, #C5A059)' : THEME.secondary}}>
                   R$ {service.valor.toFixed(2)}
                 </div>

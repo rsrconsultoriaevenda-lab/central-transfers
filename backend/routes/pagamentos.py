@@ -56,8 +56,8 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             origem=meta.get("origem", "A definir"),
             destino=meta.get("destino", "A definir"),
             data_servico=data_servico,
-            valor=round(sum(Decimal(str(i.get("preco", 0))) *
-                      i.get("quantidade", 1) for i in itens), 2),
+            valor=float(round(sum(Decimal(str(i.get("preco", 0))) *
+                                  i.get("quantidade", 1) for i in itens), 2)),
             observacoes=meta.get("observacoes", ""),
             status="PENDENTE"
         )
@@ -109,16 +109,16 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
 @router.get("/stats")
 async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db)):
     """Retorna estatísticas financeiras reais para o motorista."""
-    # Em produção, o motorista_id viria do token JWT (current_user). 
+    # Em produção, o motorista_id viria do token JWT (current_user).
     # Para este exemplo, fixamos o ID 1.
     motorista_id = 1
-    
+
     now = datetime.now(timezone.utc)
     if period == "semanal":
         start_date = now - timedelta(days=7)
     elif period == "mensal":
         start_date = now - timedelta(days=30)
-    else: # anual
+    else:  # anual
         start_date = now - timedelta(days=365)
 
     # Buscar pedidos concluídos do motorista no período
@@ -130,7 +130,7 @@ async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db
 
     faturamento = sum(Decimal(str(p.valor or 0)) for p in pedidos)
     corridas = len(pedidos)
-    
+
     lista_formatada = [
         {
             "id": p.id,
@@ -144,7 +144,8 @@ async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db
     return {
         "faturamento": f"R$ {faturamento:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
         "corridas": corridas,
-        "km": f"{corridas * 45} km", # Mock de KM baseado na média de corridas na região
+        # Mock de KM baseado na média de corridas na região
+        "km": f"{corridas * 45} km",
         "lista": lista_formatada
     }
 

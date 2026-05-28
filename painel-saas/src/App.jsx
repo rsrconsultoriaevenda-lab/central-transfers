@@ -101,6 +101,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [showAddDriver, setShowAddDriver] = useState(false);
   const [showAddService, setShowAddService] = useState(false);
+  const [editingService, setEditingService] = useState(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [qrModal, setQrModal] = useState({ open: false, link: '', title: '' });
 
@@ -146,6 +147,15 @@ function Dashboard() {
       setNewService(prev => ({ ...prev, imagem: file, imagemPreview: URL.createObjectURL(file) }));
     } else {
       setNewService(prev => ({ ...prev, imagem: null, imagemPreview: null }));
+    }
+  };
+
+  const handleEditImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setEditingService(prev => ({ ...prev, imagem: file, imagemPreview: URL.createObjectURL(file) }));
+    } else {
+      setEditingService(prev => ({ ...prev, imagem: null, imagemPreview: null }));
     }
   };
 
@@ -254,6 +264,39 @@ function Dashboard() {
     } catch (err) { 
       console.error("Erro ao cadastrar motorista:", err.response?.data || err.message); 
       alert(`Erro ao cadastrar motorista: ${JSON.stringify(err.response?.data?.detail || "Erro interno")}`); 
+    }
+    finally { setLoading(false); }
+  };
+
+  const handleEditClick = (service) => {
+    setEditingService({
+      ...service,
+      imagem: null,
+      imagemPreview: service.imagem_url
+    });
+  };
+
+  const atualizarServico = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    const formData = new FormData();
+    formData.append('nome', editingService.nome);
+    formData.append('categoria', editingService.categoria);
+    formData.append('tipo', editingService.categoria);
+    formData.append('valor', parseFloat(editingService.valor) || 0);
+    formData.append('descricao', editingService.descricao);
+    if (editingService.imagem) formData.append('imagem', editingService.imagem);
+
+    try {
+      await axios.put(`${API_URL}/servicos/${editingService.id}`, formData, { headers: getAuthHeader() });
+      setEditingService(null);
+      await carregarDadosReais();
+      setShowSuccessAnimation(true);
+      setTimeout(() => setShowSuccessAnimation(false), 2000);
+    } catch (err) { 
+      console.error("Erro ao atualizar serviço:", err); 
+      alert("Erro ao atualizar serviço. Verifique a conexão com o backend."); 
     }
     finally { setLoading(false); }
   };
@@ -517,6 +560,7 @@ function Dashboard() {
                   )}
                   <h4 style={{margin: '10px 0', fontSize: '14px'}}>{s.nome}</h4>
                   <div style={{fontWeight: 'bold', color: '#4c1d95'}}>R$ {parseFloat(s.valor || 0).toFixed(2)}</div>
+                  <button style={{...ds.btnOutline, width: '100%', marginTop: '10px'}} onClick={() => handleEditClick(s)}>Editar 📝</button>
                 </div>
               ))}
             </div>
@@ -671,6 +715,46 @@ function Dashboard() {
 
 
 
+          </div>
+        )}
+
+        {editingService && (
+          <div style={ds.formOverlay}>
+            <form style={ds.formCard} onSubmit={atualizarServico}>
+              <h2 style={{color: '#4c1d95', marginBottom: '25px', textAlign: 'center'}}>Editar Serviço</h2>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Nome do Serviço</label>
+                  <input style={ds.input} value={editingService.nome} onChange={e => setEditingService({...editingService, nome: e.target.value})} required/>
+                </div>
+                <div>
+                  <label style={ds.label}>Categoria</label>
+                  <select style={ds.input} value={editingService.categoria} onChange={e => setEditingService({...editingService, categoria: e.target.value})}>
+                    <option value="TRANSFERS">Transfers</option>
+                    <option value="INGRESSOS">Ingressos</option>
+                    <option value="PACOTES">Pacotes</option>
+                    <option value="EXPERIENCIAS">Experiências</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={ds.label}>Preço (R$)</label>
+                  <input type="number" step="0.01" style={ds.input} value={editingService.valor} onChange={e => setEditingService({...editingService, valor: e.target.value})} required/>
+                </div>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Descrição</label>
+                  <textarea style={{...ds.input, height: '80px', resize: 'none'}} value={editingService.descricao} onChange={e => setEditingService({...editingService, descricao: e.target.value})} required/>
+                </div>
+                <div style={{gridColumn: '1 / 3'}}>
+                  <label style={ds.label}>Alterar Foto (Opcional)</label>
+                  <input type="file" accept="image/*" onChange={handleEditImageUpload} />
+                  {editingService.imagemPreview && <img src={editingService.imagemPreview} alt="Preview" style={{width: '100px', marginTop: '10px', borderRadius: '8px'}} />}
+                </div>
+              </div>
+              <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
+                <button type="submit" style={ds.btnPrimary}>Salvar Alterações</button>
+                <button type="button" style={ds.btnOutline} onClick={() => setEditingService(null)}>Cancelar</button>
+              </div>
+            </form>
           </div>
         )}
 

@@ -17,7 +17,10 @@ export default function Storefront() {
   const [category, setCategory] = useState('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    const saved = localStorage.getItem('cart');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [bookingDetails, setBookingDetails] = useState({
     nome: '',
     telefone: '',
@@ -28,6 +31,10 @@ export default function Storefront() {
   });
   const currentTime = new Date(); // Declaração movida para o escopo correto
   const [weather, setWeather] = useState({ temp: 25, condition: 'Ensolarado' }); // Adicionado estado mock para 'weather'
+
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
 
   // Lógica de Indicação (Parceiros)
   const [referralCode, setReferralCode] = useState(null);

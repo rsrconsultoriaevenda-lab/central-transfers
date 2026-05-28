@@ -1,5 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { 
+  LineChart, 
+  Line, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer 
+} from 'recharts';
 import { API_URL } from './App';
 
 export default function DriverApp() {
@@ -13,6 +22,7 @@ export default function DriverApp() {
   const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [activeHistory, setActiveHistory] = useState({ faturamento: 'R$ 0,00', corridas: 0, km: '0 km', lista: [] });
   const [historyPeriod, setHistoryPeriod] = useState('semanal');
 
   const [driverProfile, setDriverProfile] = useState({
@@ -75,6 +85,17 @@ export default function DriverApp() {
     }
   ];
 
+  const loadHistory = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/pagamentos/stats?period=${historyPeriod}`, { 
+        headers: getAuthHeader() 
+      });
+      setActiveHistory(res.data);
+    } catch (err) {
+      console.error("Erro ao carregar histórico real", err);
+    }
+  };
+
   const openInMaps = (origem, destino) => {
     const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origem)}&destination=${encodeURIComponent(destino)}&travelmode=driving`;
     window.open(url, '_blank');
@@ -122,12 +143,26 @@ export default function DriverApp() {
       // Conectar ao WebSocket quando o motorista ficar ONLINE
       // Converte http/https para ws/wss e troca o prefixo /api por /ws
       const socketUrl = API_URL.replace(/^http/, 'ws').replace('/api', '/ws') + `/${driverProfile.id}`;
+      console.log(`📡 Tentando conectar ao WebSocket: ${socketUrl}`);
       
       ws.current = new WebSocket(socketUrl);
+
+      ws.current.onopen = () => {
+        console.log("%c✅ WebSocket Conectado! O motorista está pronto para receber viagens.", "color: #10b981; font-weight: bold;");
+      };
+
+      ws.current.onclose = (e) => {
+        console.log(`%c🛑 WebSocket Desconectado (Código: ${e.code}). Razão: ${e.reason || 'Desconexão manual'}`, "color: #ef4444;");
+      };
+
+      ws.current.onerror = (err) => {
+        console.error("❌ Erro no WebSocket:", err);
+      };
 
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log("📩 Nova mensagem recebida via WS:", data);
           if (data.type === 'NEW_ORDER') {
             setMockOrder({ 
               id: data.pedido_id, 
@@ -163,27 +198,7 @@ export default function DriverApp() {
   }, []);
 
   useEffect(() => { loadMyOrders(); }, []);
-
-  const getHistoryData = () => {
-    switch(historyPeriod) {
-      case 'semanal': return { faturamento: 'R$ 1.940,00', corridas: 7, km: '840 km', lista: [
-        { id: '1', data: '25 Mai', rota: 'POA ➔ Gramado', valor: 280.00, status: 'CONCLUÍDO' },
-        { id: '2', data: '24 Mai', rota: 'Canela ➔ POA', valor: 290.00, status: 'CONCLUÍDO' },
-        { id: '3', data: '22 Mai', rota: 'Gramado ➔ Nova Petrópolis', valor: 150.00, status: 'CONCLUÍDO' }
-      ]};
-      case 'mensal': return { faturamento: 'R$ 8.420,00', corridas: 32, km: '3.620 km', lista: [
-        { id: 'M1', data: 'Semana 3', rota: 'Consolidado Logística', valor: 2240.00, status: 'PAGO' },
-        { id: 'M2', data: 'Semana 2', rota: 'Consolidado Logística', valor: 2100.00, status: 'PAGO' },
-        { id: 'M3', data: 'Semana 1', rota: 'Consolidado Logística', valor: 2080.00, status: 'PAGO' }
-      ]};
-      case 'anual': return { faturamento: 'R$ 96.380,00', corridas: 342, km: '41.200 km', lista: [
-        { id: 'A1', data: 'Temporada 2026', rota: 'Acumulado Central Transfers', valor: 96380.00, status: 'CONSOLIDADO' }
-      ]};
-      default: return { faturamento: 'R$ 0,00', corridas: 0, km: '0 km', lista: [] };
-    }
-  };
-
-  const activeHistory = getHistoryData();
+  useEffect(() => { loadHistory(); }, [historyPeriod]);
 
   return (
     <div style={styles.container}>
@@ -279,6 +294,38 @@ export default function DriverApp() {
               <div style={styles.statsRow}>
                 <span>🚗 {activeHistory.corridas} viagens</span>
                 <span>🛣️ {activeHistory.km}</span>
+              </div>
+            </div>
+
+            {/* Gráfico de Evolução Financeira */}
+            <div style={styles.chartBox}>
+              <h4 style={{color: '#94a3b8', margin: '0 0 15px 0', fontSize: '11px', fontWeight: '700', letterSpacing: '1px'}}>DESEMPENHO FINANCEIRO</h4>
+              <div style={{height: '180px', width: '100%'}}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[...activeHistory.lista].reverse()}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                    <XAxis 
+                      dataKey="data" 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#64748b', fontSize: 10}} 
+                    />
+                    <YAxis hide />
+                    <Tooltip 
+                      contentStyle={{ background: '#111827', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px' }}
+                      itemStyle={{ color: '#10b981' }}
+                      labelStyle={{ color: '#7c3aed', fontWeight: 'bold' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="valor" 
+                      stroke="#7c3aed" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#7c3aed', strokeWidth: 2, stroke: '#0a0f1e' }} 
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -421,6 +468,7 @@ const styles = {
   earningsLabel: { color: '#64748b', fontSize: '13px' },
   statsRow: { display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: '#94a3b8' },
   historyItem: { background: '#111827', padding: '15px', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', border: '1px solid #1e293b' },
+  chartBox: { background: '#111827', padding: '20px', borderRadius: '20px', marginBottom: '20px', border: '1px solid #1e293b' },
   profileBox: { background: '#111827', padding: '20px', borderRadius: '20px', marginBottom: '20px', border: '1px solid #1e293b' },
   photoUploadContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' },
   bigAvatarContainer: { width: '80px', height: '80px', borderRadius: '50%', background: '#1e293b', overflow: 'hidden', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '3px solid #7c3aed', marginBottom: '10px' },

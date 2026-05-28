@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import Session
 import logging
@@ -103,6 +103,49 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
         if pedido:
             background_tasks.add_task(_notificar_liberacao, db, pedido)
             return {"status": "ok"}
+
+
+@router.get("/stats")
+async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db)):
+    """Retorna estatísticas financeiras reais para o motorista."""
+    # Em produção, o motorista_id viria do token JWT (current_user). 
+    # Para este exemplo, fixamos o ID 1.
+    motorista_id = 1
+    
+    now = datetime.now(timezone.utc)
+    if period == "semanal":
+        start_date = now - timedelta(days=7)
+    elif period == "mensal":
+        start_date = now - timedelta(days=30)
+    else: # anual
+        start_date = now - timedelta(days=365)
+
+    # Buscar pedidos concluídos do motorista no período
+    pedidos = db.query(models.Pedido).filter(
+        models.Pedido.motorista_id == motorista_id,
+        models.Pedido.status == "CONCLUIDO",
+        models.Pedido.data_servico >= start_date
+    ).order_by(models.Pedido.data_servico.desc()).all()
+
+    faturamento = sum(Decimal(str(p.valor or 0)) for p in pedidos)
+    corridas = len(pedidos)
+    
+    lista_formatada = [
+        {
+            "id": p.id,
+            "data": p.data_servico.strftime("%d %b"),
+            "rota": f"{p.origem} ➔ {p.destino}",
+            "valor": float(p.valor or 0),
+            "status": "CONCLUÍDO"
+        } for p in pedidos
+    ]
+
+    return {
+        "faturamento": f"R$ {faturamento:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        "corridas": corridas,
+        "km": f"{corridas * 45} km", # Mock de KM baseado na média de corridas na região
+        "lista": lista_formatada
+    }
 
 
 async def _notificar_liberacao(db: Session, pedido: models.Pedido):

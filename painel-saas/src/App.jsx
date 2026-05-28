@@ -33,6 +33,30 @@ export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl}
 // Log de Auditoria: Abre o F12 no navegador e você verá para onde o sistema está olhando
 console.log(`%c🚐 [Central Transfers] Conectado ao Backend: ${API_URL}`, "color: #7c3aed; font-weight: bold; font-size: 12px; background: #f3f4f6; padding: 5px; border-radius: 5px;");
 
+// Controle para evitar que múltiplos alertas apareçam se várias requisições falharem ao mesmo tempo
+let isAuthRedirecting = false;
+
+// 🛡️ INTERCEPTOR PARA SESSÃO EXPIRADA (ERRO 401)
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && error.response.status === 401 && !isAuthRedirecting) {
+      const isLoginPage = window.location.pathname === '/login';
+      const isLoginRequest = error.config.url.includes('/auth/login');
+
+      // Só exibe a mensagem se não estiver na tela de login e não for um erro da própria tentativa de login
+      if (!isLoginPage && !isLoginRequest) {
+        isAuthRedirecting = true;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_role');
+        alert("🔒 Sua sessão expirou por inatividade.\nPor favor, realize o acesso novamente para continuar.");
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Cores do Sistema - Facilita a troca de tema (Branding)
 const THEME = {
   primary: '#4c1d95',
@@ -118,7 +142,8 @@ function Dashboard() {
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (!token || token === 'undefined' || token === 'null') return {};
+    return { Authorization: `Bearer ${token}` };
   };
 
   const carregarDadosReais = async () => {

@@ -32,7 +32,7 @@ def create_test_item():
         return
 
     # 1. Login
-    login_res = requests.post(f"{API_URL}/auth/login", json={
+    login_res = requests.post(f"{API_URL}/auth/login/", json={
         "email": ADMIN_EMAIL,
         "senha": ADMIN_PASS
     })

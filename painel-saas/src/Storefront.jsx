@@ -256,7 +256,13 @@ export default function Storefront() {
           {filteredServices.map(service => (
             <div key={service.id} style={{...styles.card, border: service.valor > 500 ? '2px solid #C5A059' : styles.card.border}} className="card-luxury">
               <div style={styles.imageContainer}>
-                <img src={service.imagem_url || 'https://placehold.co/400x300?text=Premium+Transfer'} alt={service.nome} style={styles.cardImage} />
+                <img 
+                  src={service.imagem_url 
+                    ? (service.imagem_url.startsWith('http') ? service.imagem_url : `${API_URL.replace('/api', '')}${service.imagem_url}`) 
+                    : 'https://placehold.co/600x400/4c1d95/FFFFFF?text=Premium+Transfer'} 
+                  alt={service.nome} 
+                  style={styles.cardImage} 
+                />
                 <div style={{...styles.priceBadge, background: service.valor > 500 ? 'linear-gradient(135deg, #000, #C5A059)' : THEME.secondary}}>
                   R$ {service.valor.toFixed(2)}
                 </div>
@@ -266,7 +272,7 @@ export default function Storefront() {
                   {service.valor > 500 ? '💎 PREMIUM BLACK' : service.categoria}
                 </span>
                 <h3 style={styles.cardTitle}>{service.nome}</h3>
-                <p style={styles.cardDesc}>{service.descricao}</p>
+                <p style={styles.cardDesc}>{service.descricao || 'Transporte privativo com foco em conforto, pontualidade e segurança para sua viagem na Serra Gaúcha.'}</p>
                 <button style={styles.bookBtn} onClick={() => addToCart(service)}>RESERVAR AGORA</button>
               </div>
             </div>
@@ -306,6 +312,18 @@ export default function Storefront() {
 
                   <div style={styles.formSection}>
                     <h4 style={styles.sectionTitle}>Detalhes do Trajeto</h4>
+                    <input 
+                      style={styles.drawerInput} 
+                      placeholder="Seu Nome Completo" 
+                      value={bookingDetails.nome}
+                      onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
+                    />
+                    <input 
+                      style={styles.drawerInput} 
+                      placeholder="Seu WhatsApp/Telefone" 
+                      value={bookingDetails.telefone}
+                      onChange={e => setBookingDetails({...bookingDetails, telefone: e.target.value})}
+                    />
                     <input 
                       style={styles.drawerInput} 
                       placeholder="Local de Origem (Ex: Aeroporto)" 

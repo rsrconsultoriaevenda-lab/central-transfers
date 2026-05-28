@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
+import { API_URL } from './App';
 
 const Success = () => {
     const [searchParams] = useSearchParams();
@@ -10,11 +11,10 @@ const Success = () => {
 
     // O Mercado Pago anexa o 'external_reference' (que definimos como o ID do pedido) na URL de retorno
     const pedidoId = searchParams.get('external_reference');
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8001';
 
     useEffect(() => {
         if (pedidoId) {
-            axios.get(`${apiUrl}/pedidos/${pedidoId}`)
+            axios.get(`${API_URL}/pedidos/${pedidoId}`)
                 .then(response => {
                     setPedido(response.data);
                     setLoading(false);
@@ -28,7 +28,7 @@ const Success = () => {
             setLoading(false);
             setError("Informações do pedido não encontradas na URL de retorno.");
         }
-    }, [pedidoId, apiUrl]);
+    }, [pedidoId]);
 
     if (loading) return (
         <div className="flex flex-col justify-center items-center h-screen bg-gray-50">

@@ -138,7 +138,17 @@ function Dashboard() {
 
   const [newService, setNewService] = useState({
     nome: '', categoria: 'TRANSFERS', valor: '', descricao: '', imagem: null
-  });
+  }); // imagem: File object, imagemPreview: URL for display
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewService(prev => ({ ...prev, imagem: file, imagemPreview: URL.createObjectURL(file) }));
+    } else {
+      setNewService(prev => ({ ...prev, imagem: null, imagemPreview: null }));
+    }
+  };
+
 
   const getAuthHeader = () => {
     const token = localStorage.getItem('token');
@@ -640,7 +650,7 @@ function Dashboard() {
                 </div>
                 <div style={{gridColumn: '1 / 3'}}>
                   <label style={ds.label}>Foto de Capa</label>
-                  <input type="file" accept="image/*" onChange={e => setNewService({...newService, imagem: e.target.files[0]})} />
+                  <input type="file" accept="image/*" onChange={handleImageUpload} />
                 </div>
               </div>
               <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
@@ -648,6 +658,21 @@ function Dashboard() {
                 <button type="button" style={ds.btnOutline} onClick={() => setShowAddService(false)}>Cancelar</button>
               </div>
             </form>
+            {newService.imagemPreview && (
+              <div style={ds.imagePreviewContainer}>
+                <h4 style={{color: '#4c1d95', marginBottom: '15px'}}>Pré-visualização da Imagem</h4>
+                <img src={newService.imagemPreview} alt="Pré-visualização" style={ds.imagePreview} />
+                <button 
+                  style={ds.removeImageBtn} 
+                  onClick={() => setNewService(prev => ({ ...prev, imagem: null, imagemPreview: null }))}
+                >
+                  Remover Imagem
+                </button>
+              </div>
+            )}
+
+
+
           </div>
         )}
 
@@ -759,5 +784,18 @@ const ds = {
     fontSize: '80px', color: '#10b981', background: '#fff', borderRadius: '50%',
     width: '120px', height: '120px', display: 'flex', justifyContent: 'center', alignItems: 'center',
     boxShadow: '0 10px 30px rgba(0,0,0,0.3)', animation: 'popIn 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55)'
+  },
+  imagePreviewContainer: {
+    background: '#fff', padding: '20px', borderRadius: '30px', width: '95%', maxWidth: '400px',
+    boxShadow: '0 25px 50px rgba(0,0,0,0.1)', position: 'fixed', top: '50%', left: '50%',
+    transform: 'translate(-50%, -50%)', zIndex: 1001, textAlign: 'center',
+  },
+  imagePreview: {
+    maxWidth: '100%', maxHeight: '200px', objectFit: 'contain', borderRadius: '15px', marginBottom: '15px',
+  },
+  removeImageBtn: {
+    background: '#ef4444', color: '#fff', border: 'none', padding: '10px 20px',
+    borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px',
+    marginTop: '10px',
   }
 };

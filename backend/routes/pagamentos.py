@@ -78,7 +78,8 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             item_id=f"PEDIDO_{pedido.id}",
             valor=round(float(pedido.valor), 2) if pedido.valor else 0.0,
             descricao=f"Transfer: {pedido.origem} -> {pedido.destino}",
-            item_type="PEDIDO"
+            item_type="PEDIDO",
+            payer_email=meta.get("email")
         )
         return {"init_point": checkout_url}
     except Exception as e:

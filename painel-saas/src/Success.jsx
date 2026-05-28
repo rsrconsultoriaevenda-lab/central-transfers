@@ -78,7 +78,7 @@ const Success = () => {
             )}
 
             <div className="mt-10 text-center">
-                <Link to="/" className="text-blue-600 hover:text-blue-800 font-semibold transition">
+                <Link to="/store" className="text-blue-600 hover:text-blue-800 font-semibold transition">
                     Ir para meus pedidos →
                 </Link>
             </div>

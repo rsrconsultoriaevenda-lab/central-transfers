@@ -23,6 +23,7 @@ export default function Storefront() {
   });
   const [bookingDetails, setBookingDetails] = useState({
     nome: '',
+    email: '',
     telefone: '',
     origem: '',
     destino: '',
@@ -153,8 +154,8 @@ export default function Storefront() {
     setIsCheckingOut(true);
 
     // Validação de campos obrigatórios
-    if (!bookingDetails.nome || !bookingDetails.telefone || !bookingDetails.origem || !bookingDetails.destino || !bookingDetails.data) {
-      alert("Por favor, preencha todos os campos obrigatórios: Nome, Telefone, Origem, Destino e Data.");
+    if (!bookingDetails.nome || !bookingDetails.email || !bookingDetails.telefone || !bookingDetails.origem || !bookingDetails.destino || !bookingDetails.data) {
+      alert("Por favor, preencha todos os campos obrigatórios: Nome, E-mail, Telefone, Origem, Destino e Data.");
       setIsCheckingOut(false);
       return;
     }
@@ -169,6 +170,7 @@ export default function Storefront() {
         })),
         metadata: {
           nome: bookingDetails.nome,
+          email: bookingDetails.email,
           telefone: bookingDetails.telefone,
           origem: bookingDetails.origem,
           destino: bookingDetails.destino,
@@ -317,6 +319,12 @@ export default function Storefront() {
                       placeholder="Seu Nome Completo" 
                       value={bookingDetails.nome}
                       onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
+                    />
+                    <input 
+                      style={styles.drawerInput} 
+                      placeholder="Seu E-mail (Obrigatório para Pix)" 
+                      value={bookingDetails.email}
+                      onChange={e => setBookingDetails({...bookingDetails, email: e.target.value})}
                     />
                     <input 
                       style={styles.drawerInput} 

@@ -28,7 +28,7 @@ const Failure = () => {
                 >
                     Tentar novamente via WhatsApp
                 </a>
-                <Link to="/" className="text-gray-500 hover:text-gray-700 text-center text-sm font-medium">
+                <Link to="/store" className="text-gray-500 hover:text-gray-700 text-center text-sm font-medium">
                     Voltar ao início
                 </Link>
             </div>

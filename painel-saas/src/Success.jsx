@@ -10,7 +10,8 @@ const Success = () => {
     const [error, setError] = useState(null);
 
     // O Mercado Pago anexa o 'external_reference' (que definimos como o ID do pedido) na URL de retorno
-    const pedidoId = searchParams.get('external_reference');
+    const rawRef = searchParams.get('external_reference');
+    const pedidoId = rawRef ? rawRef.replace('PEDIDO_', '') : null;
 
     useEffect(() => {
         if (pedidoId) {

@@ -56,8 +56,8 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             origem=meta.get("origem", "A definir"),
             destino=meta.get("destino", "A definir"),
             data_servico=data_servico,
-            valor=sum(Decimal(str(i.get("preco", 0))) *
-                      i.get("quantidade", 1) for i in itens),
+            valor=round(sum(Decimal(str(i.get("preco", 0))) *
+                      i.get("quantidade", 1) for i in itens), 2),
             observacoes=meta.get("observacoes", ""),
             status="PENDENTE"
         )
@@ -75,8 +75,8 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
 
     try:
         checkout_url = criar_checkout_pro(
-            item_id=pedido.id,
-            valor=float(pedido.valor) if pedido.valor else 0.0,
+            item_id=f"PEDIDO_{pedido.id}",
+            valor=round(float(pedido.valor), 2) if pedido.valor else 0.0,
             descricao=f"Transfer: {pedido.origem} -> {pedido.destino}",
             item_type="PEDIDO"
         )

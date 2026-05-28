@@ -271,9 +271,7 @@ function Dashboard() {
     if (newService.imagem) formData.append('imagem', newService.imagem);
 
     try {
-      await axios.post(`${API_URL}/servicos/`, formData, { 
-        headers: { ...getAuthHeader(), 'Content-Type': 'multipart/form-data' } 
-      });
+      await axios.post(`${API_URL}/servicos`, formData, { headers: getAuthHeader() });
       setShowAddService(false);
       setNewService({ nome: '', categoria: 'TRANSFERS', valor: '', descricao: '', imagem: null });
       await carregarDadosReais();

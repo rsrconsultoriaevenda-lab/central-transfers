@@ -31,7 +31,7 @@ export default function Storefront() {
     return saved ? JSON.parse(saved) : [];
   });
   const [bookingDetails, setBookingDetails] = useState({
-    nome: '', email: '', telefone: '', origem: '', destino: '', data: '', observacoes: ''
+    nome: '', email: '', telefone: '', cpf: '', origem: '', destino: '', data: '', observacoes: ''
   });
   const [weather] = useState({ temp: 25, condition: 'Ensolarado' });
   const [referralCode, setReferralCode] = useState(localStorage.getItem('referral_code') || null);
@@ -66,19 +66,107 @@ export default function Storefront() {
     fetchServices();
   }, []);
 
-  const addToCart = (service) => {
-    setCart(prev => {
-      const existing = prev.find(i => i.id === service.id);
-      return existing ? prev.map(i => i.id === service.id ? {...i, quantidade: (i.quantidade || 1) + 1} : i) : [...prev, {...service, quantidade: 1}];
-    });
-    setIsCartOpen(true);
-  };
-
   const updateQuantity = (index, delta) => {
     setCart(prev => prev.map((item, i) => i === index ? {...item, quantidade: Math.max(1, (item.quantidade || 1) + delta)} : item));
   };
 
   const removeFromCart = (index) => setCart(prev => prev.filter((_, i) => i !== index));
+
+  const handleCPFChange = (e) => {
+    let value = e.target.value.replace(/\D/g, ''); // Remove tudo que não é dígito
+    if (value.length > 11) value = value.slice(0, 11);
+    
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d)/, '$1.$2');
+    value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    setBookingDetails({ ...bookingDetails, cpf: value });
+  };
+
+  // ... dentro do bloco de retorno do Drawer, onde estão os outros inputs ...
+  // Inserindo o campo visualmente no formulário
+  const renderFormFields = () => (
+    <>
+      <input 
+        style={styles.drawerInput} 
+  };
+
+  // ... dentro do bloco de retorno do Drawer, onde estão os outros inputs ...
+  // Inserindo o campo visualmente no formulário
+  const renderFormFields = () => (
+    <>
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Seu Nome Completo" 
+        value={bookingDetails.nome}
+        onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput  
+        placeholder="Seu E-mail (Obrigatório para Pix)" 
+        value={bookingDetails.email}
+        onChange={e => setBookingDetails({...bookingDetails, email: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Seu WhatsApp/Telefone" 
+        value={bookingDetails.telefone}
+        onChange={e => setBookingDetails({...bookingDetails, telefone: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="CPF (Opcional - Melhora aprovação do cartão)" 
+        value={bookingDetails.cpf}
+        onChange={handleCPFChange}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Local de Origem" 
+        value={bookingDetails.origem}
+        onChange={e => setBookingDetails({...bookingDetails, origem: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Local de Destino" 
+        value={bookingDetails.destino}
+        onChange={e => setBookingDetails({...bookingDetails, destino: e.target.value})}
+      />
+    </>
+  )     placeholder="Seu Nome Completo" 
+        value={bookingDetails.nome}
+        onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Seu E-mail (Obrigatório para Pix)" 
+        value={bookingDetails.email}
+        onChange={e => setBookingDetails({...bookingDetails, email: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Seu WhatsApp/Telefone" 
+        value={bookingDetails.telefone}
+        onChange={e => setBookingDetails({...bookingDetails, telefone: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="CPF (Opcional - Melhora aprovação do cartão)" 
+        value={bookingDetails.cpf}
+        onChange={handleCPFChange}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Local de Origem" 
+        value={bookingDetails.origem}
+        onChange={e => setBookingDetails({...bookingDetails, origem: e.target.value})}
+      />
+      <input 
+        style={styles.drawerInput} 
+        placeholder="Local de Destino" 
+        value={bookingDetails.destino}
+        onChange={e => setBookingDetails({...bookingDetails, destino: e.target.value})}
+      />
+    </>
+  );
 
   const handleCheckout = async () => {
     if (!bookingDetails.nome || !bookingDetails.email || !bookingDetails.telefone || !bookingDetails.origem || !bookingDetails.destino) {

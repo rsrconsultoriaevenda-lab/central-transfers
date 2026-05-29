@@ -82,56 +82,11 @@ export default function Storefront() {
     setBookingDetails({ ...bookingDetails, cpf: value });
   };
 
-  // ... dentro do bloco de retorno do Drawer, onde estão os outros inputs ...
-  // Inserindo o campo visualmente no formulário
-  const renderFormFields = () => (
-    <>
-      <input 
-        style={styles.drawerInput} 
-  };
-
-  // ... dentro do bloco de retorno do Drawer, onde estão os outros inputs ...
-  // Inserindo o campo visualmente no formulário
   const renderFormFields = () => (
     <>
       <input 
         style={styles.drawerInput} 
         placeholder="Seu Nome Completo" 
-        value={bookingDetails.nome}
-        onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
-      />
-      <input 
-        style={styles.drawerInput  
-        placeholder="Seu E-mail (Obrigatório para Pix)" 
-        value={bookingDetails.email}
-        onChange={e => setBookingDetails({...bookingDetails, email: e.target.value})}
-      />
-      <input 
-        style={styles.drawerInput} 
-        placeholder="Seu WhatsApp/Telefone" 
-        value={bookingDetails.telefone}
-        onChange={e => setBookingDetails({...bookingDetails, telefone: e.target.value})}
-      />
-      <input 
-        style={styles.drawerInput} 
-        placeholder="CPF (Opcional - Melhora aprovação do cartão)" 
-        value={bookingDetails.cpf}
-        onChange={handleCPFChange}
-      />
-      <input 
-        style={styles.drawerInput} 
-        placeholder="Local de Origem" 
-        value={bookingDetails.origem}
-        onChange={e => setBookingDetails({...bookingDetails, origem: e.target.value})}
-      />
-      <input 
-        style={styles.drawerInput} 
-        placeholder="Local de Destino" 
-        value={bookingDetails.destino}
-        onChange={e => setBookingDetails({...bookingDetails, destino: e.target.value})}
-      />
-    </>
-  )     placeholder="Seu Nome Completo" 
         value={bookingDetails.nome}
         onChange={e => setBookingDetails({...bookingDetails, nome: e.target.value})}
       />
@@ -196,4 +151,21 @@ export default function Storefront() {
   );
 }
 
-// ... (Manter o objeto 'styles' que você definiu no final do seu código)
+const styles = {
+  container: {
+    background: THEME.bg,
+    color: THEME.text,
+    minHeight: '100vh',
+    fontFamily: '"Inter", sans-serif'
+  },
+  drawerInput: {
+    width: '100%',
+    padding: '12px',
+    marginBottom: '15px',
+    borderRadius: '8px',
+    border: '1px solid #e2e8f0',
+    fontSize: '14px',
+    boxSizing: 'border-box',
+    outline: 'none'
+  }
+};

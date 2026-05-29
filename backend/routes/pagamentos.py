@@ -1,12 +1,14 @@
-from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, Request, HTTPException, BackgroundTasks, status
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 import logging
 import hmac
 import hashlib
 from backend.database import get_db
 from backend import models
+from backend.auth import get_usuario_atual
 from backend.pagamento_service import criar_checkout_pro, process_payment_update, get_payment_details
 from backend.services.notifier_service import notifier
 from backend.config import settings
@@ -15,6 +17,7 @@ router = APIRouter(prefix="/pagamentos", tags=["Pagamentos"])
 logger = logging.getLogger(__name__)
 
 
+@router.post("/checkout/")
 @router.post("/checkout")
 async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
     """Processa o checkout criando o pedido a partir do carrinho e metadados."""
@@ -46,9 +49,9 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
                 data_servico = datetime.fromisoformat(
                     data_raw.replace("Z", "+00:00"))
             else:
-                data_servico = datetime.now(timezone.utc)
+                data_servico = datetime.now(timezone.utc).replace(tzinfo=None)
         except (ValueError, TypeError):
-            data_servico = datetime.now(timezone.utc)
+            data_servico = datetime.now(timezone.utc).replace(tzinfo=None)
 
         novo_pedido = models.Pedido(
             cliente_id=cliente.id,
@@ -56,7 +59,7 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
             origem=meta.get("origem", "A definir"),
             destino=meta.get("destino", "A definir"),
             data_servico=data_servico,
-            valor=float(round(sum(Decimal(str(i.get("preco", 0))) *
+            valor=float(round(sum(Decimal(str(i.get("preco") or 0)) *
                                   i.get("quantidade", 1) for i in itens), 2)),
             observacoes=meta.get("observacoes", ""),
             status="PENDENTE"
@@ -93,7 +96,12 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
 async def webhook_mercadopago(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Recebe notificação, processa pagamento e dispara notificações."""
     payload = await request.json()
-    payment_id = payload.get("data", {}).get("id")
+    data_obj = payload.get("data")
+    if not data_obj or not data_obj.get("id"):
+        logger.info(f"Webhook ignorado: payload sem ID de dados ({payload.get('action')})")
+        return {"status": "ignored"}
+
+    payment_id = data_obj.get("id")
 
     success = await process_payment_update(str(payment_id), db)
     if success:
@@ -108,13 +116,27 @@ async def webhook_mercadopago(request: Request, background_tasks: BackgroundTask
 
 
 @router.get("/stats")
-async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db)):
+async def get_driver_stats(
+    period: str = "semanal", 
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
     """Retorna estatísticas financeiras reais para o motorista."""
-    # Em produção, o motorista_id viria do token JWT (current_user).
-    # Para este exemplo, fixamos o ID 1.
-    motorista_id = 1
+    if user.get("role") != "motorista":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Acesso restrito a motoristas"
+        )
 
-    now = datetime.now(timezone.utc)
+    email = user.get("email")
+    motorista = db.query(models.Motorista).filter(models.Motorista.email == email).first()
+    
+    if not motorista:
+        raise HTTPException(status_code=404, detail="Perfil de motorista não encontrado")
+
+    motorista_id = motorista.id
+
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if period == "semanal":
         start_date = now - timedelta(days=7)
     elif period == "mensal":
@@ -122,15 +144,22 @@ async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db
     else:  # anual
         start_date = now - timedelta(days=365)
 
-    # Buscar pedidos concluídos do motorista no período
+    # Agregações via Banco de Dados para performance
+    stats = db.query(
+        func.sum(models.Pedido.valor_liquido_motorista).label("faturamento"),
+        func.count(models.Pedido.id).label("total")
+    ).filter(
+        models.Pedido.motorista_id == motorista_id,
+        models.Pedido.status == "CONCLUIDO",
+        models.Pedido.data_servico >= start_date
+    ).first()
+
+    # Lista detalhada para o histórico
     pedidos = db.query(models.Pedido).filter(
         models.Pedido.motorista_id == motorista_id,
         models.Pedido.status == "CONCLUIDO",
         models.Pedido.data_servico >= start_date
     ).order_by(models.Pedido.data_servico.desc()).all()
-
-    faturamento = sum(Decimal(str(p.valor or 0)) for p in pedidos)
-    corridas = len(pedidos)
 
     lista_formatada = [
         {
@@ -141,12 +170,14 @@ async def get_driver_stats(period: str = "semanal", db: Session = Depends(get_db
             "status": "CONCLUÍDO"
         } for p in pedidos
     ]
+    
+    total_faturamento = stats.faturamento or Decimal("0.00")
 
     return {
-        "faturamento": f"R$ {faturamento:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
-        "corridas": corridas,
+        "faturamento": f"R$ {total_faturamento:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+        "corridas": stats.total or 0,
         # Mock de KM baseado na média de corridas na região
-        "km": f"{corridas * 45} km",
+        "km": f"{(stats.total or 0) * 45} km",
         "lista": lista_formatada
     }
 

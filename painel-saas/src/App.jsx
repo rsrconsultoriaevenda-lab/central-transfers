@@ -289,7 +289,7 @@ function Dashboard() {
     if (editingService.imagem) formData.append('imagem', editingService.imagem);
 
     try {
-      await axios.put(`${API_URL}/servicos/${editingService.id}`, formData, { headers: getAuthHeader() });
+      await axios.put(`${API_URL}/servicos/${editingService.id}/`, formData, { headers: getAuthHeader() });
       setEditingService(null);
       await carregarDadosReais();
       setShowSuccessAnimation(true);
@@ -314,7 +314,7 @@ function Dashboard() {
     if (newService.imagem) formData.append('imagem', newService.imagem);
 
     try {
-      await axios.post(`${API_URL}/servicos`, formData, { headers: getAuthHeader() });
+      await axios.post(`${API_URL}/servicos/`, formData, { headers: getAuthHeader() });
       setShowAddService(false);
       setNewService({ nome: '', categoria: 'TRANSFERS', valor: '', descricao: '', imagem: null });
       await carregarDadosReais();

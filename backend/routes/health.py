@@ -2,11 +2,12 @@ import os
 import requests
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 import logging
 from datetime import datetime
 
 from backend.database import get_db
+from backend.database import models
 from backend.config import settings
 
 router = APIRouter(prefix="/health", tags=["Health Check"])
@@ -28,8 +29,16 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     try:
         # Verifica a conexão e a existência da tabela principal
         db.execute(text("SELECT 1 FROM usuarios LIMIT 1")).fetchone()
+        user_count = db.query(func.count(models.Usuario.id)).scalar()
+        service_count = db.query(func.count(models.Servico.id)).scalar()
+        db_info = {
+            "status": "OK",
+            "usuarios": user_count,
+            "servicos": service_count
+        }
     except Exception as e:
         db_status = "ERROR (Tables missing or connection failed)"
+        db_info = {"status": "ERROR", "detail": str(e)}
         overall_status = "DEGRADED"
         errors.append(f"Database connection failed: {e}")
         logger.error(f"Health check DB error: {e}")
@@ -111,7 +120,8 @@ def health_check(request: Request, db: Session = Depends(get_db)):
     response_data = {
         "status": overall_status,
         "environment": getattr(settings, "ENV", "development"),
-        "database": db_status,
+        "database_connectivity": db_status,
+        "database_stats": db_info,
         "meta_api": meta_api_status,
         "mercado_pago": mp_status,
         "websocket": ws_status,

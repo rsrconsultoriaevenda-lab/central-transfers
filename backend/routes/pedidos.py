@@ -42,6 +42,7 @@ async def test_realtime_broadcast(request: Request):
 # LISTAR PEDIDOS
 # =====================================================
 @router.get("/", response_model=List[schemas.PedidoOut])
+@router.get("", response_model=List[schemas.PedidoOut])
 def listar_pedidos(
     db: Session = Depends(get_db),
     user: dict = Depends(get_usuario_atual)
@@ -72,6 +73,7 @@ def listar_pedidos(
     response_model=schemas.PedidoOut,
     status_code=status.HTTP_201_CREATED
 )
+@router.post("", response_model=schemas.PedidoOut)
 def criar_pedido(
     pedido_in: schemas.PedidoCreate,
     db: Session = Depends(get_db),
@@ -270,6 +272,7 @@ async def atribuir_motorista(
 
 
 @router.get("/stats", response_model=schemas.DashboardStats)
+@router.get("/stats/", response_model=schemas.DashboardStats)
 def obter_estatisticas(
     db: Session = Depends(get_db),
     usuario=Depends(get_usuario_atual)

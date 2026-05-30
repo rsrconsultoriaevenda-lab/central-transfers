@@ -56,3 +56,57 @@ async def criar_servico(
         db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Erro ao criar serviço: {str(e)}")
+
+
+@router.put("/{servico_id}", response_model=schemas.ServicoResponse)
+async def atualizar_servico(
+    servico_id: int,
+    nome: Optional[str] = Form(None),
+    tipo: Optional[str] = Form(None),
+    categoria: Optional[str] = Form(None),
+    descricao: Optional[str] = Form(None),
+    capacidade_passageiros: Optional[int] = Form(None),
+    capacidade_malas: Optional[int] = Form(None),
+    valor: Optional[Decimal] = Form(None),
+    valor_padrao: Optional[Decimal] = Form(None),
+    imagem: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    servico = db.query(models.Servico).filter(
+        models.Servico.id == servico_id).first()
+    if not servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+
+    try:
+        if imagem:
+            servico.imagem_url = await upload_image_to_cloudinary(imagem)
+
+        # Atualização parcial (apenas campos enviados)
+        if nome is not None:
+            servico.nome = nome
+        if tipo is not None:
+            servico.tipo = tipo
+        if categoria is not None:
+            servico.categoria = categoria
+        if descricao is not None:
+            servico.descricao = descricao
+        if capacidade_passageiros is not None:
+            servico.capacidade_passageiros = capacidade_passageiros
+        if capacidade_malas is not None:
+            servico.capacidade_malas = capacidade_malas
+        if valor is not None:
+            servico.valor = valor
+        if valor_padrao is not None:
+            servico.valor_padrao = valor_padrao
+
+        db.commit()
+        db.refresh(servico)
+        return servico
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Erro ao atualizar serviço: {str(e)}")

@@ -11,6 +11,7 @@ router = APIRouter(prefix="/servicos", tags=["Serviços"])
 
 
 @router.get("/")
+@router.get("")
 def listar_servicos(db: Session = Depends(get_db)):
     return db.query(models.Servico).all()
 
@@ -58,6 +59,7 @@ async def criar_servico(
             status_code=500, detail=f"Erro ao criar serviço: {str(e)}")
 
 
+@router.put("/{servico_id}/")
 @router.put("/{servico_id}", response_model=schemas.ServicoResponse)
 async def atualizar_servico(
     servico_id: int,

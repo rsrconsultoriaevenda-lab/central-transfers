@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 
 from backend.database import get_db
-from backend.database import models
+from backend import models
 from backend.config import settings
 
 router = APIRouter(prefix="/health", tags=["Health Check"])

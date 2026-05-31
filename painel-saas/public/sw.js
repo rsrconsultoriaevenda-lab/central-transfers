@@ -1,16 +1,13 @@
-/* eslint-disable no-restricted-globals */
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
 
-// Evento de Push: Recebe a mensagem do Backend (pywebpush)
 self.addEventListener('push', (event) => {
-  if (!(self.Notification && self.Notification.permission === 'granted')) {
-    return;
-  }
-
   let data = {
-    title: 'Nova Solicitação',
-    body: 'Você tem um novo transfer disponível!',
+    title: 'Central Transfers',
+    body: 'Você tem uma nova atualização.',
     vibrate: [200, 100, 200],
-    data: { url: '/dashboard/pedidos' }
+    url: '/dashboard'
   };
 
   if (event.data) {
@@ -23,15 +20,13 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/icon-192x192.png',
-    badge: '/badge-72x72.png',
-    vibrate: data.vibrate || [500, 110, 500],
-    data: data.data || { url: '/' },
-    actions: [
-      { action: 'open', title: 'Ver Detalhes' },
-      { action: 'close', title: 'Ignorar' }
-    ],
-    tag: 'transfer-notification',
+    icon: '/pwa-192x192.png', // Certifique-se de que este ícone existe em public/
+    badge: '/pwa-192x192.png',
+    vibrate: data.vibrate,
+    data: {
+      url: data.url
+    },
+    tag: 'central-notification',
     renotify: true
   };
 
@@ -40,18 +35,16 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Evento de Clique: Direciona o motorista para o pedido
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-
-  if (event.action === 'close') return;
-
-  const urlToOpen = event.notification.data.url || '/';
+  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      if (windowClients.length > 0) return windowClients[0].focus();
-      return clients.openWindow(urlToOpen);
+      for (let client of windowClients) {
+        if (client.url === urlToOpen && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow(urlToOpen);
     })
   );
 });

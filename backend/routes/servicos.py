@@ -112,3 +112,22 @@ async def atualizar_servico(
         db.rollback()
         raise HTTPException(
             status_code=500, detail=f"Erro ao atualizar serviço: {str(e)}")
+
+
+@router.delete("/{servico_id}", status_code=status.HTTP_204_NO_CONTENT)
+def deletar_servico(
+    servico_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    servico = db.query(models.Servico).filter(
+        models.Servico.id == servico_id).first()
+    if not servico:
+        raise HTTPException(status_code=404, detail="Serviço não encontrado")
+
+    db.delete(servico)
+    db.commit()
+    return None

@@ -23,6 +23,19 @@ def listar_clientes(
     return db.query(models.Cliente).all()
 
 
+@router.get("/{cliente_id}", response_model=schemas.Cliente)
+def obter_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    cliente = db.query(models.Cliente).filter(
+        models.Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+    return cliente
+
+
 # ==============================
 # CRIAR CLIENTE
 # ==============================
@@ -50,3 +63,50 @@ def criar_cliente(  # Indentação corrigida
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/{cliente_id}", response_model=schemas.Cliente)
+def atualizar_cliente(
+    cliente_id: int,
+    cliente_in: schemas.Cliente,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    if user.get("role") not in ["admin", "operador"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    cliente = db.query(models.Cliente).filter(
+        models.Cliente.id == cliente_id).first()
+
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    try:
+        cliente.nome = cliente_in.nome
+        cliente.telefone = cliente_in.telefone
+        cliente.email = cliente_in.email
+
+        db.commit()
+        db.refresh(cliente)
+        return cliente
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/{cliente_id}", status_code=204)
+def deletar_cliente(
+    cliente_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_usuario_atual)
+):
+    if user.get("role") not in ["admin", "operador"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    cliente = db.query(models.Cliente).filter(
+        models.Cliente.id == cliente_id).first()
+    if not cliente:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
+
+    db.delete(cliente)
+    db.commit()

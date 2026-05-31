@@ -8,7 +8,7 @@ from backend.config import settings
 from backend.services.notifier_service import notifier
 
 from backend.routes import (auth, pedidos, clientes, motoristas, servicos,
-                            dashboard, pagamentos, notifications, health)
+                            dashboard, pagamentos, notifications, health, whatsapp)
 
 
 @asynccontextmanager
@@ -63,6 +63,7 @@ app.include_router(clientes.router, tags=["Clientes"])
 app.include_router(motoristas.router, tags=["Motoristas"])
 app.include_router(servicos.router, tags=["Serviços de Transfer"])
 app.include_router(dashboard.router, tags=["Painel Administrativo"])
+app.include_router(whatsapp.router, tags=["WhatsApp"])
 app.include_router(notifications.router, tags=["Notificações"])
 app.include_router(health.router, tags=["Saúde do Sistema"])
 app.include_router(pagamentos.router, tags=["Pagamentos & Checkout"])
@@ -76,6 +77,7 @@ app.include_router(servicos.router, prefix="/api",
                    tags=["Serviços de Transfer"])
 app.include_router(dashboard.router, prefix="/api",
                    tags=["Painel Administrativo"])
+app.include_router(whatsapp.router, prefix="/api", tags=["WhatsApp"])
 app.include_router(notifications.router, prefix="/api", tags=["Notificações"])
 app.include_router(health.router, prefix="/api", tags=["Saúde do Sistema"])
 app.include_router(pagamentos.router, prefix="/api",

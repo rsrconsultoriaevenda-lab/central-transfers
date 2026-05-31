@@ -43,42 +43,19 @@ def health_check(request: Request, db: Session = Depends(get_db)):
         errors.append(f"Database connection failed: {e}")
         logger.error(f"Health check DB error: {e}")
 
-    # 2. Check Meta API Connection
+    # 2. Check Meta API Configuration (Sem request externo para evitar timeout)
+    meta_api_status = "NOT_CONFIGURED"
     try:
         whatsapp_token = getattr(settings, "WHATSAPP_TOKEN", None)
         whatsapp_phone_id = getattr(settings, "WHATSAPP_PHONE_NUMBER_ID", None)
-        whatsapp_api_version = getattr(
-            settings, "WHATSAPP_API_VERSION", "v20.0")
 
-        if not whatsapp_token or not whatsapp_phone_id:
-            meta_api_status = "DISABLED (PWA Active)"
-        else:
-            meta_api_url = f"https://graph.facebook.com/{whatsapp_api_version}/{whatsapp_phone_id}"
-            headers = {"Authorization": f"Bearer {whatsapp_token}"}
+        if whatsapp_token and whatsapp_phone_id and "cole_seu" not in whatsapp_token:
+            meta_api_status = "CONFIGURED"
+        elif not whatsapp_token:
+            meta_api_status = "DISABLED (PWA_ONLY)"
 
-            # Reduzimos o timeout para 2s para não travar a resposta do nosso sistema
-            response = requests.get(meta_api_url, headers=headers, timeout=2)
-            response.raise_for_status()
-
-            if "id" not in response.json():
-                meta_api_status = "ERROR"
-                errors.append(
-                    f"Meta API response missing expected 'id' field. Response: {response.text}")
-                logger.error(
-                    f"Health check Meta API response error: {response.text}")
-
-    except requests.exceptions.Timeout:
-        meta_api_status = "TIMEOUT (Ignored)"
-        errors.append("Meta API request timed out.")
-        logger.error("Health check Meta API timeout.")
-    except requests.exceptions.RequestException as e:
-        meta_api_status = "OFFLINE (Ignored)"
-        errors.append(f"Meta API connection failed: {e}")
-        logger.error(f"Health check Meta API error: {e}")
     except Exception as e:
-        meta_api_status = "ERROR"
-        errors.append(f"Unexpected error checking Meta API: {e}")
-        logger.error(f"Health check Meta API unexpected error: {e}")
+        meta_api_status = f"ERROR: {str(e)}"
 
     # 3. Check CORS Security
     if getattr(settings, "ALLOWED_ORIGINS", "*") == "*":

@@ -1,7 +1,8 @@
 import requests
+import os
 from datetime import datetime, timedelta
 
-BASE_URL = "http://127.0.0.1:8001"  # Garantindo o uso de 127.0.0.1
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8001").rstrip('/')
 
 ADMIN_EMAIL = "rsrconsultoriaevenda@gmail.com"
 ADMIN_PASS = "Ren@220382"
@@ -217,6 +218,28 @@ def testar_fluxo_e2e():
 
     final_data = res_concluir.json()
 
+    # 7. Validar Relatório Financeiro (Novo!)
+    print("\n📊 [ADMIN] Validando fechamento de caixa...")
+    res_financeiro = requests.get(
+        f"{BASE_URL}/dashboard/admin/drivers-summary",
+        headers=headers
+    )
+
+    if res_financeiro.status_code == 200:
+        summary = res_financeiro.json()
+        # Procura o motorista que usamos no teste
+        motorista_stats = next(
+            (s for s in summary if s["id"] == motorista_id), None)
+        if motorista_stats:
+            print(f"✅ Relatório atualizado para {motorista_stats['nome']}:")
+            print(f"   - Bruto: R$ {motorista_stats['total_bruto']}")
+            print(f"   - Repasse: R$ {motorista_stats['total_repasse']}")
+            print(f"   - Corridas: {motorista_stats['corridas']}")
+        else:
+            print("⚠️ Motorista não encontrado no resumo financeiro.")
+    else:
+        print(f"❌ Erro ao acessar resumo financeiro: {res_financeiro.text}")
+
     print("\n🚀 SUCESSO! Fluxo completo finalizado.")
     print("-" * 60)
 
@@ -228,13 +251,15 @@ def testar_fluxo_e2e():
 
 if __name__ == "__main__":
     try:
-        requests.get(f"{BASE_URL}/", timeout=2)
+        # Verifica se o servidor responde (independente de ser 200 ou 404 na raiz)
+        response = requests.get(f"{BASE_URL}/health", timeout=10)
+        print(f"📡 Conexão estabelecida com: {BASE_URL}")
         testar_fluxo_e2e()
 
-    except requests.exceptions.ConnectionError:
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
         print(
-            "❌ Servidor offline na porta 8001. "
-            "Execute o backend primeiro."
+            f"\n❌ ERRO: Servidor offline ou inacessível em: {BASE_URL}\n"
+            "Certifique-se de que o backend está rodando e a URL (API_URL) está correta."
         )
 
     except Exception as e:

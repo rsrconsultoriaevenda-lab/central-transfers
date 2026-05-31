@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.database import get_db
@@ -41,3 +41,34 @@ def get_dashboard_stats(db: Session = Depends(get_db), usuario: dict = Depends(g
         "total_pedidos": total_pedidos,
         "resumo_status": {status: count for status, count in stats_status}
     }
+
+
+@router.get("/admin/drivers-summary")
+def get_drivers_financial_summary(db: Session = Depends(get_db), usuario: dict = Depends(get_usuario_atual)):
+    """Retorna um resumo de repasse para cada motorista (Fechamento de Caixa)."""
+    if usuario.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Agrupa faturamento e repasse por motorista
+    drivers_stats = db.query(
+        models.Motorista.id,
+        models.Motorista.nome,
+        models.Motorista.plano,
+        func.sum(models.Pedido.valor).label("bruto"),
+        func.sum(models.Pedido.valor_liquido_motorista).label("repasse"),
+        func.count(models.Pedido.id).label("corridas")
+    ).join(models.Pedido, models.Pedido.motorista_id == models.Motorista.id)\
+     .filter(models.Pedido.status == "CONCLUIDO")\
+     .group_by(models.Motorista.id).all()
+
+    return [
+        {
+            "id": d.id,
+            "nome": d.nome,
+            "plano": d.plano,
+            "total_bruto": float(d.bruto or 0),
+            "total_repasse": float(d.repasse or 0),
+            "comissao_central": float((d.bruto or 0) - (d.repasse or 0)),
+            "corridas": d.corridas
+        } for d in drivers_stats
+    ]

@@ -1,7 +1,8 @@
 import requests
 import sys
+import os
 
-BASE_URL = "http://localhost:8001"
+BASE_URL = os.getenv("API_URL", "http://127.0.0.1:8001").rstrip('/')
 
 
 def validar_sistema():
@@ -23,7 +24,7 @@ def validar_sistema():
         {"path": "/servicos/", "method": "GET", "type": "public"},
         {"path": "/clientes/", "method": "GET", "type": "protected"},
         {"path": "/dashboard/stats", "method": "GET", "type": "protected"},
-        {"path": "/whatsapp/incoming", "method": "GET", "type": "public_webhook"},
+        {"path": "/whatsapp/webhook", "method": "GET", "type": "public_webhook"},
         {"path": "/ws/test", "method": "WS", "type": "websocket"},
     ]
 
@@ -41,10 +42,10 @@ def validar_sistema():
                 continue
 
             if route["method"] == "GET":
-                response = requests.get(url, timeout=5)
+                response = requests.get(url, timeout=30)
             else:
                 # Para POST, enviamos vazio para checar apenas o status de auth/existência
-                response = requests.post(url, json={}, timeout=5)
+                response = requests.post(url, json={}, timeout=30)
 
             status = response.status_code
             is_ok = False

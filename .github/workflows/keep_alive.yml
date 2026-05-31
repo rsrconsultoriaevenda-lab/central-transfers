@@ -1,0 +1,17 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *' # Executa a cada 14 minutos
+  workflow_dispatch: # Permite rodar manualmente para testar
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Check
+        run: |
+          curl -I -s https://central-transfers-backend.onrender.com/api/health
+          
+      - name: Check Results
+        run: echo "Ping realizado com sucesso em $(date)"

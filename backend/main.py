@@ -30,17 +30,30 @@ app = FastAPI(
 
 app.state.notifier = notifier
 
-raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
-if raw_origins and raw_origins.strip() == "*":
-    origins = ["*"]
-else:
-    env_origins = [o.strip() for o in raw_origins.split(",")
-                   if o.strip()] if raw_origins else []
-    origins = env_origins + [
+
+def setup_origins():
+    raw_origins = getattr(settings, "ALLOWED_ORIGINS", "")
+    if raw_origins and raw_origins.strip() == "*":
+        return ["*"]
+
+    # URLs padrão de desenvolvimento e produção fixa
+    origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://central-transfers.vercel.app",
     ]
+
+    # Adiciona origens extras vindas do arquivo .env ou do painel do Render
+    if raw_origins:
+        extra_origins = [o.strip()
+                         for o in raw_origins.split(",") if o.strip()]
+        for o in extra_origins:
+            if o not in origins:
+                origins.append(o)
+    return origins
+
+
+origins = setup_origins()
 
 app.add_middleware(
     CORSMiddleware,

@@ -96,6 +96,13 @@ async def gerar_checkout(request: Request, db: Session = Depends(get_db)):
 async def webhook_mercadopago(request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     """Recebe notificação, processa pagamento e dispara notificações."""
     payload = await request.json()
+        
+    # Recomendação: Validar X-Signature do Mercado Pago aqui
+    # Para o MVP, validamos ao menos se o evento é de pagamento
+    action = payload.get("action")
+    if action not in ["payment.created", "payment.updated"]:
+        return {"status": "ignored", "reason": "action_not_supported"}
+
     data_obj = payload.get("data")
     if not data_obj or not data_obj.get("id"):
         logger.info(f"Webhook ignorado: payload sem ID de dados ({payload.get('action')})")

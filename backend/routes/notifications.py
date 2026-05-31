@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend import models, schemas
 from backend.database import get_db
 from backend.auth import get_usuario_atual
 from backend.services.notifier_service import notifier
+import logging
 
 router = APIRouter(prefix="/notifications", tags=["Notificações"])
 
@@ -31,6 +32,34 @@ async def subscribe_push(
     db.commit()
 
     return {"status": "success"}
+
+
+@router.delete("/prune-tokens", status_code=status.HTTP_200_OK)
+async def prune_invalid_tokens(
+    db: Session = Depends(get_db),
+    usuario=Depends(get_usuario_atual)
+):
+    """Remove tokens que não são mais válidos (Otimização de banco)."""
+    if usuario.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    # Busca motoristas com tokens
+    motoristas = db.query(models.Motorista).filter(
+        models.Motorista.push_token.isnot(None)).all()
+    removed_count = 0
+
+    for m in motoristas:
+        # Tenta um push 'silencioso' de validação
+        success = notifier.send_web_push(
+            m.push_token, {"title": "ping", "body": "check", "silent": True})
+        if not success:
+            m.push_token = None
+            removed_count += 1
+
+    if removed_count > 0:
+        db.commit()
+
+    return {"message": f"Limpeza concluída. {removed_count} tokens inválidos removidos."}
 
 
 @router.post("/test/{motorista_id}")

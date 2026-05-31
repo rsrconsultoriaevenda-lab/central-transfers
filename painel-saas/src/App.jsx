@@ -32,7 +32,7 @@ const baseApiUrl = import.meta.env.VITE_API_URL ||
 export const API_URL = baseApiUrl.endsWith('/api') ? baseApiUrl : `${baseApiUrl}/api`;
 
 // Log de Auditoria: Abre o F12 no navegador e você verá para onde o sistema está olhando
-console.log(`%c🚐 [Central Transfers] Conectado ao Backend: ${API_URL}`, "color: #7c3aed; font-weight: bold; font-size: 12px; background: #f3f4f6; padding: 5px; border-radius: 5px;");
+console.log(`%c🚐 [CENTRAL TRANSFER] Conectado ao Backend: ${API_URL}`, "color: #7c3aed; font-weight: bold; font-size: 12px; background: #f3f4f6; padding: 5px; border-radius: 5px;");
 
 // Controle para evitar que múltiplos alertas apareçam se várias requisições falharem ao mesmo tempo
 let isAuthRedirecting = false;

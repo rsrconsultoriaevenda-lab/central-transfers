@@ -4,7 +4,7 @@ self.addEventListener('install', () => {
 
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'Central Transfers',
+    title: 'CENTRAL TRANSFER',
     body: 'Você tem uma nova atualização.',
     vibrate: [200, 100, 200],
     url: '/dashboard'

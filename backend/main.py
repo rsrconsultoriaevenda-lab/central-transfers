@@ -21,8 +21,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CentralTransfers")
 
 app = FastAPI(
-    title="Central Transfers API",
-    description="Backend de logística para gestão de transfers Aeroporto POA / Gramado",
+    title="CENTRAL TRANSFER API",
+    description="Backend de logística para gestão de transfers Aeroporto POA / Gramado (Storefront: CENTRAL TRANSFER)",
     lifespan=lifespan,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json"

@@ -14,8 +14,8 @@ def finalize_pwa():
     # 1. Garantir existência do Manifest
     manifest_path = public_path / "manifest.json"
     manifest_content = {
-        "short_name": "Central",
-        "name": "Central Transfers",
+        "short_name": "CENTRAL",
+        "name": "CENTRAL TRANSFER",
         "icons": [
             {
                 "src": "icon-192x192.png",

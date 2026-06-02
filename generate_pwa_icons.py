@@ -10,14 +10,14 @@ except ImportError:
     sys.exit(1)
 
 
-def generate_pwa_icons(source_file: str, output_folder: str):
+def generate_pwa_icons(source_file: Path, output_folder: Path):
     """
     Gera ícones PWA nos tamanhos padrão a partir de uma imagem de origem.
     Utiliza a biblioteca Pillow para garantir alta qualidade no redimensionamento.
     """
     sizes = [192, 512]
-    src = Path(source_file)
-    dest = Path(output_folder)
+    src = source_file
+    dest = output_folder
 
     if not src.exists():
         print(f"❌ Erro: Imagem de origem '{source_file}' não encontrada.")
@@ -25,10 +25,10 @@ def generate_pwa_icons(source_file: str, output_folder: str):
         return
 
     if not dest.exists():
-        print(f"❌ Erro: Pasta de destino '{output_folder}' não encontrada.")
-        return
+        print(f"📂 Criando pasta de destino: {dest}")
+        dest.mkdir(parents=True, exist_ok=True)
 
-    print(f"🚀 Iniciando processamento de ícones a partir de: {src.name}")
+    print(f"🚀 Iniciando processamento de ícones a partir de: {src.absolute()}")
 
     try:
         with Image.open(src) as img:
@@ -38,6 +38,10 @@ def generate_pwa_icons(source_file: str, output_folder: str):
             for size in sizes:
                 icon_filename = f"icon-{size}x{size}.png"
                 target_path = dest / icon_filename
+
+                # Remove placeholder antigo se for um arquivo vazio
+                if target_path.exists() and target_path.stat().st_size == 0:
+                    target_path.unlink()
 
                 # Redimensionamento de alta qualidade usando o algoritmo LANCZOS
                 resized = img.resize((size, size), Image.Resampling.LANCZOS)
@@ -50,9 +54,9 @@ def generate_pwa_icons(source_file: str, output_folder: str):
 
 
 if __name__ == "__main__":
-    # Caminhos absolutos conforme a estrutura do projeto Central Transfers
-    PROJECT_ROOT = "c:/Users/rolof/Desktop/central-transfers"
-    SOURCE = os.path.join(PROJECT_ROOT, "logo.png")
-    OUTPUT = os.path.join(PROJECT_ROOT, "painel-saas/public")
+    # Detecta automaticamente a raiz baseada no local do script
+    BASE_DIR = Path(__file__).parent
+    SOURCE = BASE_DIR / "logo.png"
+    OUTPUT = BASE_DIR / "painel-saas" / "public"
 
     generate_pwa_icons(SOURCE, OUTPUT)

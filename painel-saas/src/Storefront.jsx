@@ -5,8 +5,8 @@ import { API_URL } from './App';
 // Configuração de Branding
 const tenantConfig = {
   name: 'LUXE SERRA',
-  primaryColor: '#4c1d95',
-  secondaryColor: '#7c3aed',
+  primaryColor: '#2563EB',
+  secondaryColor: '#1E293B',
   heroImage: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&q=80&w=2000',
   welcomeMessage: 'Sua Jornada de Luxo Começa Aqui'
 };
@@ -14,9 +14,9 @@ const tenantConfig = {
 const THEME = {
   primary: tenantConfig.primaryColor,
   secondary: tenantConfig.secondaryColor,
-  bg: '#F8FAFC',
-  surface: '#FFFFFF',
-  text: '#1e293b',
+  bg: '#0B0F19',
+  surface: '#1E293B',
+  text: '#FFFFFF',
   muted: '#64748b'
 };
 
@@ -159,24 +159,38 @@ export default function Storefront() {
     <div style={styles.container}>
       <style>{`
         @media (max-width: 768px) {
+          .hero-section { height: 320px !important; }
+          .hero-title { font-size: 32px !important; }
+          .service-grid { 
+            grid-template-columns: 1fr !important; 
+            padding: 20px 15px 120px !important;
+            gap: 20px !important;
+          }
+          .drawer-full-mobile { 
+            width: 100% !important; 
+            max-width: 100% !important; 
+          }
           .footer-social-links {
             flex-direction: column !important;
             align-items: center !important;
             gap: 15px !important;
           }
         }
+        body { background-color: #0B0F19; }
+        input::placeholder { color: #94A3B8; }
       `}</style>
       {/* Navbar */}
       <nav style={styles.navbar}>
         <div style={styles.logo}>{tenantConfig.name}</div>
         <div style={styles.cartBtn} onClick={() => setIsCartOpen(true)}>
-          🛒 <span style={styles.cartBadge}>{cart.reduce((acc, i) => acc + (i.quantidade || 1), 0)}</span>
+          <span style={{fontSize: '24px'}}>💼</span> 
+          <span style={styles.cartBadge}>{cart.reduce((acc, i) => acc + (i.quantidade || 1), 0)}</span>
         </div>
       </nav>
 
       {/* Hero */}
-      <header style={{...styles.hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${tenantConfig.heroImage})`}}>
-        <h1 style={styles.heroTitle}>{tenantConfig.welcomeMessage}</h1>
+      <header className="hero-section" style={{...styles.hero, backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${tenantConfig.heroImage})`}}>
+        <h1 className="hero-title" style={styles.heroTitle}>{tenantConfig.welcomeMessage}</h1>
         <p>Conforto e Segurança na Serra Gaúcha</p>
       </header>
 
@@ -186,7 +200,7 @@ export default function Storefront() {
           <button 
             key={cat} 
             onClick={() => setCategory(cat)}
-            style={{...styles.filterBtn, background: category === cat ? THEME.primary : '#fff', color: category === cat ? '#fff' : THEME.text}}
+            style={{...styles.filterBtn, background: category === cat ? THEME.primary : THEME.surface, color: '#fff', borderColor: category === cat ? THEME.primary : 'rgba(255,255,255,0.1)'}}
           >
             {cat}
           </button>
@@ -194,7 +208,7 @@ export default function Storefront() {
       </div>
 
       {/* Services Grid */}
-      <main style={styles.serviceGrid}>
+      <main className="service-grid" style={styles.serviceGrid}>
         {loading ? (
           <p>Carregando experiências...</p>
         ) : (
@@ -237,8 +251,8 @@ export default function Storefront() {
       {/* Cart Drawer Overlay */}
       {isCartOpen && (
         <div style={styles.drawerOverlay} onClick={() => setIsCartOpen(false)}>
-          <div style={styles.drawer} onClick={e => e.stopPropagation()}>
-            <div style={styles.drawerHeader}>
+          <div className="drawer-full-mobile" style={{...styles.drawer, background: '#0B0F19', color: '#fff'}} onClick={e => e.stopPropagation()}>
+            <div style={{...styles.drawerHeader, borderBottom: '1px solid rgba(255,255,255,0.1)'}}>
               <h2 style={styles.drawerTitle}>Sua Reserva</h2>
               <button style={styles.closeBtn} onClick={() => setIsCartOpen(false)}>✕</button>
             </div>
@@ -252,7 +266,7 @@ export default function Storefront() {
                     {cart.map((item, index) => (
                       <div key={index} style={styles.cartItem}>
                         <div style={{flex: 1}}>
-                          <h4 style={{margin: 0}}>{item.nome}</h4>
+                          <h4 style={{margin: 0, color: '#fff'}}>{item.nome}</h4>
                           <div style={styles.qtyContainer}>
                             <button style={styles.qtyBtn} onClick={() => updateQuantity(index, -1)}>-</button>
                             <span style={styles.qtyValue}>{item.quantidade || 1}</span>
@@ -260,7 +274,7 @@ export default function Storefront() {
                           </div>
                         </div>
                         <div style={{textAlign: 'right'}}>
-                          <div style={{fontWeight: 'bold'}}>R$ {(item.valor * (item.quantidade || 1)).toFixed(2)}</div>
+                          <div style={{fontWeight: 'bold', color: THEME.primary}}>R$ {(item.valor * (item.quantidade || 1)).toFixed(2)}</div>
                           <button style={styles.removeItemBtn} onClick={() => removeFromCart(index)}>Remover</button>
                         </div>
                       </div>
@@ -276,13 +290,13 @@ export default function Storefront() {
             </div>
 
             {cart.length > 0 && (
-              <div style={styles.drawerFooter}>
+              <div style={{...styles.drawerFooter, background: '#1E293B', borderTop: 'none'}}>
                 <div style={styles.totalRow}>
                   <span>Total</span>
                   <span>R$ {cart.reduce((acc, curr) => acc + (curr.valor * (curr.quantidade || 1)), 0).toFixed(2)}</span>
                 </div>
                 <button 
-                  style={{...styles.checkoutBtn, opacity: isCheckingOut ? 0.7 : 1}} 
+                  style={{...styles.checkoutBtn, background: THEME.primary, opacity: isCheckingOut ? 0.7 : 1}} 
                   disabled={isCheckingOut}
                   onClick={handleCheckout}
                 >
@@ -298,39 +312,34 @@ export default function Storefront() {
 }
 
 const styles = {
-  container: {
-    background: THEME.bg,
-    color: THEME.text,
-    minHeight: '100vh',
-    fontFamily: '"Inter", sans-serif'
-  },
-  navbar: { display: 'flex', justifyContent: 'space-between', padding: '20px 5%', background: '#fff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 },
+  container: { background: '#0B0F19', color: '#fff', minHeight: '100vh', fontFamily: '"Inter", sans-serif' },
+  navbar: { display: 'flex', justifyContent: 'space-between', padding: '20px 5%', background: '#0B0F19', borderBottom: '1px solid rgba(255,255,255,0.05)', position: 'sticky', top: 0, zIndex: 100 },
   logo: { fontSize: '20px', fontWeight: '900', color: THEME.primary, letterSpacing: '1px' },
-  cartBtn: { cursor: 'pointer', position: 'relative', fontSize: '20px' },
+  cartBtn: { cursor: 'pointer', position: 'relative' },
   cartBadge: { position: 'absolute', top: '-8px', right: '-8px', background: THEME.primary, color: '#fff', fontSize: '10px', width: '18px', height: '18px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   hero: { height: '400px', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', color: '#fff', textAlign: 'center', padding: '0 20px' },
   heroTitle: { fontSize: '48px', fontWeight: '900', marginBottom: '10px' },
   filters: { display: 'flex', justifyContent: 'center', gap: '10px', padding: '40px 20px', overflowX: 'auto' },
   filterBtn: { padding: '10px 20px', borderRadius: '30px', border: '1px solid #e2e8f0', cursor: 'pointer', fontWeight: '600', transition: '0.2s' },
   serviceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px', padding: '0 5% 80px' },
-  card: { background: '#fff', borderRadius: '20px', overflow: 'hidden', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', border: '1px solid #e2e8f0' },
+  card: { background: '#1E293B', borderRadius: '20px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' },
   imageContainer: { height: '200px', position: 'relative' },
   cardImage: { width: '100%', height: '100%', objectFit: 'cover' },
-  priceBadge: { position: 'absolute', bottom: '15px', right: '15px', background: THEME.secondary, color: '#fff', padding: '5px 15px', borderRadius: '30px', fontWeight: 'bold' },
+  priceBadge: { position: 'absolute', bottom: '15px', right: '15px', background: THEME.primary, color: '#fff', padding: '5px 15px', borderRadius: '30px', fontWeight: '900' },
   cardContent: { padding: '20px' },
-  cardTitle: { fontSize: '18px', margin: '0 0 10px 0', color: THEME.text },
+  cardTitle: { fontSize: '18px', margin: '0 0 10px 0', color: '#fff' },
   cardDesc: { fontSize: '14px', color: THEME.muted, marginBottom: '20px', lineHeight: '1.5' },
   bookBtn: { width: '100%', padding: '12px', background: THEME.primary, color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' },
-  drawerOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 },
+  drawerOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, backdropFilter: 'blur(4px)' },
   drawer: { position: 'absolute', top: 0, right: 0, width: '100%', maxWidth: '400px', height: '100%', background: '#fff', display: 'flex', flexDirection: 'column' },
   drawerHeader: { padding: '20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   drawerTitle: { margin: 0, fontSize: '20px' },
-  closeBtn: { background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#fff' },
   drawerContent: { flex: 1, overflowY: 'auto', padding: '20px' },
   cartList: { marginBottom: '30px' },
-  cartItem: { display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderBottom: '1px solid #f1f5f9' },
+  cartItem: { display: 'flex', justifyContent: 'space-between', padding: '15px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' },
   qtyContainer: { display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' },
-  qtyBtn: { width: '24px', height: '24px', borderRadius: '5px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' },
+  qtyBtn: { width: '28px', height: '28px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: '#1E293B', cursor: 'pointer', color: '#fff' },
   qtyValue: { fontSize: '14px', fontWeight: 'bold' },
   removeItemBtn: { background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', marginTop: '5px' },
   formSection: { marginTop: '20px' },
@@ -340,17 +349,19 @@ const styles = {
     padding: '12px',
     marginBottom: '15px',
     borderRadius: '8px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid rgba(255,255,255,0.1)',
+    background: '#1E293B',
+    color: '#fff',
     fontSize: '14px',
     boxSizing: 'border-box',
     outline: 'none'
   },
-  drawerFooter: { padding: '20px', borderTop: '1px solid #e2e8f0', background: '#f8fafc' },
-  totalRow: { display: 'flex', justifyContent: 'space-between', fontSize: '20px', fontWeight: '900', marginBottom: '15px' },
-  checkoutBtn: { width: '100%', padding: '18px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '15px', fontWeight: '900', fontSize: '16px', cursor: 'pointer' },
-  footer: { backgroundColor: '#fff', padding: '60px 5% 40px', borderTop: '1px solid #e2e8f0', textAlign: 'center' },
+  drawerFooter: { padding: '25px 20px calc(20px + env(safe-area-inset-bottom))' },
+  totalRow: { display: 'flex', justifyContent: 'space-between', fontSize: '22px', fontWeight: '900', marginBottom: '20px' },
+  checkoutBtn: { width: '100%', padding: '20px', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: '900', fontSize: '16px', cursor: 'pointer', boxShadow: '0 10px 20px rgba(37, 99, 235, 0.3)' },
+  footer: { backgroundColor: '#0B0F19', padding: '60px 5% 40px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' },
   footerBrand: { marginBottom: '30px' },
   socialLinks: { display: 'flex', justifyContent: 'center', gap: '25px', marginBottom: '30px' },
-  socialLink: { color: THEME.text, textDecoration: 'none', fontWeight: '600', fontSize: '14px', transition: '0.2s' },
-  footerCopyright: { fontSize: '12px', color: THEME.muted, borderTop: '1px solid #f1f5f9', paddingTop: '20px' }
+  socialLink: { color: '#fff', textDecoration: 'none', fontWeight: '600', fontSize: '14px', transition: '0.2s' },
+  footerCopyright: { fontSize: '12px', color: THEME.muted, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }
 };

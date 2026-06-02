@@ -202,13 +202,23 @@ export default function DriverApp() {
 
   return (
     <div style={styles.container}>
+      <style>{`
+        body { 
+          background-color: #0B0F19;
+          overscroll-behavior-y: contain; /* Impede pull-to-refresh acidental */
+          user-select: none; /* Deixa com cara de app nativo */
+          -webkit-tap-highlight-color: transparent;
+        }
+        input, textarea { user-select: auto !important; } /* Permite digitar */
+      `}</style>
+
       {!isBrowserOnline && (
         <div style={styles.offlineBanner}>
           ⚠️ DISPOSITIVO OFFLINE. EXIBINDO DADOS LOCAIS.
         </div>
       )}
       
-      <header style={{...styles.header, backgroundColor: isOnline ? (isBrowserOnline ? '#10b981' : '#f59e0b') : '#1e293b'}}>
+      <header style={{...styles.header, backgroundColor: isOnline ? (isBrowserOnline ? '#2563EB' : '#f59e0b') : '#1E293B'}}>
         <div style={styles.userInfo}>
           {driverProfile.foto ? (
             <img src={driverProfile.foto} alt="Perfil" style={styles.avatarImg} />
@@ -217,18 +227,18 @@ export default function DriverApp() {
           )}
           <div>
             <span style={{color: '#fff', fontWeight: 'bold', display: 'block'}}>Olá, {driverProfile.nome}</span>
-            <span style={styles.badgeNivel}>🏆 Categoria {driverProfile.nivel}</span>
+            <span style={styles.badgeNivel}>Categoria {driverProfile.nivel}</span>
           </div>
         </div>
         <div style={styles.statusToggle} onClick={() => setIsOnline(!isOnline)}>
-          <div style={{...styles.toggleCircle, left: isOnline ? '32px' : '4px'}} />
+          <div style={{...styles.toggleCircle, left: isOnline ? '40px' : '4px', background: isOnline ? '#fff' : '#94A3B8'}} />
           <span style={styles.statusText}>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
         </div>
       </header>
 
       <nav style={styles.tabs}>
         <button onClick={() => setActiveTab('agenda')} style={activeTab === 'agenda' ? styles.tabActive : styles.tab}>📅 Agenda</button>
-        <button onClick={() => setActiveTab('historico')} style={activeTab === 'historico' ? styles.tabActive : styles.tab}>📊 Histórico</button>
+        <button onClick={() => setActiveTab('historico')} style={activeTab === 'historico' ? styles.tabActive : styles.tab}>📈 Ganhos</button>
         <button onClick={() => setActiveTab('perfil')} style={activeTab === 'perfil' ? styles.tabActive : styles.tab}>👤 Perfil</button>
       </nav>
 
@@ -236,7 +246,7 @@ export default function DriverApp() {
         {activeTab === 'agenda' && (
           <div>
             <div style={styles.mapPlaceholder}>
-              <div style={styles.mapGradient} />
+              <div style={{...styles.mapGradient, background: 'radial-gradient(circle, transparent 30%, #0B0F19 100%)'}} />
               <div style={styles.mapOverlay}>
                 <div style={styles.locationPulse} />
                 <p style={{fontSize: '13px', color: '#fff', fontWeight: 'bold'}}>{isOnline ? 'Rastreando localização ativa...' : 'Fique online para receber chamadas'}</p>
@@ -248,7 +258,7 @@ export default function DriverApp() {
               {myOrders.map(order => (
                 <div key={order.id} style={styles.card}>
                   <div style={styles.cardHeader}>
-                    <div style={styles.orderType}>TRANSFER PRIVATIVO</div>
+                    <div style={styles.orderType}>PREMIUM TRANSFER</div>
                     <span style={styles.timeTag}>⏰ {new Date(order.data_servico).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     <span style={styles.priceTag}>R$ {Number(order.valor).toFixed(2)}</span>
                   </div>
@@ -269,7 +279,7 @@ export default function DriverApp() {
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={() => openInMaps(order.origem, order.destino)} style={styles.btnSecondary}>📍 NAVEGAR</button>
                     {order.status !== 'CONCLUIDO' ? (
-                      <button onClick={() => updateStatus(order.id, 'CONCLUIDO')} style={styles.btnAction}>CONCLUIR</button>
+                      <button onClick={() => updateStatus(order.id, 'CONCLUIDO')} style={styles.btnAction}>CONCLUIR VIAGEM</button>
                     ) : (
                       <button disabled style={{...styles.btnAction, background: '#10b981'}}>✓ FINALIZADO</button>
                     )}
@@ -291,7 +301,7 @@ export default function DriverApp() {
             <div style={styles.earningsCard}>
               <span style={styles.earningsLabel}>Faturamento Bruto ({historyPeriod})</span>
               <h2 style={styles.earningsValue}>{activeHistory.faturamento}</h2>
-              <div style={styles.statsRow}>
+              <div style={{...styles.statsRow, color: '#F1F5F9'}}>
                 <span>🚗 {activeHistory.corridas} viagens</span>
                 <span>🛣️ {activeHistory.km}</span>
               </div>
@@ -319,9 +329,9 @@ export default function DriverApp() {
                     <Line 
                       type="monotone" 
                       dataKey="valor" 
-                      stroke="#7c3aed" 
+                      stroke="#2563EB" 
                       strokeWidth={3} 
-                      dot={{ r: 4, fill: '#7c3aed', strokeWidth: 2, stroke: '#0a0f1e' }} 
+                      dot={{ r: 4, fill: '#2563EB', strokeWidth: 2, stroke: '#0B0F19' }} 
                       activeDot={{ r: 6, strokeWidth: 0 }}
                     />
                   </LineChart>
@@ -333,11 +343,11 @@ export default function DriverApp() {
             {activeHistory.lista.map(item => (
               <div key={item.id} style={styles.historyItem}>
                 <div>
-                  <span style={{fontSize: '11px', color: '#7c3aed', fontWeight: 'bold'}}>{item.data}</span>
+                  <span style={{fontSize: '11px', color: '#2563EB', fontWeight: 'bold'}}>{item.data}</span>
                   <p style={{margin: '3px 0 0', fontSize: '14px', fontWeight: '500'}}>{item.rota}</p>
                 </div>
                 <div style={{textAlign: 'right'}}>
-                  <span style={{color: '#10b981', fontWeight: 'bold'}}>R$ {item.valor.toFixed(2)}</span>
+                  <span style={{color: '#fff', fontWeight: 'bold'}}>R$ {item.valor.toFixed(2)}</span>
                   <span style={{display: 'block', fontSize: '10px', color: '#94a3b8'}}>{item.status}</span>
                 </div>
               </div>
@@ -387,7 +397,7 @@ export default function DriverApp() {
             </div>
 
             <div style={styles.profileBox}>
-              <h4 style={{margin: '0 0 15px 0', color: '#7c3aed'}}>🔐 Alteração de Segurança</h4>
+              <h4 style={{margin: '0 0 15px 0', color: '#2563EB'}}>🔐 Segurança</h4>
               <form onSubmit={handlePasswordChange} style={styles.passwordForm}>
                 <div style={styles.inputWrapper}>
                   <label style={{fontSize: '11px', color: '#64748b'}}>Senha Atual</label>
@@ -416,7 +426,7 @@ export default function DriverApp() {
             <p style={{margin: '5px 0', color: '#334155'}}><strong>Para:</strong> {mockOrder?.destino}</p>
             <div style={styles.modalPrice}>R$ {mockOrder?.valor.toFixed(2)}</div>
             <div style={styles.modalButtons}>
-              <button onClick={handleCloseModal} style={styles.btnReject}>Recusar</button>
+              <button onClick={handleCloseModal} style={styles.btnReject}>Ignorar</button>
               <button onClick={() => { handleCloseModal(); updateStatus(mockOrder.id, 'ACEITO'); }} style={styles.btnAccept}>ACEITAR</button>
             </div>
           </div>
@@ -427,38 +437,50 @@ export default function DriverApp() {
 }
 
 const styles = {
-  container: { background: '#0a0f1e', minHeight: '100vh', paddingBottom: '40px', fontFamily: '"Inter", sans-serif', color: '#fff' },
+  container: { 
+    background: '#0B0F19', 
+    minHeight: '100vh', 
+    paddingBottom: 'calc(40px + env(safe-area-inset-bottom))', 
+    fontFamily: '"Inter", sans-serif', 
+    color: '#fff' 
+  },
   offlineBanner: { background: '#ef4444', color: '#fff', textAlign: 'center', fontSize: '12px', padding: '8px', fontWeight: 'bold' },
-  header: { padding: '45px 20px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: '0.3s' },
+  header: { 
+    padding: 'calc(env(safe-area-inset-top) + 20px) 20px 20px', 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    transition: '0.3s' 
+  },
   userInfo: { display: 'flex', alignItems: 'center', gap: '12px' },
-  miniAvatar: { width: '38px', height: '38px', background: '#7c3aed', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' },
-  avatarImg: { width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #7c3aed' },
-  badgeNivel: { fontSize: '10px', background: 'rgba(255,255,255,0.15)', padding: '2px 6px', borderRadius: '4px', marginTop: '3px', display: 'inline-block' },
-  statusToggle: { width: '70px', height: '32px', background: 'rgba(255,255,255,0.2)', borderRadius: '20px', position: 'relative', cursor: 'pointer' },
+  miniAvatar: { width: '38px', height: '38px', background: '#2563EB', borderRadius: '50%', display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '14px', fontWeight: 'bold' },
+  avatarImg: { width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #2563EB' },
+  badgeNivel: { fontSize: '10px', background: 'rgba(255,255,255,0.15)', padding: '2px 6px', borderRadius: '4px', marginTop: '3px', display: 'inline-block', fontWeight: 'bold' },
+  statusToggle: { width: '70px', height: '32px', background: 'rgba(0,0,0,0.3)', borderRadius: '20px', position: 'relative', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)' },
   toggleCircle: { width: '24px', height: '24px', background: '#fff', borderRadius: '50%', position: 'absolute', top: '4px', transition: '0.3s' },
   statusText: { position: 'absolute', fontSize: '9px', fontWeight: 'bold', top: '10px', right: '8px', color: '#fff' },
-  tabs: { display: 'flex', gap: '5px', padding: '15px 15px 5px', background: '#0f172a' },
+  tabs: { display: 'flex', gap: '5px', padding: '15px 15px 5px', background: '#0B0F19' },
   tab: { flex: 1, padding: '12px 5px', borderRadius: '10px', border: 'none', background: 'transparent', color: '#94a3b8', fontSize: '13px', cursor: 'pointer' },
-  tabActive: { flex: 1, padding: '12px 5px', borderRadius: '10px', border: 'none', background: '#1e293b', color: '#7c3aed', fontWeight: 'bold', fontSize: '13px' },
+  tabActive: { flex: 1, padding: '12px 5px', borderRadius: '10px', border: 'none', background: '#1E293B', color: '#2563EB', fontWeight: 'bold', fontSize: '13px' },
   content: { paddingTop: '15px' },
   sectionTitle: { fontSize: '15px', color: '#94a3b8', margin: '0 0 15px 20px', fontWeight: '600' },
-  mapPlaceholder: { height: '140px', background: '#111827', margin: '0 15px 20px', borderRadius: '20px', position: 'relative', overflow: 'hidden', border: '1px solid #1e293b' },
+  mapPlaceholder: { height: '140px', background: '#1E293B', margin: '0 15px 20px', borderRadius: '20px', position: 'relative', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' },
   mapGradient: { position: 'absolute', width: '100%', height: '100%', background: 'radial-gradient(circle, transparent 30%, #0a0f1e 100%)' },
   mapOverlay: { position: 'absolute', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
-  locationPulse: { width: '12px', height: '12px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 0 10px rgba(16, 185, 129, 0.3)', marginBottom: '10px' },
-  card: { background: '#111827', margin: '0 15px 15px', padding: '18px', borderRadius: '20px', border: '1px solid #1e293b' },
+  locationPulse: { width: '12px', height: '12px', background: '#2563EB', borderRadius: '50%', boxShadow: '0 0 0 10px rgba(37, 99, 235, 0.3)', marginBottom: '10px' },
+  card: { background: '#1E293B', margin: '0 15px 15px', padding: '18px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
-  orderType: { fontSize: '10px', fontWeight: 'bold', color: '#a78bfa', background: 'rgba(124,58,237,0.1)', padding: '3px 8px', borderRadius: '5px' },
-  timeTag: { background: '#1e293b', padding: '4px 8px', borderRadius: '6px', fontSize: '11px' },
-  priceTag: { color: '#10b981', fontWeight: 'bold', fontSize: '16px' },
+  orderType: { fontSize: '10px', fontWeight: 'bold', color: '#2563EB', background: 'rgba(37, 99, 235, 0.1)', padding: '4px 8px', borderRadius: '5px' },
+  timeTag: { background: '#0B0F19', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', color: '#94A3B8' },
+  priceTag: { color: '#fff', fontWeight: '900', fontSize: '18px' },
   route: { display: 'flex', gap: '12px', marginBottom: '15px' },
   dotLine: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', paddingTop: '4px' },
-  dot: { width: '7px', height: '7px', background: '#10b981', borderRadius: '50%' },
+  dot: { width: '7px', height: '7px', background: '#F1F5F9', borderRadius: '50%' },
   line: { width: '1px', height: '25px', background: '#334155' },
-  dotSquare: { width: '7px', height: '7px', background: '#7c3aed' },
+  dotSquare: { width: '7px', height: '7px', background: '#2563EB' },
   address: { fontSize: '12px', margin: '0 0 6px 0', color: '#cbd5e1' },
-  obsCard: { background: '#1e293b', padding: '10px', borderRadius: '8px', fontSize: '12px', marginBottom: '15px', color: '#94a3b8', borderLeft: '3px solid #7c3aed' },
-  btnAction: { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#7c3aed', color: '#fff', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' },
+  obsCard: { background: '#0B0F19', padding: '10px', borderRadius: '8px', fontSize: '12px', marginBottom: '15px', color: '#94a3b8', borderLeft: '3px solid #2563EB' },
+  btnAction: { flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: '#2563EB', color: '#fff', fontWeight: 'bold', fontSize: '13px', cursor: 'pointer' },
   btnSecondary: { padding: '12px 20px', borderRadius: '10px', border: '1px solid #334155', background: 'transparent', color: '#cbd5e1', fontWeight: '500', fontSize: '13px', cursor: 'pointer' },
   periodFilterContainer: { display: 'flex', background: '#111827', padding: '5px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #1e293b' },
   btnFilter: { flex: 1, background: 'transparent', border: 'none', color: '#64748b', padding: '8px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' },

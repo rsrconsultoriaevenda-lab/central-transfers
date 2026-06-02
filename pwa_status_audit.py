@@ -9,18 +9,33 @@ def calculate_pwa_readiness():
     steps = []
 
     # 1. Manifest
-    manifest_exists = any(Path("painel-saas/public").glob("manifest.*"))
-    if manifest_exists:
-        score += 1
-        steps.append("✅ Web Manifest configurado")
+    manifest_files = list(Path("painel-saas/public").glob("manifest.*"))
+    if manifest_files:
+        try:
+            with open(manifest_files[0], "r", encoding="utf-8") as f:
+                content = json.load(f)
+                if content.get("name") == "CENTRAL TRANSFER":
+                    score += 1
+                    steps.append("✅ Web Manifest com nome 'CENTRAL TRANSFER'")
+                else:
+                    steps.append(
+                        f"⚠️ Manifest com nome incorreto: '{content.get('name')}'")
+        except Exception:
+            steps.append("❌ Erro ao ler manifest.json")
     else:
         steps.append("❌ Faltando manifest.json/webmanifest")
 
     # 2. Service Worker
-    sw_exists = os.path.exists("painel-saas/public/sw.js")
-    if sw_exists:
-        score += 1
-        steps.append("✅ Service Worker implementado")
+    sw_path = Path("painel-saas/public/sw.js")
+    if sw_path.exists():
+        with open(sw_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            if "CENTRAL TRANSFER" in content:
+                score += 1
+                steps.append(
+                    "✅ Service Worker configurado com 'CENTRAL TRANSFER'")
+            else:
+                steps.append("⚠️ sw.js existe mas não contém o nome da marca")
     else:
         steps.append("❌ Faltando sw.js")
 
@@ -52,8 +67,8 @@ def calculate_pwa_readiness():
     for ext in [".tsx", ".jsx"]:
         app_path = Path(f"painel-saas/src/App{ext}")
         if app_path.exists():
-            found_app = True
-            with open(app_path, "r") as f:
+            found_app = True  # Set found_app to true here
+            with open(app_path, "r", encoding="utf-8") as f:  # Specify UTF-8 encoding
                 if "PWAIntegration" in f.read():
                     score += 1
                     steps.append(f"✅ Registro de PWA no App{ext}")

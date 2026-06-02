@@ -17,6 +17,7 @@ import {
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 
 import Login from './Login';
+import PWAIntegration from './components/PWAIntegration';
 import DriverApp from './DriverApp';
 import Storefront from './Storefront';
 import Success from './Success';
@@ -799,6 +800,7 @@ function Dashboard() {
 export default function App() {
   return (
     <Router>
+      <PWAIntegration />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/driver" element={<ProtectedRoute allowedRoles={['motorista', 'admin']}><DriverApp /></ProtectedRoute>} />

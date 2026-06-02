@@ -43,8 +43,8 @@ def disparar_teste_vibracao(motorista_id=None):
         print(f"🚀 Enviando Push de teste para {motorista.nome}...")
 
         data = {
-            "title": "🚨 TESTE DE EMERGÊNCIA",
-            "body": "Se o seu celular vibrou, a Central Transfers está operando 100%!",
+            "title": "🚨 CENTRAL TRANSFER - TESTE",
+            "body": "Se o seu celular vibrou, a CENTRAL TRANSFER está operando 100%!",
             # Ritmo de alerta
             "vibrate": [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40]
         }

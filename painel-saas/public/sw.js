@@ -20,8 +20,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/pwa-192x192.png', // Certifique-se de que este ícone existe em public/
-    badge: '/pwa-192x192.png',
+    icon: '/icon-192x192.png', // Ajustado para bater com o gerador pwa_finalize.py
+    badge: '/icon-192x192.png',
     vibrate: data.vibrate,
     data: {
       url: data.url
